@@ -1,0 +1,251 @@
+import { Request, Response } from 'express';
+import { pool } from '../config/database';
+import { AppError } from '../middleware/errorHandler';
+
+export const getProfitAndLoss = async (req: Request, res: Response) => {
+  const { start_date, end_date } = req.query;
+
+  if (!start_date || !end_date) {
+    throw new AppError('start_date and end_date are required', 400);
+  }
+
+  const result = await pool.query(`
+    WITH account_balances AS (
+      SELECT
+        a.account_code,
+        a.account_name,
+        a.account_type,
+        SUM(jel.credit_amount - jel.debit_amount) as balance
+      FROM accounts a
+      LEFT JOIN journal_entry_lines jel ON a.account_id = jel.account_id
+      LEFT JOIN journal_entries je ON jel.journal_id = je.journal_id
+      WHERE je.status = 'POSTED'
+        AND je.entry_date >= $1
+        AND je.entry_date <= $2
+        AND a.account_type IN ('REVENUE', 'EXPENSE')
+      GROUP BY a.account_id, a.account_code, a.account_name, a.account_type
+    )
+    SELECT * FROM account_balances
+    ORDER BY account_code
+  `, [start_date, end_date]);
+
+  const accounts = result.rows;
+
+  // Calculate metrics
+  const revenue = accounts
+    .filter(a => a.account_type === 'REVENUE' && a.account_code === '4000')
+    .reduce((sum, a) => sum + parseFloat(a.balance), 0);
+
+  const returns = Math.abs(accounts
+    .filter(a => a.account_code === '4010')
+    .reduce((sum, a) => sum + parseFloat(a.balance), 0));
+
+  const discounts = Math.abs(accounts
+    .filter(a => a.account_code === '4020')
+    .reduce((sum, a) => sum + parseFloat(a.balance), 0));
+
+  const gatewayCharges = Math.abs(accounts
+    .filter(a => a.account_code === '4030')
+    .reduce((sum, a) => sum + parseFloat(a.balance), 0));
+
+  const netRevenue = revenue - returns - discounts;
+
+  const cogs = accounts
+    .filter(a => a.account_type === 'EXPENSE' && a.account_code.startsWith('5'))
+    .reduce((sum, a) => sum + Math.abs(parseFloat(a.balance)), 0);
+
+  const grossProfit = netRevenue - cogs;
+  const grossMargin = netRevenue > 0 ? (grossProfit / netRevenue) * 100 : 0;
+
+  const variableExpenses = accounts
+    .filter(a => ['6000', '6010'].includes(a.account_code))
+    .reduce((sum, a) => sum + Math.abs(parseFloat(a.balance)), 0) + gatewayCharges;
+
+  const contributionMargin = grossProfit - variableExpenses;
+  const contributionMarginPct = netRevenue > 0 ? (contributionMargin / netRevenue) * 100 : 0;
+
+  const marketingExpenses = accounts
+    .filter(a => a.account_code.startsWith('60') && parseInt(a.account_code) >= 6020 && parseInt(a.account_code) <= 6050)
+    .reduce((sum, a) => sum + Math.abs(parseFloat(a.balance)), 0);
+
+  const fixedExpenses = accounts
+    .filter(a => a.account_code.startsWith('6') && parseInt(a.account_code) >= 6100)
+    .reduce((sum, a) => sum + Math.abs(parseFloat(a.balance)), 0);
+
+  const operatingExpenses = marketingExpenses + fixedExpenses;
+  const operatingProfit = contributionMargin - operatingExpenses;
+  const operatingMargin = netRevenue > 0 ? (operatingProfit / netRevenue) * 100 : 0;
+
+  // Get order metrics
+  const orderMetrics = await pool.query(`
+    SELECT
+      COUNT(*) as order_count,
+      AVG(net_amount) as avg_order_value
+    FROM orders
+    WHERE order_date >= $1 AND order_date <= $2
+      AND status != 'RETURNED'
+  `, [start_date, end_date]);
+
+  const orders = parseInt(orderMetrics.rows[0]?.order_count || '0');
+  const aov = parseFloat(orderMetrics.rows[0]?.avg_order_value || '0');
+  const blendedCAC = orders > 0 ? marketingExpenses / orders : 0;
+  const mer = marketingExpenses > 0 ? netRevenue / marketingExpenses : 0;
+
+  res.json({
+    success: true,
+    data: {
+      period: {
+        start_date,
+        end_date
+      },
+      summary: {
+        gross_revenue: revenue,
+        returns,
+        discounts,
+        net_revenue: netRevenue,
+        cogs,
+        gross_profit: grossProfit,
+        gross_margin: grossMargin,
+        variable_expenses: variableExpenses,
+        contribution_margin: contributionMargin,
+        contribution_margin_pct: contributionMarginPct,
+        operating_expenses: operatingExpenses,
+        marketing_expenses: marketingExpenses,
+        fixed_expenses: fixedExpenses,
+        operating_profit: operatingProfit,
+        operating_margin: operatingMargin
+      },
+      d2c_metrics: {
+        orders,
+        aov: Math.round(aov),
+        blended_cac: Math.round(blendedCAC),
+        mer: mer.toFixed(2),
+        gross_margin_per_order: orders > 0 ? Math.round(grossProfit / orders) : 0,
+        contribution_margin_per_order: orders > 0 ? Math.round(contributionMargin / orders) : 0
+      },
+      accounts
+    }
+  });
+};
+
+export const getBalanceSheet = async (req: Request, res: Response) => {
+  const { as_of_date } = req.query;
+
+  if (!as_of_date) {
+    throw new AppError('as_of_date is required', 400);
+  }
+
+  const result = await pool.query(`
+    WITH account_balances AS (
+      SELECT
+        a.account_code,
+        a.account_name,
+        a.account_type,
+        CASE
+          WHEN a.account_type IN ('ASSET', 'EXPENSE') THEN
+            SUM(jel.debit_amount - jel.credit_amount)
+          ELSE
+            SUM(jel.credit_amount - jel.debit_amount)
+        END as balance
+      FROM accounts a
+      LEFT JOIN journal_entry_lines jel ON a.account_id = jel.account_id
+      LEFT JOIN journal_entries je ON jel.journal_id = je.journal_id
+      WHERE je.status = 'POSTED'
+        AND je.entry_date <= $1
+        AND a.account_type IN ('ASSET', 'LIABILITY', 'EQUITY')
+      GROUP BY a.account_id, a.account_code, a.account_name, a.account_type
+    )
+    SELECT * FROM account_balances
+    WHERE balance != 0
+    ORDER BY account_code
+  `, [as_of_date]);
+
+  const accounts = result.rows;
+
+  const assets = accounts
+    .filter(a => a.account_type === 'ASSET')
+    .reduce((sum, a) => sum + parseFloat(a.balance), 0);
+
+  const liabilities = accounts
+    .filter(a => a.account_type === 'LIABILITY')
+    .reduce((sum, a) => sum + parseFloat(a.balance), 0);
+
+  const equity = accounts
+    .filter(a => a.account_type === 'EQUITY')
+    .reduce((sum, a) => sum + parseFloat(a.balance), 0);
+
+  res.json({
+    success: true,
+    data: {
+      as_of_date,
+      summary: {
+        total_assets: assets,
+        total_liabilities: liabilities,
+        total_equity: equity
+      },
+      accounts: {
+        assets: accounts.filter(a => a.account_type === 'ASSET'),
+        liabilities: accounts.filter(a => a.account_type === 'LIABILITY'),
+        equity: accounts.filter(a => a.account_type === 'EQUITY')
+      }
+    }
+  });
+};
+
+export const getDashboard = async (req: Request, res: Response) => {
+  const today = new Date().toISOString().split('T')[0];
+
+  // Today's metrics
+  const todayMetrics = await pool.query(`
+    SELECT
+      COUNT(*) as order_count,
+      COALESCE(SUM(net_amount), 0) as revenue,
+      COALESCE(AVG(net_amount), 0) as avg_order_value
+    FROM orders
+    WHERE order_date = $1
+  `, [today]);
+
+  // This month's metrics
+  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+
+  const monthMetrics = await pool.query(`
+    SELECT
+      COALESCE(SUM(net_amount), 0) as revenue,
+      COALESCE(SUM(cogs), 0) as cogs,
+      COUNT(*) as orders
+    FROM orders
+    WHERE order_date >= $1
+  `, [firstDayOfMonth]);
+
+  const monthRevenue = parseFloat(monthMetrics.rows[0]?.revenue || '0');
+  const monthCogs = parseFloat(monthMetrics.rows[0]?.cogs || '0');
+  const monthMargin = monthRevenue > 0 ? ((monthRevenue - monthCogs) / monthRevenue) * 100 : 0;
+
+  // Pending bills
+  const pendingBills = await pool.query(`
+    SELECT bill_id, bill_number, total_amount, due_date, vendor_id
+    FROM bills
+    WHERE status IN ('PENDING', 'POSTED')
+      AND due_date IS NOT NULL
+    ORDER BY due_date ASC
+    LIMIT 5
+  `);
+
+  res.json({
+    success: true,
+    data: {
+      today: {
+        revenue: parseFloat(todayMetrics.rows[0]?.revenue || '0'),
+        orders: parseInt(todayMetrics.rows[0]?.order_count || '0'),
+        aov: parseFloat(todayMetrics.rows[0]?.avg_order_value || '0')
+      },
+      this_month: {
+        revenue: monthRevenue,
+        cogs: monthCogs,
+        gross_margin: monthMargin,
+        orders: parseInt(monthMetrics.rows[0]?.orders || '0')
+      },
+      pending_bills: pendingBills.rows
+    }
+  });
+};
