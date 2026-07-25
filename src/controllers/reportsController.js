@@ -1,5 +1,5 @@
 const pool = require('../config/database');
-const { normalizeCategory } = require('../utils/categoryMap');
+const { normalizeCategory, channelAccountCode } = require('../utils/categoryMap');
 const { getContributionMarginData } = require('../services/skuCostService');
 const { getUnitEconomicsData } = require('../services/unitEconomicsService');
 const { getGarmentEconomics } = require('../services/garmentEconomicsService');
@@ -51,7 +51,39 @@ async function getProfitLoss(req, res) {
       [startDate, endDate]
     );
 
-    let totalRevenue = 0; // placeholder until sales ingestion
+    // Real revenue from sales_entries
+    const salesAgg = await pool.query(
+      `SELECT
+         channel,
+         SUM(gross_sales)   AS gross_sales,
+         SUM(returns_amount) AS returns_amount,
+         SUM(net_sales)     AS net_sales,
+         SUM(gross_units)   AS gross_units,
+         SUM(returned_units) AS returned_units,
+         SUM(cgst_collected + sgst_collected + igst_collected) AS gst_collected
+       FROM sales_entries
+       WHERE entry_date BETWEEN $1 AND $2
+       GROUP BY channel
+       ORDER BY net_sales DESC`,
+      [startDate, endDate]
+    );
+
+    let totalRevenue = 0;
+    const revenueRows = [];
+    salesAgg.rows.forEach(row => {
+      const net = parseFloat(row.net_sales || 0);
+      totalRevenue += net;
+      revenueRows.push({
+        account_code: channelAccountCode(row.channel),
+        account_name: row.channel.replace(/_/g, ' '),
+        amount: net,
+        gross_sales: parseFloat(row.gross_sales || 0),
+        returns: parseFloat(row.returns_amount || 0),
+        units: parseInt(row.gross_units || 0),
+        gst_collected: parseFloat(row.gst_collected || 0)
+      });
+    });
+
     let totalCOGS = 0;
     let totalExpenses = 0;
 
@@ -91,7 +123,7 @@ async function getProfitLoss(req, res) {
       success: true,
       period: { start_date: startDate, end_date: endDate },
       revenue: {
-        accounts: [],
+        accounts: revenueRows,
         total: totalRevenue
       },
       cogs: {
@@ -711,6 +743,83 @@ function aggregateCategorySpend(rows = []) {
   return { spendByCategory, spendByGroup };
 }
 
+// GET /api/reports/sales?start_date=&end_date=&drop_id=
+async function getSalesEntries(req, res) {
+  try {
+    const { start_date, end_date, drop_id } = req.query;
+    const startDate = start_date || new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+    const endDate = end_date || new Date().toISOString().split('T')[0];
+    const params = [startDate, endDate];
+    let dropFilter = '';
+    if (drop_id) { params.push(drop_id); dropFilter = `AND drop_id = $${params.length}`; }
+    const r = await pool.query(
+      `SELECT se.*, d.drop_name AS drop_label
+       FROM sales_entries se
+       LEFT JOIN drops d ON se.drop_id = d.drop_id
+       WHERE entry_date BETWEEN $1 AND $2 ${dropFilter}
+       ORDER BY entry_date DESC, entry_id DESC`,
+      params
+    );
+    res.json({ success: true, entries: r.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// POST /api/reports/sales — record a sales entry
+async function createSalesEntry(req, res) {
+  try {
+    const {
+      entry_date, channel, drop_id, drop_name,
+      gross_sales, returns_amount = 0,
+      gross_units = 0, returned_units = 0,
+      marketplace_commission = 0, payment_gateway_charges = 0,
+      shipping_collected = 0,
+      cgst_collected = 0, sgst_collected = 0, igst_collected = 0,
+      settlement_ref, settlement_date, notes
+    } = req.body;
+    if (!channel || gross_sales == null) {
+      return res.status(400).json({ error: 'channel and gross_sales required' });
+    }
+    const VALID_CHANNELS = ['D2C_WEBSITE','MYNTRA','AJIO','NYKAA','INSTAGRAM','POPUP','OTHER'];
+    const ch = channel.toUpperCase();
+    if (!VALID_CHANNELS.includes(ch)) {
+      return res.status(400).json({ error: `channel must be one of: ${VALID_CHANNELS.join(', ')}` });
+    }
+    const r = await pool.query(
+      `INSERT INTO sales_entries
+         (entry_date, channel, drop_id, drop_name,
+          gross_sales, returns_amount,
+          gross_units, returned_units,
+          marketplace_commission, payment_gateway_charges, shipping_collected,
+          cgst_collected, sgst_collected, igst_collected,
+          settlement_ref, settlement_date, notes, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+       RETURNING *`,
+      [entry_date || new Date().toISOString().split('T')[0], ch, drop_id || null,
+       drop_name || null, gross_sales, returns_amount, gross_units, returned_units,
+       marketplace_commission, payment_gateway_charges, shipping_collected,
+       cgst_collected, sgst_collected, igst_collected,
+       settlement_ref || null, settlement_date || null, notes || null,
+       req.user?.userId || null]
+    );
+    res.json({ success: true, entry: r.rows[0] });
+  } catch (err) {
+    console.error('createSalesEntry error', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// DELETE /api/reports/sales/:id
+async function deleteSalesEntry(req, res) {
+  try {
+    await pool.query('DELETE FROM sales_entries WHERE entry_id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
 async function getGarmentProfitability(req, res) {
   try {
     const dropId = parseInt(req.query.drop_id, 10);
@@ -804,5 +913,8 @@ module.exports = {
   upsertSkuAssumptions,
   upsertSizeSellThrough,
   ingestMarketingSpend,
-  ingestShipmentCost
+  ingestShipmentCost,
+  getSalesEntries,
+  createSalesEntry,
+  deleteSalesEntry
 };

@@ -19,7 +19,10 @@ const {
   upsertSkuAssumptions,
   upsertSizeSellThrough,
   ingestMarketingSpend,
-  ingestShipmentCost
+  ingestShipmentCost,
+  getSalesEntries,
+  createSalesEntry,
+  deleteSalesEntry
 } = require('../controllers/reportsController');
 const { authorize } = require('../middleware/auth');
 
@@ -44,5 +47,8 @@ router.post('/sku/:sku_id/assumptions', authorize('manager', 'admin'), upsertSku
 router.post('/sku/:sku_id/sell-through', authorize('manager', 'admin'), upsertSizeSellThrough);
 router.post('/ingest/marketing', authorize('admin'), ingestMarketingSpend);
 router.post('/ingest/shipment', authorize('admin'), ingestShipmentCost);
+router.get('/reports/sales', getSalesEntries);
+router.post('/reports/sales', authorize('manager', 'admin'), createSalesEntry);
+router.delete('/reports/sales/:id', authorize('admin'), deleteSalesEntry);
 
 module.exports = router;
