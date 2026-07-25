@@ -12,7 +12,8 @@ async function patchBillItem(req, res) {
     posting_status,
     go_live_eligible,
     cost_nature,
-    cost_stage
+    cost_stage,
+    sku_code
   } = req.body;
 
   try {
@@ -36,7 +37,8 @@ async function patchBillItem(req, res) {
       posting_status: posting_status || existing.posting_status,
       go_live_eligible: typeof go_live_eligible === 'boolean' ? go_live_eligible : existing.go_live_eligible,
       cost_nature: cost_nature ?? existing.cost_nature,
-      cost_stage: cost_stage ?? existing.cost_stage
+      cost_stage: cost_stage ?? existing.cost_stage,
+      sku_code: sku_code !== undefined ? (sku_code || null) : existing.sku_code
     };
 
     if (!updates.is_postable) {
@@ -53,18 +55,17 @@ async function patchBillItem(req, res) {
     }
 
     await pool.query(
-      `
-      UPDATE bill_items
-      SET coa_account_id = $1,
-          department_id = $2,
-          drop_id = $3,
-          is_postable = $4,
-          posting_status = $5,
-          go_live_eligible = $6,
-          cost_nature = $7,
-          cost_stage = $8
-      WHERE item_id = $9
-      `,
+      `UPDATE bill_items
+       SET coa_account_id  = $1,
+           department_id   = $2,
+           drop_id         = $3,
+           is_postable     = $4,
+           posting_status  = $5,
+           go_live_eligible = $6,
+           cost_nature     = $7,
+           cost_stage      = $8,
+           sku_code        = $9
+       WHERE item_id = $10`,
       [
         updates.coa_account_id,
         updates.department_id,
@@ -74,6 +75,7 @@ async function patchBillItem(req, res) {
         updates.go_live_eligible,
         updates.cost_nature,
         updates.cost_stage,
+        updates.sku_code,
         id
       ]
     );
@@ -84,9 +86,10 @@ async function patchBillItem(req, res) {
       { field: 'drop_id', oldValue: existing.drop_id, newValue: updates.drop_id },
       { field: 'is_postable', oldValue: existing.is_postable, newValue: updates.is_postable },
       { field: 'posting_status', oldValue: existing.posting_status, newValue: updates.posting_status }
-      ,{ field: 'go_live_eligible', oldValue: existing.go_live_eligible, newValue: updates.go_live_eligible },
+      { field: 'go_live_eligible', oldValue: existing.go_live_eligible, newValue: updates.go_live_eligible },
       { field: 'cost_nature', oldValue: existing.cost_nature, newValue: updates.cost_nature },
-      { field: 'cost_stage', oldValue: existing.cost_stage, newValue: updates.cost_stage }
+      { field: 'cost_stage', oldValue: existing.cost_stage, newValue: updates.cost_stage },
+      { field: 'sku_code', oldValue: existing.sku_code, newValue: updates.sku_code }
     ];
 
     const operationId = require('crypto').randomUUID();

@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SKU Catalog - NATI Accounting</title>
+    <link rel="stylesheet" href="css/tailwind.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/theme.css">
+</head>
+<body class="nati-page bg-gradient-to-br from-slate-50 via-slate-100 to-white text-slate-900">
+<div class="min-h-screen flex flex-col">
+
+    <header class="nati-hero bg-gradient-to-r from-indigo-700 via-blue-700 to-slate-900 text-white shadow-md">
+        <div class="nati-shell">
+            <div class="py-5 flex flex-wrap items-center gap-4 justify-between">
+                <div class="flex items-center gap-3">
+                    <a href="index.html" class="block">
+                        <img src="logo.jpg" alt="NATI logo" class="h-14 w-14 rounded-xl border border-white/40 bg-white object-cover shadow">
+                    </a>
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.2em] text-white/70">Product Catalog</p>
+                        <h1 class="text-2xl font-semibold">SKU Catalog &amp; Costing</h1>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="nati-nav-wrapper">
+                        <button class="nati-nav-toggle" onclick="toggleNav('nav-sku')"><i class="fas fa-bars"></i><span>Menu</span></button>
+                        <nav class="nati-nav" id="nav-sku">
+                            <a href="index.html" class="nati-nav-link"><i class="fas fa-gauge"></i><span>Dashboard</span></a>
+                            <a href="documents.html" class="nati-nav-link"><i class="fas fa-folder-open"></i><span>Documents</span></a>
+                            <a href="upload.html" class="nati-nav-link"><i class="fas fa-upload"></i><span>Upload</span></a>
+                            <a href="drop.html" class="nati-nav-link"><i class="fas fa-layer-group"></i><span>Drop</span></a>
+                            <a href="reports.html" class="nati-nav-link"><i class="fas fa-chart-line"></i><span>Reports</span></a>
+                            <a href="balance-sheet.html" class="nati-nav-link"><i class="fas fa-scale-balanced"></i><span>Balance Sheet</span></a>
+                            <a href="garment-economics.html" class="nati-nav-link"><i class="fas fa-shirt"></i><span>Garment P&amp;L</span></a>
+                            <a href="sku-catalog.html" class="nati-nav-link is-active"><i class="fas fa-tags"></i><span>SKU Catalog</span></a>
+                            <a href="admin.html" class="nati-nav-link hidden" id="nav-admin"><i class="fas fa-user-shield"></i><span>Admin</span></a>
+                        </nav>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div id="user-pill" class="hidden sm:flex items-center gap-2 px-3 py-2 rounded-2xl border border-white/30 bg-white/10 backdrop-blur">
+                            <div>
+                                <p id="user-name" class="text-sm font-semibold leading-tight">—</p>
+                                <p id="user-role" class="text-[11px] tracking-[0.2em] text-white/70 uppercase">—</p>
+                            </div>
+                        </div>
+                        <button id="logout-btn" class="hidden px-3 py-2 bg-white/15 hover:bg-white/25 text-sm font-semibold rounded-2xl flex items-center gap-2 transition">
+                            <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 py-6">
+        <div class="nati-shell max-w-6xl mx-auto space-y-4">
+
+            <!-- Filter + Add -->
+            <section class="nati-card bg-white/90 backdrop-blur border border-slate-200 rounded-xl shadow-sm p-4">
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                    <div class="flex items-center gap-2 text-sm">
+                        <label>Drop</label>
+                        <select id="drop-filter" class="px-2 py-1 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            <option value="">All Drops</option>
+                        </select>
+                        <button onclick="loadSkus()" class="px-3 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition text-xs">
+                            <i class="fas fa-sync mr-1"></i>Refresh
+                        </button>
+                    </div>
+                    <button onclick="openCreatePanel()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-semibold">
+                        <i class="fas fa-plus mr-1"></i>New SKU
+                    </button>
+                </div>
+            </section>
+
+            <!-- Create SKU panel -->
+            <section id="create-panel" class="bg-white border border-slate-200 rounded-xl shadow-sm" style="display:none">
+                <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                    <h3 class="text-md font-semibold">New SKU</h3>
+                    <button onclick="closeCreatePanel()" class="text-slate-400 hover:text-slate-700"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                    <div>
+                        <label class="block text-xs text-slate-500 mb-1">SKU Code *</label>
+                        <input id="new-sku-code" type="text" placeholder="e.g. NATI-SS25-TOP-001" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg uppercase">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500 mb-1">SKU Name *</label>
+                        <input id="new-sku-name" type="text" placeholder="e.g. Silk Cami Top - Ivory" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500 mb-1">Drop</label>
+                        <select id="new-sku-drop" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg">
+                            <option value="">No drop</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="px-4 pb-4 flex items-center gap-3">
+                    <button onclick="createSku()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold">Create SKU</button>
+                    <span id="create-msg" class="text-sm"></span>
+                </div>
+            </section>
+
+            <!-- SKU table -->
+            <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <div class="px-4 py-3 border-b border-slate-100">
+                    <h3 class="text-md font-semibold">Garments</h3>
+                    <p class="text-xs text-slate-400">Click a row to edit pricing and costs</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="nati-table min-w-full text-sm">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+                                <th class="py-2 px-3 text-left">SKU Code</th>
+                                <th class="py-2 px-3 text-left">Name</th>
+                                <th class="py-2 px-3 text-left">Drop</th>
+                                <th class="py-2 px-3 text-right">Price</th>
+                                <th class="py-2 px-3 text-right">MRP</th>
+                                <th class="py-2 px-3 text-right">Cost/Unit</th>
+                                <th class="py-2 px-3 text-right">Units Sold</th>
+                                <th class="py-2 px-3 text-right">Units Avail</th>
+                                <th class="py-2 px-3 text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sku-tbody" class="divide-y divide-slate-100">
+                            <tr><td colspan="9" class="py-8 text-center text-slate-400">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Edit panel -->
+            <section id="edit-panel" class="bg-white border border-slate-200 rounded-xl shadow-sm" style="display:none">
+                <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                    <h3 class="text-md font-semibold">Edit <span id="edit-sku-title" class="text-indigo-700"></span></h3>
+                    <button onclick="closeEditPanel()" class="text-slate-400 hover:text-slate-700"><i class="fas fa-times"></i></button>
+                </div>
+
+                <!-- Pricing -->
+                <div class="p-4 border-b border-slate-100">
+                    <h4 class="text-sm font-semibold text-slate-700 mb-3">Pricing</h4>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Selling Price (₹) *</label>
+                            <input id="e-price" type="number" step="1" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">MRP (₹)</label>
+                            <input id="e-mrp" type="number" step="1" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Effective From</label>
+                            <input id="e-price-from" type="date" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg">
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="savePrice()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold w-full">Set Price</button>
+                        </div>
+                    </div>
+                    <p id="price-msg" class="text-xs mt-2"></p>
+                </div>
+
+                <!-- Cost Layers -->
+                <div class="p-4 border-b border-slate-100">
+                    <h4 class="text-sm font-semibold text-slate-700 mb-3">Cost Layers <span class="font-normal text-slate-400 text-xs">(per unit)</span></h4>
+                    <div id="cost-layers-list" class="mb-4 space-y-1 text-sm"></div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm items-end">
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Cost Type *</label>
+                            <select id="new-cost-type" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs">
+                                <option value="manufacturing">Manufacturing</option>
+                                <option value="packaging">Packaging</option>
+                                <option value="inbound_freight">Inbound Freight</option>
+                                <option value="other_variable">Other Variable</option>
+                                <option value="shipping_subsidy">Shipping Subsidy</option>
+                                <option value="gateway_fee_est">Gateway Fee Est.</option>
+                                <option value="returns_allowance">Returns Allowance</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Amount/Unit (₹) *</label>
+                            <input id="new-cost-amount" type="number" step="0.01" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Effective From</label>
+                            <input id="new-cost-from" type="date" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg">
+                        </div>
+                        <div>
+                            <button onclick="addCostLayer()" class="px-3 py-1.5 bg-slate-700 text-white rounded-lg text-xs font-semibold w-full">Add Cost</button>
+                        </div>
+                    </div>
+                    <p id="cost-msg" class="text-xs mt-2"></p>
+                </div>
+
+                <!-- SKU meta -->
+                <div class="p-4">
+                    <h4 class="text-sm font-semibold text-slate-700 mb-3">Details</h4>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Name</label>
+                            <input id="e-sku-name" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Drop</label>
+                            <select id="e-sku-drop" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg">
+                                <option value="">No drop</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Status</label>
+                            <select id="e-sku-status" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg">
+                                <option value="active">Active</option>
+                                <option value="archived">Archived</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex items-center gap-3">
+                        <button onclick="saveMeta()" class="px-3 py-1.5 bg-slate-700 text-white rounded-lg text-xs font-semibold">Save Details</button>
+                        <span id="meta-msg" class="text-xs"></span>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+</div>
+
+<script src="js/session.js" defer></script>
+<script src="js/nav.js" defer></script>
+<script>
+const API = '/api';
+let drops = [];
+let currentSkuId = null;
+
+function authFetch(url, opts = {}) {
+    return fetch(url, Object.assign({ credentials: 'include' }, opts));
+}
+function fmt(n) { return n != null ? '₹' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'; }
+function today() { return new Date().toISOString().split('T')[0]; }
+
+async function loadDrops() {
+    try {
+        const r = await authFetch(`${API}/meta/drops`);
+        const d = await r.json();
+        drops = d.drops || d.data || [];
+        ['drop-filter','new-sku-drop','e-sku-drop'].forEach(id => {
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            const hadAll = sel.querySelector('option[value=""]');
+            sel.innerHTML = '';
+            if (hadAll) { const o = document.createElement('option'); o.value = ''; o.textContent = hadAll.textContent; sel.appendChild(o); }
+            drops.forEach(drop => {
+                const o = document.createElement('option');
+                o.value = drop.drop_id;
+                o.textContent = drop.drop_name;
+                sel.appendChild(o);
+            });
+        });
+    } catch (e) { console.warn('Could not load drops', e); }
+}
+
+async function loadSkus() {
+    const dropId = document.getElementById('drop-filter').value;
+    const params = dropId ? `?drop_id=${dropId}` : '';
+    try {
+        const r = await authFetch(`${API}/skus${params}`, { cache: 'no-store' });
+        const d = await r.json();
+        renderSkus(d.skus || []);
+    } catch (e) {
+        document.getElementById('sku-tbody').innerHTML =
+            `<tr><td colspan="9" class="py-6 text-center text-red-500 text-sm">${e.message}</td></tr>`;
+    }
+}
+
+function renderSkus(skus) {
+    const tbody = document.getElementById('sku-tbody');
+    if (!skus.length) {
+        tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-slate-400">No SKUs yet — click New SKU to add your first garment</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = skus.map(s => `
+        <tr class="cursor-pointer hover:bg-indigo-50 transition ${s.status === 'archived' ? 'opacity-50' : ''}"
+            onclick="openEditPanel(${s.sku_id})">
+            <td class="py-2 px-3 font-mono text-xs font-semibold text-slate-800">${s.sku_code}</td>
+            <td class="py-2 px-3">${s.sku_name}</td>
+            <td class="py-2 px-3 text-xs text-indigo-600">${s.drop_name || '—'}</td>
+            <td class="py-2 px-3 text-right">${fmt(s.selling_price)}</td>
+            <td class="py-2 px-3 text-right text-slate-500">${fmt(s.mrp)}</td>
+            <td class="py-2 px-3 text-right ${!s.total_cost ? 'text-amber-500' : ''}">${s.total_cost ? fmt(s.total_cost) : 'No costs'}</td>
+            <td class="py-2 px-3 text-right">${s.units_sold ?? '—'}</td>
+            <td class="py-2 px-3 text-right">${s.units_available ?? '—'}</td>
+            <td class="py-2 px-3 text-center">
+                <span class="px-2 py-0.5 rounded-full text-[11px] font-medium ${s.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}">
+                    ${s.status}
+                </span>
+            </td>
+        </tr>`).join('');
+}
+
+function openCreatePanel() {
+    document.getElementById('create-panel').style.display = '';
+    document.getElementById('create-msg').textContent = '';
+    document.getElementById('new-sku-code').value = '';
+    document.getElementById('new-sku-name').value = '';
+    document.getElementById('create-panel').scrollIntoView({ behavior: 'smooth' });
+}
+function closeCreatePanel() { document.getElementById('create-panel').style.display = 'none'; }
+
+async function createSku() {
+    const code = document.getElementById('new-sku-code').value.trim();
+    const name = document.getElementById('new-sku-name').value.trim();
+    const dropId = document.getElementById('new-sku-drop').value;
+    const msg = document.getElementById('create-msg');
+    if (!code || !name) { msg.textContent = 'SKU code and name are required.'; msg.className = 'text-sm text-red-500'; return; }
+    try {
+        const r = await authFetch(`${API}/skus`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sku_code: code, sku_name: name, drop_id: dropId || null })
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error);
+        msg.textContent = '✓ SKU created';
+        msg.className = 'text-sm text-emerald-600';
+        await loadSkus();
+        setTimeout(closeCreatePanel, 1200);
+    } catch (e) {
+        msg.textContent = '✗ ' + e.message;
+        msg.className = 'text-sm text-red-500';
+    }
+}
+
+async function openEditPanel(skuId) {
+    currentSkuId = skuId;
+    const r = await authFetch(`${API}/skus`, { cache: 'no-store' });
+    const d = await r.json();
+    const sku = (d.skus || []).find(s => s.sku_id === skuId);
+    if (!sku) return;
+
+    document.getElementById('edit-sku-title').textContent = `${sku.sku_code} — ${sku.sku_name}`;
+    document.getElementById('e-price').value = sku.selling_price || '';
+    document.getElementById('e-mrp').value = sku.mrp || '';
+    document.getElementById('e-price-from').value = today();
+    document.getElementById('e-sku-name').value = sku.sku_name;
+    document.getElementById('e-sku-status').value = sku.status;
+    document.getElementById('price-msg').textContent = '';
+    document.getElementById('cost-msg').textContent = '';
+    document.getElementById('meta-msg').textContent = '';
+    document.getElementById('new-cost-from').value = today();
+    document.getElementById('new-cost-amount').value = '';
+
+    // Set drop
+    const dropSel = document.getElementById('e-sku-drop');
+    if (sku.drop_id) dropSel.value = sku.drop_id;
+
+    document.getElementById('edit-panel').style.display = '';
+    document.getElementById('edit-panel').scrollIntoView({ behavior: 'smooth' });
+
+    await loadCostLayers(skuId);
+}
+
+function closeEditPanel() {
+    document.getElementById('edit-panel').style.display = 'none';
+    currentSkuId = null;
+}
+
+async function loadCostLayers(skuId) {
+    const r = await authFetch(`${API}/skus/${skuId}/costs`);
+    const d = await r.json();
+    const list = document.getElementById('cost-layers-list');
+    if (!d.costs || !d.costs.length) {
+        list.innerHTML = '<p class="text-xs text-slate-400">No cost layers yet — add manufacturing and packaging costs below</p>';
+        return;
+    }
+    const grouped = {};
+    d.costs.forEach(c => {
+        if (!grouped[c.cost_type]) grouped[c.cost_type] = [];
+        grouped[c.cost_type].push(c);
+    });
+    list.innerHTML = Object.entries(grouped).map(([type, rows]) => {
+        const latest = rows[0];
+        return `<div class="flex items-center justify-between py-1 border-b border-slate-50">
+            <span class="text-xs text-slate-500 capitalize">${type.replace(/_/g,' ')}</span>
+            <span class="font-medium text-xs">${fmt(latest.amount_per_unit)}/unit</span>
+        </div>`;
+    }).join('');
+}
+
+async function savePrice() {
+    const price = document.getElementById('e-price').value;
+    const mrp = document.getElementById('e-mrp').value;
+    const from = document.getElementById('e-price-from').value;
+    const msg = document.getElementById('price-msg');
+    if (!price) { msg.textContent = 'Selling price required'; msg.className = 'text-xs text-red-500'; return; }
+    try {
+        const r = await authFetch(`${API}/skus/${currentSkuId}/price`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ selling_price: parseFloat(price), mrp: parseFloat(mrp) || null, effective_from: from })
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error);
+        msg.textContent = '✓ Price saved';
+        msg.className = 'text-xs text-emerald-600';
+        await loadSkus();
+    } catch (e) {
+        msg.textContent = '✗ ' + e.message;
+        msg.className = 'text-xs text-red-500';
+    }
+}
+
+async function addCostLayer() {
+    const type = document.getElementById('new-cost-type').value;
+    const amount = document.getElementById('new-cost-amount').value;
+    const from = document.getElementById('new-cost-from').value;
+    const msg = document.getElementById('cost-msg');
+    if (!amount) { msg.textContent = 'Amount required'; msg.className = 'text-xs text-red-500'; return; }
+    try {
+        const r = await authFetch(`${API}/skus/${currentSkuId}/costs`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cost_type: type, amount_per_unit: parseFloat(amount), effective_from: from })
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error);
+        msg.textContent = '✓ Cost layer added';
+        msg.className = 'text-xs text-emerald-600';
+        document.getElementById('new-cost-amount').value = '';
+        await loadCostLayers(currentSkuId);
+        await loadSkus();
+    } catch (e) {
+        msg.textContent = '✗ ' + e.message;
+        msg.className = 'text-xs text-red-500';
+    }
+}
+
+async function saveMeta() {
+    const name = document.getElementById('e-sku-name').value.trim();
+    const dropId = document.getElementById('e-sku-drop').value;
+    const status = document.getElementById('e-sku-status').value;
+    const msg = document.getElementById('meta-msg');
+    try {
+        const r = await authFetch(`${API}/skus/${currentSkuId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sku_name: name, drop_id: dropId || null, status })
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error);
+        msg.textContent = '✓ Saved';
+        msg.className = 'text-xs text-emerald-600';
+        await loadSkus();
+    } catch (e) {
+        msg.textContent = '✗ ' + e.message;
+        msg.className = 'text-xs text-red-500';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const init = async () => {
+        await loadDrops();
+        await loadSkus();
+    };
+    if (window.sessionReady) {
+        window.sessionReady.then(init).catch(() => {});
+    } else {
+        init();
+    }
+});
+</script>
+</body>
+</html>

@@ -62,6 +62,7 @@ app.use('/api', authenticate, metaRoutes);
 app.use('/api', authenticate, dropRoutes);
 app.use('/api', authenticate, require('./routes/billItemRoutes'));
 app.use('/api', authenticate, require('./routes/tagRoutes'));
+app.use('/api', authenticate, require('./routes/skuRoutes'));
 app.use('/api/brain', authenticate, brainRoutes);
 app.use('/api', authenticate, qualityRoutes);
 
