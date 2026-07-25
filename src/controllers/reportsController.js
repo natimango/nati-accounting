@@ -18,8 +18,9 @@ async function getProfitLoss(req, res) {
     const startDate = start_date || new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
     const endDate = end_date || new Date().toISOString().split('T')[0];
     
+    // Aggregate bills by category_group + category
     const billAgg = await pool.query(
-      `SELECT 
+      `SELECT
          COALESCE(b.category_group, 'OPERATING') AS category_group,
          COALESCE(b.category, 'misc') AS category,
          SUM(b.total_amount) AS total
@@ -28,6 +29,24 @@ async function getProfitLoss(req, res) {
        WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
          AND ${ACTIVE_BILL_FILTER}
        GROUP BY b.category_group, b.category`,
+      [startDate, endDate]
+    );
+
+    // Aggregate by tag group (PURCHASE/FULFILLMENT/MARKETING/OPERATIONS) for tagged bills
+    const tagAgg = await pool.query(
+      `SELECT
+         et.tag_group,
+         et.tag_name,
+         et.account_code,
+         SUM(b.total_amount) AS total
+       FROM bill_expense_tags bet
+       JOIN expense_tags et ON bet.tag_id = et.tag_id
+       JOIN bills b ON bet.bill_id = b.bill_id
+       LEFT JOIN documents d ON b.document_id = d.document_id
+       WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
+         AND ${ACTIVE_BILL_FILTER}
+       GROUP BY et.tag_group, et.tag_name, et.account_code
+       ORDER BY et.tag_group, et.account_code`,
       [startDate, endDate]
     );
 
@@ -54,9 +73,19 @@ async function getProfitLoss(req, res) {
       }
     });
 
+    // Build tag breakdown by group
+    const tagBreakdown = {};
+    tagAgg.rows.forEach(row => {
+      const g = row.tag_group;
+      if (!tagBreakdown[g]) tagBreakdown[g] = { lines: [], total: 0 };
+      const amt = parseFloat(row.total || 0);
+      tagBreakdown[g].lines.push({ tag_name: row.tag_name, account_code: row.account_code, amount: amt });
+      tagBreakdown[g].total += amt;
+    });
+
     const grossProfit = totalRevenue - totalCOGS;
     const netProfit = grossProfit - totalExpenses;
-    
+
     res.json({
       success: true,
       period: { start_date: startDate, end_date: endDate },
@@ -74,7 +103,8 @@ async function getProfitLoss(req, res) {
         total: totalExpenses
       },
       net_profit: netProfit,
-      group_totals: groupTotals
+      group_totals: groupTotals,
+      tag_breakdown: tagBreakdown
     });
     
   } catch (error) {

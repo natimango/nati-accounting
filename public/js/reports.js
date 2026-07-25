@@ -72,6 +72,45 @@ async function loadPL(start, end) {
     expBody.innerHTML = (data.expenses.accounts || []).map(r => `
       <tr><td class="py-1">${r.account_name}</td><td class="py-1 text-right">${formatMoney(r.amount)}</td></tr>
     `).join('') || `<tr><td class="py-2 text-slate-500" colspan="2">No expense data</td></tr>`;
+
+    // Tag breakdown
+    const breakdown = data.tag_breakdown || {};
+    const groupMeta = {
+      PURCHASE:     { label: 'Purchase (COGS)', icon: 'fa-tag',           color: 'text-amber-700',   bg: 'bg-amber-50' },
+      FULFILLMENT:  { label: 'Fulfillment',     icon: 'fa-truck',         color: 'text-blue-700',    bg: 'bg-blue-50' },
+      MARKETING:    { label: 'Marketing',       icon: 'fa-bullhorn',      color: 'text-pink-700',    bg: 'bg-pink-50' },
+      OPERATIONS:   { label: 'Operations',      icon: 'fa-building',      color: 'text-slate-700',   bg: 'bg-slate-100' },
+    };
+    const groups = Object.keys(breakdown);
+    const section = document.getElementById('tag-breakdown-section');
+    const grid = document.getElementById('tag-breakdown-grid');
+    if (groups.length > 0 && section && grid) {
+      section.style.display = '';
+      grid.innerHTML = groups.map(g => {
+        const meta = groupMeta[g] || { label: g, icon: 'fa-circle', color: 'text-slate-700', bg: 'bg-slate-50' };
+        const { lines = [], total = 0 } = breakdown[g];
+        return `
+          <div class="nati-card compact ${meta.bg} rounded-lg p-3 border border-slate-100">
+            <div class="flex items-center gap-2 mb-2">
+              <i class="fas ${meta.icon} ${meta.color} text-sm"></i>
+              <h4 class="text-sm font-semibold ${meta.color}">${meta.label}</h4>
+            </div>
+            <table class="nati-table min-w-full text-sm">
+              <tbody class="divide-y divide-slate-100">
+                ${lines.map(l => `<tr><td class="py-1 text-slate-700">${l.tag_name}</td><td class="py-1 text-right font-medium">${formatMoney(l.amount)}</td></tr>`).join('')}
+              </tbody>
+              <tfoot>
+                <tr class="border-t-2 border-slate-300">
+                  <td class="pt-1 font-semibold ${meta.color}">Total</td>
+                  <td class="pt-1 font-semibold text-right ${meta.color}">${formatMoney(total)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>`;
+      }).join('');
+    } else if (section) {
+      section.style.display = 'none';
+    }
   } catch (err) {
     console.error('P&L error', err);
     document.getElementById('rev-total').textContent = '-';
