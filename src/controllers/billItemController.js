@@ -85,7 +85,7 @@ async function patchBillItem(req, res) {
       { field: 'department_id', oldValue: existing.department_id, newValue: updates.department_id },
       { field: 'drop_id', oldValue: existing.drop_id, newValue: updates.drop_id },
       { field: 'is_postable', oldValue: existing.is_postable, newValue: updates.is_postable },
-      { field: 'posting_status', oldValue: existing.posting_status, newValue: updates.posting_status }
+      { field: 'posting_status', oldValue: existing.posting_status, newValue: updates.posting_status },
       { field: 'go_live_eligible', oldValue: existing.go_live_eligible, newValue: updates.go_live_eligible },
       { field: 'cost_nature', oldValue: existing.cost_nature, newValue: updates.cost_nature },
       { field: 'cost_stage', oldValue: existing.cost_stage, newValue: updates.cost_stage },
