@@ -2,6 +2,7 @@ const pool = require('../config/database');
 const { normalizeCategory } = require('../utils/categoryMap');
 const { getContributionMarginData } = require('../services/skuCostService');
 const { getUnitEconomicsData } = require('../services/unitEconomicsService');
+const { getGarmentEconomics } = require('../services/garmentEconomicsService');
 
 const BILL_DATE_SQL = `COALESCE(b.bill_date, b.created_at::date, d.uploaded_at::date)`;
 const ACTIVE_BILL_FILTER = `
@@ -710,6 +711,80 @@ function aggregateCategorySpend(rows = []) {
   return { spendByCategory, spendByGroup };
 }
 
+async function getGarmentProfitability(req, res) {
+  try {
+    const dropId = parseInt(req.query.drop_id, 10);
+    const data = await getGarmentEconomics(Number.isFinite(dropId) ? dropId : null);
+    res.json({ success: true, drop_id: dropId || null, ...data });
+  } catch (err) {
+    console.error('Garment economics error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// Upsert SKU assumptions (returns model, gateway, etc.)
+async function upsertSkuAssumptions(req, res) {
+  try {
+    const { sku_id } = req.params;
+    const {
+      shipping_subsidy_avg, gateway_fee_pct, gateway_fee_fixed,
+      returns_rate, return_shipping_avg, reconditioning_cost_avg,
+      expected_resale_discount_pct, cm_buffer
+    } = req.body;
+    await pool.query(
+      `INSERT INTO sku_assumptions
+         (sku_id, shipping_subsidy_avg, gateway_fee_pct, gateway_fee_fixed,
+          returns_rate, return_shipping_avg, reconditioning_cost_avg,
+          expected_resale_discount_pct, cm_buffer, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+       ON CONFLICT (sku_id) DO UPDATE SET
+         shipping_subsidy_avg       = EXCLUDED.shipping_subsidy_avg,
+         gateway_fee_pct            = EXCLUDED.gateway_fee_pct,
+         gateway_fee_fixed          = EXCLUDED.gateway_fee_fixed,
+         returns_rate               = EXCLUDED.returns_rate,
+         return_shipping_avg        = EXCLUDED.return_shipping_avg,
+         reconditioning_cost_avg    = EXCLUDED.reconditioning_cost_avg,
+         expected_resale_discount_pct = EXCLUDED.expected_resale_discount_pct,
+         cm_buffer                  = EXCLUDED.cm_buffer,
+         updated_at                 = NOW()`,
+      [sku_id, shipping_subsidy_avg, gateway_fee_pct, gateway_fee_fixed,
+       returns_rate, return_shipping_avg, reconditioning_cost_avg,
+       expected_resale_discount_pct, cm_buffer]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('upsertSkuAssumptions error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// Upsert size sell-through data
+async function upsertSizeSellThrough(req, res) {
+  try {
+    const { sku_id } = req.params;
+    const { sizes } = req.body; // [{ size, units_available, units_sold, bottleneck_flag }]
+    if (!Array.isArray(sizes) || !sizes.length) {
+      return res.status(400).json({ error: 'sizes array required' });
+    }
+    for (const s of sizes) {
+      await pool.query(
+        `INSERT INTO size_sellthrough (sku_id, size, units_available, units_sold, bottleneck_flag)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (sku_id, size) DO UPDATE SET
+           units_available = EXCLUDED.units_available,
+           units_sold      = EXCLUDED.units_sold,
+           bottleneck_flag = EXCLUDED.bottleneck_flag,
+           updated_at      = NOW()`,
+        [sku_id, s.size, s.units_available || 0, s.units_sold || 0, s.bottleneck_flag || false]
+      );
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('upsertSizeSellThrough error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 module.exports = {
   getProfitLoss,
   getTrialBalance,
@@ -725,6 +800,9 @@ module.exports = {
   getCogsBySku,
   getContributionMargin,
   getUnitEconomics,
+  getGarmentProfitability,
+  upsertSkuAssumptions,
+  upsertSizeSellThrough,
   ingestMarketingSpend,
   ingestShipmentCost
 };

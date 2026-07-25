@@ -15,6 +15,9 @@ const {
   getCogsBySku,
   getContributionMargin,
   getUnitEconomics,
+  getGarmentProfitability,
+  upsertSkuAssumptions,
+  upsertSizeSellThrough,
   ingestMarketingSpend,
   ingestShipmentCost
 } = require('../controllers/reportsController');
@@ -36,6 +39,9 @@ router.get('/reports/contribution-margin', getContributionMargin);
 router.get('/reports/unit-economics', getUnitEconomics);
 router.get('/metrics/summary', getMetricsSummary);
 router.get('/metrics/cogs/:sku_code', getCogsBySku);
+router.get('/reports/garment-economics', getGarmentProfitability);
+router.post('/sku/:sku_id/assumptions', authorize('manager', 'admin'), upsertSkuAssumptions);
+router.post('/sku/:sku_id/sell-through', authorize('manager', 'admin'), upsertSizeSellThrough);
 router.post('/ingest/marketing', authorize('admin'), ingestMarketingSpend);
 router.post('/ingest/shipment', authorize('admin'), ingestShipmentCost);
 
