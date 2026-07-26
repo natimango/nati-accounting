@@ -10,7 +10,7 @@ function togglePaymentFields() {
 // Load real drops into the drop selector
 async function loadDrops() {
     try {
-        const r = await authFetch(`${API_URL}/drops`);
+        const r = await authFetch(`${API_URL}/meta/drops`);
         const data = await r.json();
         const drops = data.drops || data || [];
         const sel = document.getElementById('drop_name');

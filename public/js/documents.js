@@ -492,7 +492,7 @@ async function openBillModal(id) {
             : '';
         const processButton = fullDoc.status !== 'processed'
             ? (canProcess
-                ? `<button onclick="actionProcessAI(${fullDoc.document_id})" class="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm"><i class='fas a-robot mr-1'></i>Process AI</button>`
+                ? `<button onclick="actionProcessAI(${fullDoc.document_id})" class="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm"><i class='fas fa-robot mr-1'></i>Process AI</button>`
                 : `<span class="px-3 py-2 bg-slate-100 text-slate-500 rounded-lg text-xs inline-flex items-center gap-1"><i class="fas fa-lock"></i>Manager required</span>`)
             : `<button onclick="actionViewData(${fullDoc.document_id})" class="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm"><i class='fas fa-eye mr-1'></i>View Data</button>`;
         const manualButton = canManual
