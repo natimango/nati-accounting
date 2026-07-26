@@ -270,17 +270,41 @@ function displayDocuments(documents) {
 }
 
 async function triggerRerunAI() {
+    // Show a choice: categorize only (instant) or full AI re-extraction
+    const choice = await showAIActionModal();
+    if (!choice) return;
+
+    if (choice === 'categorize') {
+        await runRecategorize();
+    } else {
+        await runFullReprocess(choice);
+    }
+}
+
+async function runRecategorize() {
     const btn = document.getElementById('rerun-ai-btn');
-    if (!btn) return;
-    if (!confirm('Re-run AI on recent bills? Manual overrides will be respected.')) return;
-    let limit = prompt('How many documents should be rechecked? (1-500)', '50');
-    if (limit === null) return;
-    limit = parseInt(limit, 10);
-    if (Number.isNaN(limit) || limit <= 0) limit = 50;
-    limit = Math.min(Math.max(limit, 1), 500);
     const original = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Running...</span>';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Fixing categories…</span>';
+    try {
+        const resp = await authFetch(`${API_URL}/documents/recategorize`, { method: 'POST' });
+        const data = await resp.json();
+        if (!resp.ok || data.error) throw new Error(data.error || 'Failed');
+        showToast(`✓ Recategorized ${data.updated} of ${data.total} bills to correct CoA accounts. Refresh Reports to see updated P&L.`);
+        await loadDocuments();
+    } catch (err) {
+        alert('Recategorize failed: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = original;
+    }
+}
+
+async function runFullReprocess(limit) {
+    const btn = document.getElementById('rerun-ai-btn');
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>AI running…</span>';
     try {
         const resp = await authFetch(`${API_URL}/documents/reprocess`, {
             method: 'POST',
@@ -289,23 +313,79 @@ async function triggerRerunAI() {
         });
         const data = await resp.json();
         if (!resp.ok || data.error) throw new Error(data.error || 'Failed to re-run AI');
-        alert([
-            `AI re-run completed.`,
-            `Checked: ${data.scanned}`,
-            `Processed: ${data.processed}`,
-            `Skipped (manual locked): ${data.skipped_manual}`,
+        showToast([
+            `✓ AI re-run done.`,
+            `Processed: ${data.processed}/${data.scanned}`,
             `Dates updated: ${data.dates_updated}`,
             `Still missing: ${data.dates_still_missing}`,
-            `Flagged for manual review: ${data.flagged_manual}`
-        ].join('\n'));
+            `Flagged for review: ${data.flagged_manual}`
+        ].join('  ·  '));
         await loadDocuments();
     } catch (error) {
-        console.error('Re-run AI error', error);
-        alert(`Re-run AI failed: ${error.message}`);
+        alert(`AI re-run failed: ${error.message}`);
     } finally {
         btn.disabled = false;
         btn.innerHTML = original;
     }
+}
+
+function showAIActionModal() {
+    return new Promise(resolve => {
+        // Remove any existing modal
+        const old = document.getElementById('ai-action-modal');
+        if (old) old.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'ai-action-modal';
+        modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999`;
+        modal.innerHTML = `
+          <div style="background:#fff;border-radius:16px;padding:28px;max-width:480px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,.2)">
+            <h3 style="font-size:17px;font-weight:700;margin-bottom:6px">AI Actions</h3>
+            <p style="font-size:13px;color:#6b7280;margin-bottom:20px">What should AI fix on your bills?</p>
+
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <button id="ai-cat-btn" style="text-align:left;padding:14px 16px;border:2px solid #e5e7eb;border-radius:10px;background:#f9fafb;cursor:pointer;font-size:13px">
+                <div style="font-weight:700;color:#4f46e5;margin-bottom:3px">⚡ Fix Categories & CoA Mapping</div>
+                <div style="color:#6b7280;font-size:12px">Instantly maps all bills to the correct Chart of Accounts (P&L groups, expense codes). No AI call — runs in seconds.</div>
+              </button>
+
+              <button id="ai-full-btn" style="text-align:left;padding:14px 16px;border:2px solid #e5e7eb;border-radius:10px;background:#f9fafb;cursor:pointer;font-size:13px">
+                <div style="font-weight:700;color:#7c3aed;margin-bottom:3px">🤖 Full AI Re-extraction</div>
+                <div style="color:#6b7280;font-size:12px">Re-reads documents with AI to fix missing dates, amounts, vendor names, and then recategorizes. Takes longer.</div>
+              </button>
+            </div>
+
+            <div style="margin-top:18px;display:flex;justify-content:flex-end">
+              <button id="ai-cancel-btn" style="padding:8px 18px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;cursor:pointer;background:#fff">Cancel</button>
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+
+        modal.querySelector('#ai-cat-btn').onclick = () => { modal.remove(); resolve('categorize'); };
+        modal.querySelector('#ai-full-btn').onclick = () => {
+            modal.remove();
+            let limit = prompt('How many documents to reprocess? (1–500)', '50');
+            if (!limit) { resolve(null); return; }
+            limit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 500);
+            resolve(limit);
+        };
+        modal.querySelector('#ai-cancel-btn').onclick = () => { modal.remove(); resolve(null); };
+        modal.onclick = (e) => { if (e.target === modal) { modal.remove(); resolve(null); } };
+    });
+}
+
+function showToast(msg) {
+    const t = document.getElementById('doc-toast') || (() => {
+        const el = document.createElement('div');
+        el.id = 'doc-toast';
+        el.style.cssText = `position:fixed;bottom:24px;right:24px;background:#111;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;z-index:9999;display:none;max-width:480px;line-height:1.6`;
+        document.body.appendChild(el);
+        return el;
+    })();
+    t.textContent = msg;
+    t.style.display = 'block';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => { t.style.display = 'none'; }, 5000);
 }
 
 function renderTable(documents) {

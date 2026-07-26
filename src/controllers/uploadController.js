@@ -1217,36 +1217,88 @@ async function createAccountingEntries(billId, data, vendorId, options = {}) {
   console.log(`✓ Journal Entry #${journalId} created`);
 }
 
-// Get or create GL account by category
+// Get GL account_id by category — uses India D2C CoA (migration 028)
 async function getGLAccount(category) {
-  const accountMap = {
-    'food': { code: '5100', name: 'Food & Meals Expense', type: 'EXPENSE' },
-    'travel': { code: '5200', name: 'Travel & Transportation', type: 'EXPENSE' },
-    'vendor': { code: '5300', name: 'Vendor Payments', type: 'EXPENSE' },
-    'manufacturing': { code: '4100', name: 'Cost of Goods Sold - Manufacturing', type: 'COGS' },
-    'stitching': { code: '4200', name: 'Cost of Goods Sold - Stitching', type: 'COGS' },
-    'salary': { code: '5400', name: 'Salaries & Wages', type: 'EXPENSE' },
-    'rent': { code: '5500', name: 'Rent Expense', type: 'EXPENSE' },
-    'tech': { code: '5600', name: 'Technology Expense', type: 'EXPENSE' },
-    'marketing': { code: '5700', name: 'Marketing & Advertising', type: 'EXPENSE' },
-    'logistics': { code: '5800', name: 'Logistics & Shipping', type: 'EXPENSE' },
-    'packaging': { code: '4300', name: 'Packaging Materials', type: 'COGS' },
-    'input_tax': { code: '1300', name: 'Input Tax Credit (GST)', type: 'ASSET' },
-    'accounts_payable': { code: '2100', name: 'Accounts Payable', type: 'LIABILITY' },
-    'misc': { code: '5900', name: 'Miscellaneous Expense', type: 'EXPENSE' }
+  const { normalizeCategory: nc } = require('../utils/categoryMap');
+
+  // Special system accounts
+  const systemMap = {
+    'input_tax':       { code: '1170', name: 'Input Tax Credit — CGST', type: 'ASSET' },
+    'accounts_payable':{ code: '2110', name: 'Trade Creditors / Accounts Payable', type: 'LIABILITY' },
   };
-  
-  const account = accountMap[category] || accountMap['misc'];
-  
+
+  let code, name, type;
+  if (systemMap[category]) {
+    ({ code, name, type } = systemMap[category]);
+  } else {
+    const info = nc(category);
+    code = info.account_code;
+    // Look up name from accounts table first
+    const existing = await pool.query('SELECT account_id FROM accounts WHERE account_code = $1', [code]);
+    if (existing.rows.length) return existing.rows[0].account_id;
+    name = category;
+    type = info.category_group === 'COGS' ? 'COGS' : 'EXPENSE';
+  }
+
   const result = await pool.query(
     `INSERT INTO accounts (account_code, account_name, account_type, is_active)
      VALUES ($1, $2, $3, true)
      ON CONFLICT (account_code) DO UPDATE SET account_name = EXCLUDED.account_name
      RETURNING account_id`,
-    [account.code, account.name, account.type]
+    [code, name, type]
   );
-  
   return result.rows[0].account_id;
+}
+
+// Re-categorize a single bill to correct CoA account and update journal entries
+async function recategorizeBill(billId) {
+  const { normalizeCategory: nc } = require('../utils/categoryMap');
+
+  const billRow = await pool.query(
+    `SELECT b.*, v.vendor_name
+     FROM bills b
+     LEFT JOIN vendors v ON b.vendor_id = v.vendor_id
+     WHERE b.bill_id = $1`,
+    [billId]
+  );
+  if (!billRow.rows.length) return { skipped: true };
+  const bill = billRow.rows[0];
+
+  const rawCat = bill.category || bill.document_category || 'misc';
+  const info = nc(rawCat);
+
+  // Get the correct expense account_id
+  const acctRow = await pool.query(
+    'SELECT account_id FROM accounts WHERE account_code = $1',
+    [info.account_code]
+  );
+  if (!acctRow.rows.length) return { skipped: true, reason: 'account not found' };
+  const expenseAccountId = acctRow.rows[0].account_id;
+
+  // Update bill category fields
+  await pool.query(
+    `UPDATE bills SET category = $1, category_group = $2 WHERE bill_id = $3`,
+    [info.category, info.category_group, billId]
+  );
+
+  // Update journal entry lines for this bill to point to the correct account
+  const jeRow = await pool.query(
+    `SELECT je.journal_id FROM journal_entries je
+     WHERE je.reference_type = 'BILL' AND je.reference_id = $1
+     ORDER BY je.journal_id DESC LIMIT 1`,
+    [billId]
+  );
+  if (jeRow.rows.length) {
+    const jid = jeRow.rows[0].journal_id;
+    // Update debit line (line_number = 1) to correct expense account
+    await pool.query(
+      `UPDATE journal_entry_lines SET account_id = $1
+       WHERE journal_id = $2 AND line_number = 1`,
+      [expenseAccountId, jid]
+    );
+  }
+
+  return { updated: true, category: info.category, account_code: info.account_code };
 }
 
 // Get all documents
@@ -1648,11 +1700,13 @@ async function rerunAIForDocuments(req, res) {
       }
       processed += 1;
       const billCheck = await pool.query(
-        'SELECT bill_date FROM bills WHERE document_id = $1',
+        'SELECT bill_id, bill_date FROM bills WHERE document_id = $1 ORDER BY bill_id DESC LIMIT 1',
         [row.document_id]
       );
       if (billCheck.rows.length && billCheck.rows[0].bill_date) {
         datesUpdated += 1;
+        // Also recategorize to correct CoA
+        await recategorizeBill(billCheck.rows[0].bill_id).catch(() => {});
       } else {
         datesStillMissing += 1;
         flaggedManual += 1;
@@ -1678,6 +1732,32 @@ async function rerunAIForDocuments(req, res) {
   }
 }
 
+// POST /api/documents/recategorize — fix CoA mapping for all bills without re-calling AI
+async function recategorizeAllBills(req, res) {
+  try {
+    const role = req.user?.role || 'uploader';
+    if (role === 'uploader') {
+      return res.status(403).json({ error: 'Only managers/admins can recategorize' });
+    }
+    const bills = await pool.query(
+      `SELECT bill_id FROM bills
+       WHERE COALESCE(status, 'pending') NOT IN ('deleted', 'void')
+       ORDER BY bill_id DESC
+       LIMIT 2000`
+    );
+    let updated = 0, skipped = 0;
+    for (const row of bills.rows) {
+      const r = await recategorizeBill(row.bill_id).catch(() => ({ skipped: true }));
+      if (r.updated) updated++;
+      else skipped++;
+    }
+    res.json({ success: true, total: bills.rowCount, updated, skipped });
+  } catch (err) {
+    console.error('Recategorize error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 module.exports = {
   upload,
   uploadBill,
@@ -1686,6 +1766,7 @@ module.exports = {
   getVerificationSummary,
   deleteDocument,
   rerunAIForDocuments,
+  recategorizeAllBills,
   processDocumentWithAI,
   canAttemptReprocess,
   buildVerificationSnapshot

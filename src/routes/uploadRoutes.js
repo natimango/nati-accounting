@@ -2,14 +2,15 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const fs = require('fs');
-const { 
-  upload, 
-  uploadBill, 
-  getDocuments, 
+const {
+  upload,
+  uploadBill,
+  getDocuments,
   getDocument,
   getVerificationSummary,
   deleteDocument,
-  rerunAIForDocuments
+  rerunAIForDocuments,
+  recategorizeAllBills
 } = require('../controllers/uploadController');
 const { authorize } = require('../middleware/auth');
 
@@ -32,6 +33,9 @@ router.delete('/documents/:id', deleteDocument);
 
 // Re-run AI processing
 router.post('/documents/reprocess', rerunAIForDocuments);
+
+// Fix CoA categorization for all bills (no AI call, instant)
+router.post('/documents/recategorize', authorize('manager', 'admin'), recategorizeAllBills);
 
 // View/Download file
 router.get('/files/:id', async (req, res) => {
