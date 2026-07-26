@@ -234,32 +234,52 @@ async function getBalanceSheet(req, res) {
     const totalAssets = assetAccounts.reduce((s, a) => s + a.balance, 0);
 
     // ── LIABILITIES ───────────────────────────────────────────────────────────
-    // Accounts Payable = total of all bills (unpaid vendor obligations)
+    // Accounts Payable = ONLY unpaid/pending bills — paid bills are NOT liabilities
+    const UNPAID_FILTER = `
+      COALESCE(b.total_amount, 0) > 0
+      AND COALESCE(b.status, 'pending') NOT IN ('deleted', 'void')
+      AND COALESCE(d.status, 'uploaded') <> 'deleted'
+      AND COALESCE(b.bill_date, b.created_at::date, d.uploaded_at::date) <= $1
+      AND COALESCE(b.payment_status, 'pending') NOT IN ('paid')
+    `;
+
     const billsRow = await pool.query(
       `SELECT
-         COALESCE(SUM(CASE WHEN COALESCE(b.category_group,'OPERATING') = 'COGS' THEN b.total_amount END), 0)     AS cogs_payable,
-         COALESCE(SUM(CASE WHEN COALESCE(b.category_group,'OPERATING') <> 'COGS' THEN b.total_amount END), 0)    AS opex_payable,
-         COALESCE(SUM(b.total_amount), 0) AS total_payable,
-         COALESCE(SUM(b.cgst_amount + b.sgst_amount + b.igst_amount), 0) AS gst_payable_on_bills
+         COALESCE(SUM(CASE WHEN COALESCE(b.category_group,'OPERATING') = 'COGS'
+                          THEN b.total_amount END), 0)  AS cogs_payable,
+         COALESCE(SUM(CASE WHEN COALESCE(b.category_group,'OPERATING') <> 'COGS'
+                          THEN b.total_amount END), 0)  AS opex_payable,
+         COUNT(*)                                        AS unpaid_count
        FROM bills b
        LEFT JOIN documents d ON b.document_id = d.document_id
-       WHERE ${BILL_FILTER}`,
+       WHERE ${UNPAID_FILTER}`,
       [asOfDate]
     );
+
+    // For advance bills: use payment_schedule outstanding balance instead of full bill amount
+    const advanceRow = await pool.query(
+      `SELECT COALESCE(SUM(ps.amount_due - COALESCE(ps.amount_paid,0)), 0) AS advance_balance
+       FROM payment_schedule ps
+       JOIN bills b ON ps.bill_id = b.bill_id
+       LEFT JOIN documents d ON b.document_id = d.document_id
+       WHERE ps.payment_status IN ('PENDING','PARTIAL','OVERDUE')
+         AND COALESCE(b.bill_date, b.created_at::date, d.uploaded_at::date) <= $1
+         AND COALESCE(b.status,'pending') NOT IN ('deleted','void')`,
+      [asOfDate]
+    );
+    const advanceBalance = parseFloat(advanceRow.rows[0].advance_balance);
+
     const bp = billsRow.rows[0];
-    const totalPayable = parseFloat(bp.total_payable);
     const cogsPayable  = parseFloat(bp.cogs_payable);
     const opexPayable  = parseFloat(bp.opex_payable);
-    const gstOnBills   = parseFloat(bp.gst_payable_on_bills);
 
-    // GST Payable = output GST collected - ITC
     const netGstPayable = Math.max(0, gstCollected - itc);
 
-    const liabilityAccounts = [
-      { account_code: '2110', account_name: 'Accounts Payable — COGS / Purchase', balance: cogsPayable },
-      { account_code: '2110', account_name: 'Accounts Payable — Operating Expenses', balance: opexPayable },
-    ];
-    if (netGstPayable > 0) liabilityAccounts.push({ account_code: '2120', account_name: 'GST Payable (Output − ITC)', balance: netGstPayable });
+    const liabilityAccounts = [];
+    if (cogsPayable > 0)    liabilityAccounts.push({ account_code: '2110', account_name: 'Accounts Payable — COGS / Purchase (unpaid)', balance: cogsPayable });
+    if (opexPayable > 0)    liabilityAccounts.push({ account_code: '2110', account_name: 'Accounts Payable — Operating Expenses (unpaid)', balance: opexPayable });
+    if (advanceBalance > 0) liabilityAccounts.push({ account_code: '2110', account_name: 'Advance Bills — Outstanding Balance Due', balance: advanceBalance });
+    if (netGstPayable > 0)  liabilityAccounts.push({ account_code: '2120', account_name: 'GST Payable (Output − ITC)', balance: netGstPayable });
     const totalLiabilities = liabilityAccounts.reduce((s, a) => s + a.balance, 0);
 
     // ── EQUITY ────────────────────────────────────────────────────────────────

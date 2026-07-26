@@ -1,6 +1,30 @@
 const API_URL = '/api';
 let selectedFile = null;
 
+function togglePaymentFields() {
+    const status = document.getElementById('payment_status')?.value;
+    document.getElementById('advance-fields')?.classList.toggle('hidden', status !== 'advance');
+    document.getElementById('due-fields')?.classList.toggle('hidden', status !== 'pending');
+}
+
+// Load real drops into the drop selector
+async function loadDrops() {
+    try {
+        const r = await authFetch(`${API_URL}/drops`);
+        const data = await r.json();
+        const drops = data.drops || data || [];
+        const sel = document.getElementById('drop_name');
+        sel.innerHTML = '<option value="Unassigned">Unassigned</option>';
+        drops.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.drop_name || d.name;
+            opt.textContent = d.drop_name || d.name;
+            sel.appendChild(opt);
+        });
+    } catch (e) { /* keep static fallback */ }
+}
+document.addEventListener('DOMContentLoaded', loadDrops);
+
 function authFetch(url, options = {}) {
     const opts = Object.assign({ credentials: 'include' }, options);
     return fetch(url, opts);
@@ -162,7 +186,14 @@ async function uploadFile() {
         showMessage('Please select a payment method', 'error');
         return;
     }
-    
+    const paymentStatus = document.getElementById('payment_status')?.value || 'paid';
+    const advancePct = paymentStatus === 'advance' ? (parseFloat(document.getElementById('advance_percentage')?.value) || null) : null;
+    const dueDate = paymentStatus === 'advance'
+        ? (document.getElementById('due_date')?.value || null)
+        : paymentStatus === 'pending'
+            ? (document.getElementById('due_date_pending')?.value || null)
+            : null;
+
     // Prepare form data
     const formData = new FormData();
     formData.append('bill', selectedFile);
@@ -170,6 +201,9 @@ async function uploadFile() {
     formData.append('drop_name', dropName);
     formData.append('notes', notes);
     formData.append('payment_method', paymentMethod);
+    formData.append('payment_status', paymentStatus);
+    if (advancePct) formData.append('advance_percentage', advancePct);
+    if (dueDate) formData.append('due_date', dueDate);
     
     // Show progress
     document.getElementById('upload-btn').disabled = true;

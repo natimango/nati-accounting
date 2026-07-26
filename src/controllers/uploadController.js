@@ -123,21 +123,21 @@ function computeFileHash(filePath) {
 // Upload and AUTO-PROCESS with AI
 const uploadBill = async (req, res) => {
   try {
-    const { category, notes, payment_method, drop_name } = req.body;
+    const { category, notes, payment_method, drop_name, payment_status, advance_percentage, due_date } = req.body;
     const file = req.file;
     const paymentMethod = (payment_method || '').toUpperCase();
     const dropName = drop_name || null;
     const uploaderId = req.user?.userId || null;
-    console.log('Upload body:', req.body, 'resolved payment:', paymentMethod, 'user:', uploaderId);
-    
+    // User-supplied payment context — overrides AI extraction
+    const userPaymentStatus = payment_status || null;   // 'paid' | 'advance' | 'pending'
+    const userAdvancePct    = advance_percentage ? parseFloat(advance_percentage) : null;
+    const userDueDate       = due_date || null;
+
     if (!file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
     if (!category) {
       return res.status(400).json({ error: 'category is required' });
-    }
-    if (!dropName) {
-      return res.status(400).json({ error: 'drop_name is required' });
     }
     if (!paymentMethod || paymentMethod === 'UNSPECIFIED') {
       return res.status(400).json({ error: 'payment_method is required' });
@@ -175,7 +175,10 @@ const uploadBill = async (req, res) => {
       ...docResult.rows[0],
       document_category: category || docResult.rows[0].document_category || 'uncategorized',
       payment_method: paymentMethod,
-      drop_name: dropName
+      drop_name: dropName,
+      user_payment_status: userPaymentStatus,
+      user_advance_pct: userAdvancePct,
+      user_due_date: userDueDate
     };
     await pool.query('UPDATE documents SET file_hash = $1 WHERE document_id = $2', [fileHash, document.document_id]);
 
@@ -1022,13 +1025,54 @@ async function processDocumentWithAI(
       }
     }
 
-    const scheduleCreated = await createPaymentSchedule(billId, {
-      bill_date: data.bill_date || document.bill_date,
-      amounts: data.amounts || { total: resolvedTotal || 0 },
-      payment_terms: data.payment_terms
-    });
-    const paymentStatus = scheduleCreated ? 'pending' : 'paid';
-    await pool.query('UPDATE bills SET payment_status = $1 WHERE bill_id = $2', [paymentStatus, billId]);
+    // User-supplied payment status takes priority over AI extraction
+    const userPayStatus  = document.user_payment_status;
+    const userAdvPct     = document.user_advance_pct;
+    const userDue        = document.user_due_date;
+
+    let finalPaymentStatus;
+    if (userPayStatus === 'paid') {
+      finalPaymentStatus = 'paid';
+      // No payment schedule needed — already settled
+    } else if (userPayStatus === 'advance' && userAdvPct) {
+      // Override AI payment_terms with user-supplied advance info
+      data.payment_terms = data.payment_terms || {};
+      data.payment_terms.advance_percentage = userAdvPct;
+      data.payment_terms.due_date = userDue || data.payment_terms.due_date;
+      data.payment_terms.payment_type = 'ADVANCE';
+      const scheduleCreated = await createPaymentSchedule(billId, {
+        bill_date: data.bill_date || document.bill_date,
+        amounts: data.amounts || { total: resolvedTotal || 0 },
+        payment_terms: data.payment_terms
+      });
+      finalPaymentStatus = scheduleCreated ? 'pending' : 'paid';
+    } else if (userPayStatus === 'pending') {
+      // Fully unpaid — create a single due-date schedule entry
+      if (userDue) {
+        await pool.query('DELETE FROM payment_schedule WHERE bill_id = $1', [billId]);
+        await pool.query(
+          `INSERT INTO payment_schedule (bill_id, installment_number, due_date, amount_due)
+           VALUES ($1, 1, $2, $3)`,
+          [billId, userDue, resolvedTotal || 0]
+        );
+      }
+      finalPaymentStatus = 'pending';
+    } else {
+      // Fall back to AI-extracted payment terms
+      const scheduleCreated = await createPaymentSchedule(billId, {
+        bill_date: data.bill_date || document.bill_date,
+        amounts: data.amounts || { total: resolvedTotal || 0 },
+        payment_terms: data.payment_terms
+      });
+      finalPaymentStatus = scheduleCreated ? 'pending' : 'paid';
+    }
+
+    // Also store due_date on the bill record itself for easy querying
+    const dueDateToStore = userDue || data.payment_terms?.due_date || null;
+    await pool.query(
+      'UPDATE bills SET payment_status = $1, due_date = COALESCE($2::date, due_date) WHERE bill_id = $3',
+      [finalPaymentStatus, dueDateToStore, billId]
+    );
 
     await createAccountingEntries(
       billId,
