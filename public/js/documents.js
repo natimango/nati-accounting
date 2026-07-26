@@ -270,14 +270,22 @@ function displayDocuments(documents) {
 }
 
 async function triggerRerunAI() {
-    // Show a choice: categorize only (instant) or full AI re-extraction
     const choice = await showAIActionModal();
     if (!choice) return;
 
     if (choice === 'categorize') {
         await runRecategorize();
+    } else if (choice === 'both') {
+        await runRecategorize();
+        let limit = prompt('How many documents for AI re-extraction? (1–500)', '100');
+        if (!limit) return;
+        limit = Math.min(Math.max(parseInt(limit, 10) || 100, 1), 500);
+        await runFullReprocess(limit);
     } else {
-        await runFullReprocess(choice);
+        let limit = prompt('How many documents to reprocess? (1–500)', '50');
+        if (!limit) return;
+        limit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 500);
+        await runFullReprocess(limit);
     }
 }
 
@@ -353,6 +361,11 @@ function showAIActionModal() {
                 <div style="font-weight:700;color:#7c3aed;margin-bottom:3px">🤖 Full AI Re-extraction</div>
                 <div style="color:#6b7280;font-size:12px">Re-reads documents with AI to fix missing dates, amounts, vendor names, and then recategorizes. Takes longer.</div>
               </button>
+
+              <button id="ai-both-btn" style="text-align:left;padding:14px 16px;border:2px solid #4f46e5;border-radius:10px;background:#eef2ff;cursor:pointer;font-size:13px">
+                <div style="font-weight:700;color:#312e81;margin-bottom:3px">✨ Run Both (Recommended)</div>
+                <div style="color:#4338ca;font-size:12px">Fix CoA mapping instantly, then re-read all documents with AI to clean up dates, vendors, and amounts.</div>
+              </button>
             </div>
 
             <div style="margin-top:18px;display:flex;justify-content:flex-end">
@@ -362,13 +375,8 @@ function showAIActionModal() {
         document.body.appendChild(modal);
 
         modal.querySelector('#ai-cat-btn').onclick = () => { modal.remove(); resolve('categorize'); };
-        modal.querySelector('#ai-full-btn').onclick = () => {
-            modal.remove();
-            let limit = prompt('How many documents to reprocess? (1–500)', '50');
-            if (!limit) { resolve(null); return; }
-            limit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 500);
-            resolve(limit);
-        };
+        modal.querySelector('#ai-full-btn').onclick = () => { modal.remove(); resolve('full'); };
+        modal.querySelector('#ai-both-btn').onclick = () => { modal.remove(); resolve('both'); };
         modal.querySelector('#ai-cancel-btn').onclick = () => { modal.remove(); resolve(null); };
         modal.onclick = (e) => { if (e.target === modal) { modal.remove(); resolve(null); } };
     });
