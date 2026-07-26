@@ -1159,20 +1159,28 @@ async function createPaymentSchedule(billId, data = {}) {
   return false;
 }
 
-// 🎯 CREATE DOUBLE-ENTRY ACCOUNTING
+// CREATE DOUBLE-ENTRY ACCOUNTING — one journal entry per bill, replace on reprocess
 async function createAccountingEntries(billId, data, vendorId, options = {}) {
   const category = data.category || 'misc';
   const subtotal = data.amounts?.subtotal || 0;
   const taxAmount = data.amounts?.tax_amount || 0;
   const total = data.amounts?.total || 0;
   const createdBy = resolveJournalUser(options.createdBy || data.created_by || null);
-  
-  // Get or create GL accounts
+
+  // Delete any existing journal entries for this bill to prevent duplicate AP entries
+  const existing = await pool.query(
+    `SELECT journal_id FROM journal_entries WHERE reference_type = 'BILL' AND reference_id = $1`,
+    [billId]
+  );
+  for (const row of existing.rows) {
+    await pool.query('DELETE FROM journal_entry_lines WHERE journal_id = $1', [row.journal_id]);
+    await pool.query('DELETE FROM journal_entries WHERE journal_id = $1', [row.journal_id]);
+  }
+
   const expenseAccount = await getGLAccount(category);
   const inputTaxAccount = await getGLAccount('input_tax');
   const payableAccount = await getGLAccount('accounts_payable');
-  
-  // Create journal entry
+
   const journalResult = await pool.query(
     `INSERT INTO journal_entries (entry_date, reference_type, reference_id, description, total_debit, total_credit, status, created_by)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -1188,17 +1196,13 @@ async function createAccountingEntries(billId, data, vendorId, options = {}) {
       createdBy
     ]
   );
-  
   const journalId = journalResult.rows[0].journal_id;
-  
-  // Debit: Expense Account
+
   await pool.query(
     `INSERT INTO journal_entry_lines (journal_id, account_id, debit_amount, credit_amount, description, line_number)
      VALUES ($1, $2, $3, $4, $5, $6)`,
     [journalId, expenseAccount, subtotal, 0, `${category} expense`, 1]
   );
-  
-  // Debit: Input Tax (GST)
   if (taxAmount > 0) {
     await pool.query(
       `INSERT INTO journal_entry_lines (journal_id, account_id, debit_amount, credit_amount, description, line_number)
@@ -1206,15 +1210,11 @@ async function createAccountingEntries(billId, data, vendorId, options = {}) {
       [journalId, inputTaxAccount, taxAmount, 0, 'Input GST', 2]
     );
   }
-  
-  // Credit: Accounts Payable
   await pool.query(
     `INSERT INTO journal_entry_lines (journal_id, account_id, debit_amount, credit_amount, description, line_number)
      VALUES ($1, $2, $3, $4, $5, $6)`,
     [journalId, payableAccount, 0, total, `Payable to ${data.vendor_name || 'Vendor'}`, 3]
   );
-  
-  console.log(`✓ Journal Entry #${journalId} created`);
 }
 
 // Get GL account_id by category — uses India D2C CoA (migration 028)

@@ -191,85 +191,104 @@ async function getTrialBalance(req, res) {
   }
 }
 
-// Get Balance Sheet
+// Get Balance Sheet — derived entirely from bills + sales_entries (source of truth)
 async function getBalanceSheet(req, res) {
   try {
     const { as_of_date } = req.query;
     const asOfDate = as_of_date || new Date().toISOString().split('T')[0];
-    
-    // Assets
-    const assets = await pool.query(`
-      SELECT 
-        a.account_code,
-        a.account_name,
-        SUM(jel.debit_amount - jel.credit_amount) as balance
-      FROM accounts a
-      LEFT JOIN journal_entry_lines jel ON a.account_id = jel.account_id
-      LEFT JOIN journal_entries je ON jel.journal_id = je.journal_id
-      WHERE a.account_type = 'ASSET'
-      AND (je.entry_date <= $1 OR je.entry_date IS NULL)
-      AND (je.status = 'posted' OR je.status IS NULL)
-      GROUP BY a.account_id, a.account_code, a.account_name
-      HAVING SUM(jel.debit_amount - jel.credit_amount) != 0
-      ORDER BY a.account_code
-    `, [asOfDate]);
-    
-    // Liabilities
-    const liabilities = await pool.query(`
-      SELECT 
-        a.account_code,
-        a.account_name,
-        SUM(jel.credit_amount - jel.debit_amount) as balance
-      FROM accounts a
-      LEFT JOIN journal_entry_lines jel ON a.account_id = jel.account_id
-      LEFT JOIN journal_entries je ON jel.journal_id = je.journal_id
-      WHERE a.account_type = 'LIABILITY'
-      AND (je.entry_date <= $1 OR je.entry_date IS NULL)
-      AND (je.status = 'posted' OR je.status IS NULL)
-      GROUP BY a.account_id, a.account_code, a.account_name
-      HAVING SUM(jel.credit_amount - jel.debit_amount) != 0
-      ORDER BY a.account_code
-    `, [asOfDate]);
-    
-    // Equity
-    const equity = await pool.query(`
-      SELECT 
-        a.account_code,
-        a.account_name,
-        SUM(jel.credit_amount - jel.debit_amount) as balance
-      FROM accounts a
-      LEFT JOIN journal_entry_lines jel ON a.account_id = jel.account_id
-      LEFT JOIN journal_entries je ON jel.journal_id = je.journal_id
-      WHERE a.account_type = 'EQUITY'
-      AND (je.entry_date <= $1 OR je.entry_date IS NULL)
-      AND (je.status = 'posted' OR je.status IS NULL)
-      GROUP BY a.account_id, a.account_code, a.account_name
-      HAVING SUM(jel.credit_amount - jel.debit_amount) != 0
-      ORDER BY a.account_code
-    `, [asOfDate]);
-    
-    const totalAssets = assets.rows.reduce((sum, r) => sum + parseFloat(r.balance || 0), 0);
-    const totalLiabilities = liabilities.rows.reduce((sum, r) => sum + parseFloat(r.balance || 0), 0);
-    const totalEquity = equity.rows.reduce((sum, r) => sum + parseFloat(r.balance || 0), 0);
-    
+
+    const BILL_FILTER = `
+      COALESCE(b.total_amount, 0) > 0
+      AND COALESCE(b.status, 'pending') NOT IN ('deleted', 'void')
+      AND COALESCE(d.status, 'uploaded') <> 'deleted'
+      AND COALESCE(b.bill_date, b.created_at::date, d.uploaded_at::date) <= $1
+    `;
+
+    // ── ASSETS ────────────────────────────────────────────────────────────────
+    // Accounts Receivable = total net sales revenue collected up to as_of_date
+    const salesRow = await pool.query(
+      `SELECT COALESCE(SUM(net_sales), 0) AS net_sales,
+              COALESCE(SUM(gross_sales), 0) AS gross_sales,
+              COALESCE(SUM(returns_amount), 0) AS returns,
+              COALESCE(SUM(cgst_collected + sgst_collected + igst_collected), 0) AS gst_collected
+       FROM sales_entries WHERE entry_date <= $1`,
+      [asOfDate]
+    );
+    const s = salesRow.rows[0];
+    const netSales      = parseFloat(s.net_sales);
+    const gstCollected  = parseFloat(s.gst_collected);
+
+    // Input Tax Credit = GST on bills (cgst_amount + sgst_amount + igst_amount)
+    const itcRow = await pool.query(
+      `SELECT COALESCE(SUM(b.cgst_amount + b.sgst_amount + b.igst_amount), 0) AS itc
+       FROM bills b LEFT JOIN documents d ON b.document_id = d.document_id
+       WHERE ${BILL_FILTER}`,
+      [asOfDate]
+    );
+    const itc = parseFloat(itcRow.rows[0].itc);
+
+    const assetAccounts = [
+      { account_code: '4000', account_name: 'Revenue Received (Net Sales)', balance: netSales },
+    ];
+    if (itc > 0) assetAccounts.push({ account_code: '1170', account_name: 'Input Tax Credit (GST on bills)', balance: itc });
+    const totalAssets = assetAccounts.reduce((s, a) => s + a.balance, 0);
+
+    // ── LIABILITIES ───────────────────────────────────────────────────────────
+    // Accounts Payable = total of all bills (unpaid vendor obligations)
+    const billsRow = await pool.query(
+      `SELECT
+         COALESCE(SUM(CASE WHEN COALESCE(b.category_group,'OPERATING') = 'COGS' THEN b.total_amount END), 0)     AS cogs_payable,
+         COALESCE(SUM(CASE WHEN COALESCE(b.category_group,'OPERATING') <> 'COGS' THEN b.total_amount END), 0)    AS opex_payable,
+         COALESCE(SUM(b.total_amount), 0) AS total_payable,
+         COALESCE(SUM(b.cgst_amount + b.sgst_amount + b.igst_amount), 0) AS gst_payable_on_bills
+       FROM bills b
+       LEFT JOIN documents d ON b.document_id = d.document_id
+       WHERE ${BILL_FILTER}`,
+      [asOfDate]
+    );
+    const bp = billsRow.rows[0];
+    const totalPayable = parseFloat(bp.total_payable);
+    const cogsPayable  = parseFloat(bp.cogs_payable);
+    const opexPayable  = parseFloat(bp.opex_payable);
+    const gstOnBills   = parseFloat(bp.gst_payable_on_bills);
+
+    // GST Payable = output GST collected - ITC
+    const netGstPayable = Math.max(0, gstCollected - itc);
+
+    const liabilityAccounts = [
+      { account_code: '2110', account_name: 'Accounts Payable — COGS / Purchase', balance: cogsPayable },
+      { account_code: '2110', account_name: 'Accounts Payable — Operating Expenses', balance: opexPayable },
+    ];
+    if (netGstPayable > 0) liabilityAccounts.push({ account_code: '2120', account_name: 'GST Payable (Output − ITC)', balance: netGstPayable });
+    const totalLiabilities = liabilityAccounts.reduce((s, a) => s + a.balance, 0);
+
+    // ── EQUITY ────────────────────────────────────────────────────────────────
+    // Retained Earnings = cumulative net revenue (P&L driven from bills/sales)
+    const allTimeSales = await pool.query(
+      `SELECT COALESCE(SUM(net_sales), 0) AS total FROM sales_entries WHERE entry_date <= $1`,
+      [asOfDate]
+    );
+    const allTimeBills = await pool.query(
+      `SELECT COALESCE(SUM(b.total_amount), 0) AS total
+       FROM bills b LEFT JOIN documents d ON b.document_id = d.document_id
+       WHERE ${BILL_FILTER}`,
+      [asOfDate]
+    );
+    const retainedEarnings = parseFloat(allTimeSales.rows[0].total) - parseFloat(allTimeBills.rows[0].total);
+    const equityAccounts = [
+      { account_code: '3200', account_name: 'Retained Earnings (Revenue − Total Spend)', balance: retainedEarnings }
+    ];
+    const totalEquity = retainedEarnings;
+
     res.json({
       success: true,
       as_of_date: asOfDate,
-      assets: {
-        accounts: assets.rows,
-        total: totalAssets
-      },
-      liabilities: {
-        accounts: liabilities.rows,
-        total: totalLiabilities
-      },
-      equity: {
-        accounts: equity.rows,
-        total: totalEquity
-      },
+      assets: { accounts: assetAccounts, total: totalAssets },
+      liabilities: { accounts: liabilityAccounts, total: totalLiabilities },
+      equity: { accounts: equityAccounts, total: totalEquity },
       total_liabilities_equity: totalLiabilities + totalEquity
     });
-    
+
   } catch (error) {
     console.error('Balance Sheet error:', error);
     res.status(500).json({ error: error.message });
