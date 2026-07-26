@@ -3,51 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reports - NATI Accounting</title>
+    <title>Monthly Reports — NATI Accounting</title>
     <link rel="stylesheet" href="css/tailwind.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/theme.css">
+    <style>
+        .tab-btn { padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid #e5e7eb; background: #f9fafb; color: #374151; cursor: pointer; }
+        .tab-btn.active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+        .report-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .report-table th { padding: 9px 14px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; background: #f9fafb; border-bottom: 2px solid #e5e7eb; }
+        .report-table td { padding: 9px 14px; border-bottom: 1px solid #f3f4f6; color: #374151; }
+        .report-table tr:last-child td { border-bottom: none; }
+        .report-table .total-row td { font-weight: 700; background: #f0f9ff; border-top: 2px solid #bae6fd; color: #0369a1; }
+        .report-table .subtotal-row td { font-weight: 600; background: #fafafa; border-top: 1px solid #e5e7eb; }
+        .report-table .section-header td { background: #1e293b; color: #fff; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+        .report-table .group-header td { background: #f1f5f9; color: #475569; font-weight: 600; font-size: 12px; }
+        .report-table .indent td:first-child { padding-left: 28px; }
+        .report-table .text-right { text-align: right; }
+        .report-table .positive { color: #059669; }
+        .report-table .negative { color: #dc2626; }
+        .month-chip { display: inline-block; padding: 4px 12px; border-radius: 99px; font-size: 12px; font-weight: 600; border: 1px solid #e5e7eb; background: #f9fafb; color: #374151; cursor: pointer; }
+        .month-chip.selected { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+        .print-btn { padding: 8px 18px; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+        .print-btn:hover { background: #f9fafb; }
+        @media print {
+            header, .no-print { display: none !important; }
+            .print-area { box-shadow: none !important; border: none !important; }
+            body { background: white !important; }
+        }
+    </style>
 </head>
 <body class="nati-page bg-gradient-to-br from-slate-50 via-slate-100 to-white text-slate-900">
     <div class="min-h-screen flex flex-col">
-        <header class="nati-hero bg-gradient-to-r from-indigo-700 via-blue-700 to-slate-900 text-white shadow-md">
+        <header class="nati-hero bg-gradient-to-r from-indigo-700 via-blue-700 to-slate-900 text-white shadow-md no-print">
             <div class="nati-shell">
                 <div class="py-5 flex flex-wrap items-center gap-4 justify-between">
                     <div class="flex items-center gap-3">
-                    <a href="index.html" class="block">
-                        <img src="logo.jpg" alt="NATI logo" class="h-14 w-14 rounded-xl border border-white/40 bg-white object-cover shadow">
-                    </a>
-                    <div>
-                        <p class="text-xs uppercase tracking-[0.2em] text-white/70">CFO dashboards</p>
-                        <h1 class="text-2xl font-semibold">Live P&amp;L and spend insights</h1>
+                        <a href="index.html" class="block">
+                            <img src="logo.jpg" alt="NATI logo" class="h-14 w-14 rounded-xl border border-white/40 bg-white object-cover shadow">
+                        </a>
+                        <div>
+                            <p class="text-xs uppercase tracking-[0.2em] text-white/70">Monthly Reports</p>
+                            <h1 class="text-2xl font-semibold">P&amp;L · Balance Sheet · GST</h1>
+                        </div>
                     </div>
-                </div>
                     <div class="flex items-center gap-4">
                         <div class="nati-nav-wrapper">
-                        <button class="nati-nav-toggle" onclick="toggleNav('nav-reports')"><i class="fas fa-bars"></i><span>Menu</span></button>
-                        <nav class="nati-nav" id="nav-reports">
-                            <a href="index.html" class="nati-nav-link"><i class="fas fa-gauge"></i><span>Dashboard</span></a>
-                            <a href="documents.html" class="nati-nav-link"><i class="fas fa-folder-open"></i><span>Documents</span></a>
-                            <a href="upload.html" class="nati-nav-link"><i class="fas fa-upload"></i><span>Upload</span></a>
-                            <a href="drop.html" class="nati-nav-link"><i class="fas fa-layer-group"></i><span>Drop</span></a>
-                            <a href="reports.html" class="nati-nav-link is-active"><i class="fas fa-chart-line"></i><span>Reports</span></a>
-                            <a href="balance-sheet.html" class="nati-nav-link"><i class="fas fa-scale-balanced"></i><span>Balance Sheet</span></a>
-                            <a href="garment-economics.html" class="nati-nav-link"><i class="fas fa-shirt"></i><span>Garment P&amp;L</span></a>
-                            <a href="sku-catalog.html" class="nati-nav-link"><i class="fas fa-tags"></i><span>SKU Catalog</span></a>
-                            <a href="sales.html" class="nati-nav-link"><i class="fas fa-store"></i><span>Sales Revenue</span></a>
-                            <a href="admin.html" class="nati-nav-link hidden" id="nav-admin"><i class="fas fa-user-shield"></i><span>Admin</span></a>
-                        </nav>
-                    </div>
+                            <button class="nati-nav-toggle" onclick="toggleNav('nav-reports')"><i class="fas fa-bars"></i><span>Menu</span></button>
+                            <nav class="nati-nav" id="nav-reports">
+                                <a href="index.html" class="nati-nav-link"><i class="fas fa-gauge"></i><span>Dashboard</span></a>
+                                <a href="documents.html" class="nati-nav-link"><i class="fas fa-folder-open"></i><span>Documents</span></a>
+                                <a href="upload.html" class="nati-nav-link"><i class="fas fa-upload"></i><span>Upload</span></a>
+                                <a href="drop.html" class="nati-nav-link"><i class="fas fa-layer-group"></i><span>Drop</span></a>
+                                <a href="reports.html" class="nati-nav-link is-active"><i class="fas fa-chart-line"></i><span>Reports</span></a>
+                                <a href="sales.html" class="nati-nav-link"><i class="fas fa-store"></i><span>Sales Revenue</span></a>
+                                <a href="admin.html" class="nati-nav-link hidden" id="nav-admin"><i class="fas fa-user-shield"></i><span>Admin</span></a>
+                            </nav>
+                        </div>
                         <div class="flex items-center gap-2">
                             <div id="user-pill" class="hidden sm:flex items-center gap-2 px-3 py-2 rounded-2xl border border-white/30 bg-white/10 backdrop-blur">
-                            <div>
-                                <p id="user-name" class="text-sm font-semibold leading-tight">—</p>
-                                <p id="user-role" class="text-[11px] tracking-[0.2em] text-white/70 uppercase">—</p>
+                                <div>
+                                    <p id="user-name" class="text-sm font-semibold leading-tight">—</p>
+                                    <p id="user-role" class="text-[11px] tracking-[0.2em] text-white/70 uppercase">—</p>
+                                </div>
                             </div>
-                        </div>
                             <button id="logout-btn" class="hidden px-3 py-2 bg-white/15 hover:bg-white/25 text-sm font-semibold rounded-2xl flex items-center gap-2 transition">
-                                <i class="fas fa-sign-out-alt"></i>
-                                <span>Logout</span>
+                                <i class="fas fa-sign-out-alt"></i><span>Logout</span>
                             </button>
                         </div>
                     </div>
@@ -56,136 +77,107 @@
         </header>
 
         <main class="flex-1 py-6">
-            <div class="nati-shell max-w-6xl mx-auto space-y-4">
-                <section class="nati-card bg-white/90 backdrop-blur border border-slate-200 rounded-xl shadow-sm p-4">
-                <div class="flex items-center justify-between gap-3 flex-wrap">
-                    <div>
-                        <h2 class="text-lg font-semibold">Period</h2>
-                        <p class="text-xs text-slate-500">Select dates to refresh P&L and metrics</p>
-                        <p id="last-updated" class="text-[11px] text-slate-500 mt-1"></p>
-                    </div>
-                    <div class="flex items-center gap-2 text-sm">
-                        <label>From</label>
-                        <input type="date" id="start-date" class="px-2 py-1 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
-                        <label>To</label>
-                        <input type="date" id="end-date" class="px-2 py-1 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
-                        <button onclick="refreshReports()" class="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-sync mr-1"></i>Refresh</button>
-                    </div>
-                </div>
-            </section>
+            <div class="nati-shell max-w-5xl mx-auto space-y-5">
 
-            <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                <div class="nati-card compact bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-start gap-3 hover:shadow-md transition">
-                    <div class="p-2 rounded-lg bg-indigo-50 text-indigo-700"><i class="fas fa-arrow-trend-up"></i></div>
-                    <div>
-                        <p class="text-xs uppercase tracking-wide text-slate-500">Revenue</p>
-                        <p id="rev-total" class="text-2xl font-semibold mt-1">-</p>
-                    </div>
-                </div>
-                <div class="nati-card compact bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-start gap-3 hover:shadow-md transition">
-                    <div class="p-2 rounded-lg bg-orange-50 text-orange-700"><i class="fas fa-industry"></i></div>
-                    <div>
-                        <p class="text-xs uppercase tracking-wide text-slate-500">COGS</p>
-                        <p id="cogs-total" class="text-2xl font-semibold mt-1">-</p>
-                    </div>
-                </div>
-                <div class="nati-card compact bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-start gap-3 hover:shadow-md transition">
-                    <div class="p-2 rounded-lg bg-emerald-50 text-emerald-700"><i class="fas fa-wallet"></i></div>
-                    <div>
-                        <p class="text-xs uppercase tracking-wide text-slate-500">Gross Profit</p>
-                        <p id="gross-profit" class="text-2xl font-semibold mt-1">-</p>
-                    </div>
-                </div>
-                <div class="nati-card compact bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-start gap-3 hover:shadow-md transition">
-                    <div class="p-2 rounded-lg bg-rose-50 text-rose-700"><i class="fas fa-receipt"></i></div>
-                    <div>
-                        <p class="text-xs uppercase tracking-wide text-slate-500">Expenses</p>
-                        <p id="exp-total" class="text-2xl font-semibold mt-1">-</p>
-                    </div>
-                </div>
-                <div class="nati-card compact bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-start gap-3 hover:shadow-md transition">
-                    <div class="p-2 rounded-lg bg-slate-100 text-slate-700"><i class="fas fa-chart-pie"></i></div>
-                    <div>
-                        <p class="text-xs uppercase tracking-wide text-slate-500">Net Profit</p>
-                        <p id="net-profit" class="text-2xl font-semibold mt-1">-</p>
-                    </div>
-                </div>
-            </section>
-
-            <section class="bg-white border border-slate-200 rounded-xl shadow-sm">
-                <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                    <h3 class="text-md font-semibold">Profit & Loss</h3>
-                </div>
-                <div class="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <h4 class="text-sm font-semibold mb-2 text-slate-700">Revenue</h4>
-                        <table class="nati-table min-w-full text-sm">
-                            <tbody id="rev-body" class="divide-y divide-slate-100"></tbody>
-                        </table>
-                    </div>
-                    <div>
-                        <h4 class="text-sm font-semibold mb-2 text-slate-700">COGS</h4>
-                        <table class="nati-table min-w-full text-sm">
-                            <tbody id="cogs-body" class="divide-y divide-slate-100"></tbody>
-                        </table>
-                    </div>
-                    <div>
-                        <h4 class="text-sm font-semibold mb-2 text-slate-700">Expenses</h4>
-                        <table class="nati-table min-w-full text-sm">
-                            <tbody id="exp-body" class="divide-y divide-slate-100"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <section class="bg-white border border-slate-200 rounded-xl shadow-sm">
-                <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                    <h3 class="text-md font-semibold">Operational Metrics</h3>
-                    <span class="text-xs text-slate-500">Top vendors limited to the largest 3 by spend</span>
-                </div>
-                <div class="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                    <div class="nati-card compact bg-slate-50 rounded-lg p-3 border border-slate-100 space-y-3">
+                <!-- Month selector + controls -->
+                <section class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 no-print">
+                    <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
                         <div>
-                            <h4 class="text-sm font-semibold mb-2 text-slate-700">Documents by Status</h4>
-                            <ul id="docs-status" class="text-sm text-slate-800 space-y-1"></ul>
+                            <h2 class="text-base font-semibold">Select Period</h2>
+                            <p class="text-xs text-slate-500 mt-0.5">Reports are generated month-by-month for GST & compliance filing</p>
                         </div>
-                        <div class="pt-2 border-t border-slate-200">
-                            <h4 class="text-sm font-semibold mb-2 text-slate-700">Spend by Category Group</h4>
-                            <ul id="group-body" class="text-sm text-slate-800 space-y-1"></ul>
+                        <div class="flex gap-2">
+                            <button class="print-btn" onclick="window.print()"><i class="fas fa-print"></i> Print / PDF</button>
                         </div>
                     </div>
-                    <div class="nati-card compact bg-slate-50 rounded-lg p-3 border border-slate-100">
-                        <div class="flex items-center justify-between mb-2">
-                            <h4 class="text-sm font-semibold text-slate-700">Top Vendors</h4>
-                            <span class="text-[11px] text-slate-500">Top 3</span>
-                        </div>
-                        <table class="nati-table min-w-full text-sm">
-                            <tbody id="vendor-body" class="divide-y divide-slate-100"></tbody>
-                        </table>
-                    </div>
-                    <div class="nati-card compact bg-slate-50 rounded-lg p-3 border border-slate-100">
-                        <h4 class="text-sm font-semibold mb-2 text-slate-700">Spend by Category</h4>
-                        <table class="nati-table min-w-full text-sm">
-                            <tbody id="cat-body" class="divide-y divide-slate-100"></tbody>
-                        </table>
-                    </div>
-                    <div class="nati-card compact bg-slate-50 rounded-lg p-3 border border-slate-100">
-                        <h4 class="text-sm font-semibold mb-2 text-slate-700">Spend by Payment Method</h4>
-                        <table class="nati-table min-w-full text-sm">
-                            <tbody id="pay-body" class="divide-y divide-slate-100"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
 
-            <!-- Tag Breakdown -->
-            <section class="bg-white border border-slate-200 rounded-xl shadow-sm" id="tag-breakdown-section" style="display:none">
-                <div class="px-4 py-3 border-b border-slate-100">
-                    <h3 class="text-md font-semibold">Expense Tag Breakdown</h3>
-                    <p class="text-xs text-slate-500">Spend by Nati brand taxonomy (tagged bills only)</p>
+                    <!-- Quick month chips -->
+                    <div class="flex flex-wrap gap-2 mb-4" id="monthChips"></div>
+
+                    <!-- Custom range -->
+                    <div class="flex flex-wrap items-center gap-3 text-sm">
+                        <label class="text-slate-500">Custom range:</label>
+                        <input type="date" id="customStart" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                        <span class="text-slate-400">to</span>
+                        <input type="date" id="customEnd" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                        <button onclick="applyCustomRange()" class="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">Apply</button>
+                    </div>
+                </section>
+
+                <!-- Period header shown in print -->
+                <div id="reportHeader" class="hidden print:block text-center py-4">
+                    <div class="text-2xl font-bold">Nati Collective</div>
+                    <div class="text-slate-500 text-sm" id="reportPeriodLabel"></div>
                 </div>
-                <div class="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" id="tag-breakdown-grid"></div>
-            </section>
+
+                <!-- Tabs -->
+                <div class="flex gap-2 no-print" id="tabRow">
+                    <button class="tab-btn active" onclick="showTab('pl')"><i class="fas fa-chart-line mr-1"></i>Profit & Loss</button>
+                    <button class="tab-btn" onclick="showTab('bs')"><i class="fas fa-scale-balanced mr-1"></i>Balance Sheet</button>
+                    <button class="tab-btn" onclick="showTab('gst')"><i class="fas fa-percent mr-1"></i>GST Summary</button>
+                    <button class="tab-btn" onclick="showTab('spend')"><i class="fas fa-receipt mr-1"></i>Spend Detail</button>
+                </div>
+
+                <!-- ── P&L ── -->
+                <section id="tab-pl" class="print-area">
+                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                            <div>
+                                <h3 class="font-semibold text-base">Profit & Loss Statement</h3>
+                                <p class="text-xs text-slate-500 mt-0.5" id="plPeriodSub">—</p>
+                            </div>
+                            <div id="plStatus" class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-500">Loading…</div>
+                        </div>
+                        <table class="report-table" id="plTable">
+                            <tbody id="plBody"><tr><td colspan="3" class="text-center py-8 text-slate-400">Select a period above</td></tr></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- ── Balance Sheet ── -->
+                <section id="tab-bs" class="print-area hidden">
+                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                            <div>
+                                <h3 class="font-semibold text-base">Balance Sheet</h3>
+                                <p class="text-xs text-slate-500 mt-0.5" id="bsPeriodSub">As of end of period</p>
+                            </div>
+                            <div id="bsStatus" class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-500">Loading…</div>
+                        </div>
+                        <table class="report-table" id="bsTable">
+                            <tbody id="bsBody"><tr><td colspan="2" class="text-center py-8 text-slate-400">Select a period above</td></tr></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- ── GST Summary ── -->
+                <section id="tab-gst" class="print-area hidden">
+                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                        <div class="px-5 py-4 border-b border-slate-100">
+                            <h3 class="font-semibold text-base">GST Summary</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Output GST collected (sales) vs Input Tax Credit (bills) — for GSTR-3B filing</p>
+                        </div>
+                        <table class="report-table" id="gstTable">
+                            <tbody id="gstBody"><tr><td colspan="4" class="text-center py-8 text-slate-400">Select a period above</td></tr></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- ── Spend Detail ── -->
+                <section id="tab-spend" class="print-area hidden">
+                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                        <div class="px-5 py-4 border-b border-slate-100">
+                            <h3 class="font-semibold text-base">Expense Detail</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">All bills grouped by CoA account — for audit & filing</p>
+                        </div>
+                        <table class="report-table" id="spendTable">
+                            <thead><tr>
+                                <th>Account Code</th><th>Account / Category</th><th>Group</th><th class="text-right">Amount (₹)</th>
+                            </tr></thead>
+                            <tbody id="spendBody"><tr><td colspan="4" class="text-center py-8 text-slate-400">Select a period above</td></tr></tbody>
+                        </table>
+                    </div>
+                </section>
 
             </div>
         </main>
@@ -193,6 +185,221 @@
 
     <script src="js/session.js" defer></script>
     <script src="js/nav.js" defer></script>
-    <script src="js/reports.js" defer></script>
+    <script>
+    const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    const fmtN = n => Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    const pct = (a, b) => b ? ((a / b) * 100).toFixed(1) + '%' : '—';
+
+    let currentStart = '', currentEnd = '';
+
+    // Build last 6 month chips
+    function buildMonthChips() {
+        const chips = document.getElementById('monthChips');
+        const now = new Date();
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const label = d.toLocaleString('en-IN', { month: 'short', year: 'numeric' });
+            const start = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+            const last = new Date(d.getFullYear(), d.getMonth()+1, 0);
+            const end = `${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
+            const chip = document.createElement('span');
+            chip.className = 'month-chip' + (i === 0 ? ' selected' : '');
+            chip.textContent = label;
+            chip.dataset.start = start;
+            chip.dataset.end = end;
+            chip.onclick = () => selectMonth(chip, start, end, label);
+            chips.appendChild(chip);
+            if (i === 0) loadReports(start, end, label);
+        }
+    }
+
+    function selectMonth(el, start, end, label) {
+        document.querySelectorAll('.month-chip').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+        loadReports(start, end, label);
+    }
+
+    function applyCustomRange() {
+        const start = document.getElementById('customStart').value;
+        const end = document.getElementById('customEnd').value;
+        if (!start || !end) return;
+        document.querySelectorAll('.month-chip').forEach(c => c.classList.remove('selected'));
+        const label = `${start} to ${end}`;
+        loadReports(start, end, label);
+    }
+
+    async function loadReports(start, end, label) {
+        currentStart = start; currentEnd = end;
+        document.getElementById('plPeriodSub').textContent = label;
+        document.getElementById('bsPeriodSub').textContent = 'As of ' + end;
+        document.getElementById('reportPeriodLabel').textContent = label;
+        document.getElementById('plStatus').textContent = 'Loading…';
+        document.getElementById('bsStatus').textContent = 'Loading…';
+
+        const [pl, bs] = await Promise.all([
+            fetch(`/api/reports/profit-loss?start_date=${start}&end_date=${end}`).then(r => r.json()).catch(() => ({})),
+            fetch(`/api/reports/balance-sheet?as_of_date=${end}`).then(r => r.json()).catch(() => ({}))
+        ]);
+
+        renderPL(pl);
+        renderBS(bs);
+        renderGST(pl);
+        renderSpend(pl);
+    }
+
+    function renderPL(d) {
+        if (!d.success) { document.getElementById('plBody').innerHTML = `<tr><td colspan="3" class="text-center py-6 text-red-400">Failed to load</td></tr>`; return; }
+        const rev = d.revenue?.total || 0;
+        const cogs = d.cogs?.total || 0;
+        const gp = d.gross_profit || 0;
+        const exp = d.expenses?.total || 0;
+        const np = d.net_profit || 0;
+        const gpPct = pct(gp, rev);
+        const npPct = pct(np, rev);
+
+        let rows = '';
+
+        // Revenue
+        rows += `<tr class="section-header"><td colspan="3">Revenue</td></tr>`;
+        (d.revenue?.accounts || []).forEach(a => {
+            rows += `<tr class="indent"><td>${a.account_code} · ${a.account_name}</td><td class="text-right">${fmt(a.amount)}</td><td class="text-right text-slate-400 text-xs">${a.units ? fmtN(a.units) + ' units' : ''}</td></tr>`;
+        });
+        rows += `<tr class="subtotal-row"><td>Total Revenue</td><td class="text-right">${fmt(rev)}</td><td></td></tr>`;
+
+        // COGS
+        rows += `<tr class="section-header"><td colspan="3">Cost of Goods Sold (COGS)</td></tr>`;
+        (d.cogs?.accounts || []).forEach(a => {
+            rows += `<tr class="indent"><td>${a.account_name}</td><td class="text-right">${fmt(a.amount)}</td><td></td></tr>`;
+        });
+        rows += `<tr class="subtotal-row"><td>Total COGS</td><td class="text-right">${fmt(cogs)}</td><td></td></tr>`;
+
+        // Gross profit
+        rows += `<tr class="total-row"><td><b>Gross Profit</b></td><td class="text-right ${gp >= 0 ? 'positive' : 'negative'}">${fmt(gp)}</td><td class="text-right text-xs">${gpPct} margin</td></tr>`;
+
+        // Expenses by group
+        const groups = {};
+        (d.expenses?.accounts || []).forEach(a => {
+            const parts = a.account_name.split(' - ');
+            const g = parts[0] || 'OTHER';
+            const name = parts.slice(1).join(' - ') || a.account_name;
+            if (!groups[g]) groups[g] = [];
+            groups[g].push({ name, amount: a.amount });
+        });
+
+        // Also render tag breakdown if available
+        const tagData = d.tag_breakdown || {};
+        const hasTagData = Object.keys(tagData).length > 0;
+
+        if (hasTagData) {
+            rows += `<tr class="section-header"><td colspan="3">Operating Expenses (by CoA group)</td></tr>`;
+            ['FULFILLMENT', 'MARKETING', 'OPERATIONS'].forEach(g => {
+                const td = tagData[g];
+                if (!td) return;
+                rows += `<tr class="group-header"><td colspan="3">${g}</td></tr>`;
+                td.lines.forEach(l => {
+                    rows += `<tr class="indent"><td>${l.account_code} · ${l.tag_name}</td><td class="text-right">${fmt(l.amount)}</td><td></td></tr>`;
+                });
+                rows += `<tr class="subtotal-row"><td>  ${g} Total</td><td class="text-right">${fmt(td.total)}</td><td></td></tr>`;
+            });
+        } else {
+            rows += `<tr class="section-header"><td colspan="3">Operating Expenses</td></tr>`;
+            Object.entries(groups).forEach(([g, lines]) => {
+                rows += `<tr class="group-header"><td colspan="3">${g}</td></tr>`;
+                lines.forEach(l => { rows += `<tr class="indent"><td>${l.name}</td><td class="text-right">${fmt(l.amount)}</td><td></td></tr>`; });
+            });
+        }
+        rows += `<tr class="subtotal-row"><td>Total Expenses</td><td class="text-right">${fmt(exp)}</td><td></td></tr>`;
+
+        // Net profit
+        rows += `<tr class="total-row"><td><b>Net Profit / (Loss)</b></td><td class="text-right ${np >= 0 ? 'positive' : 'negative'}">${fmt(np)}</td><td class="text-right text-xs">${npPct} margin</td></tr>`;
+
+        document.getElementById('plBody').innerHTML = rows;
+        const st = document.getElementById('plStatus');
+        if (np >= 0) { st.textContent = 'Profitable'; st.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-emerald-100 text-emerald-700'; }
+        else { st.textContent = 'Loss'; st.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-red-100 text-red-600'; }
+    }
+
+    function renderBS(d) {
+        const tbody = document.getElementById('bsBody');
+        if (!d.success) { tbody.innerHTML = `<tr><td colspan="2" class="text-center py-6 text-red-400">Failed to load</td></tr>`; return; }
+        let rows = '';
+        rows += `<tr class="section-header"><td colspan="2">Assets</td></tr>`;
+        (d.assets?.accounts || []).forEach(a => { rows += `<tr class="indent"><td>${a.account_code} · ${a.account_name}</td><td class="text-right">${fmt(a.balance)}</td></tr>`; });
+        rows += `<tr class="subtotal-row"><td>Total Assets</td><td class="text-right">${fmt(d.assets?.total)}</td></tr>`;
+
+        rows += `<tr class="section-header"><td colspan="2">Liabilities</td></tr>`;
+        (d.liabilities?.accounts || []).forEach(a => { rows += `<tr class="indent"><td>${a.account_code} · ${a.account_name}</td><td class="text-right">${fmt(a.balance)}</td></tr>`; });
+        rows += `<tr class="subtotal-row"><td>Total Liabilities</td><td class="text-right">${fmt(d.liabilities?.total)}</td></tr>`;
+
+        rows += `<tr class="section-header"><td colspan="2">Equity</td></tr>`;
+        (d.equity?.accounts || []).forEach(a => { rows += `<tr class="indent"><td>${a.account_code} · ${a.account_name}</td><td class="text-right">${fmt(a.balance)}</td></tr>`; });
+        rows += `<tr class="subtotal-row"><td>Total Equity</td><td class="text-right">${fmt(d.equity?.total)}</td></tr>`;
+
+        const liabEquity = (d.liabilities?.total || 0) + (d.equity?.total || 0);
+        const balanced = Math.abs((d.assets?.total || 0) - liabEquity) < 1;
+        rows += `<tr class="total-row"><td><b>Total Liabilities + Equity</b></td><td class="text-right">${fmt(liabEquity)}</td></tr>`;
+
+        tbody.innerHTML = rows;
+        const st = document.getElementById('bsStatus');
+        if (balanced) { st.textContent = 'Balanced ✓'; st.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-emerald-100 text-emerald-700'; }
+        else { st.textContent = 'Check entries'; st.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-amber-100 text-amber-700'; }
+    }
+
+    function renderGST(d) {
+        // Output GST from sales_entries, Input GST from bills (coming from migration 029 columns)
+        const revenueRows = d.revenue?.accounts || [];
+        const totalGstOut = revenueRows.reduce((s, r) => s + (r.gst_collected || 0), 0);
+        // Input ITC not yet in API — show what we have + a note
+        let rows = `
+            <tr class="section-header"><td colspan="4">Output GST (Collected from customers)</td></tr>
+            <tr class="group-header"><td>Account Code</td><td>Channel</td><td class="text-right">Net Sales</td><td class="text-right">GST Collected</td></tr>`;
+        revenueRows.forEach(r => {
+            rows += `<tr class="indent"><td>${r.account_code}</td><td>${r.account_name}</td><td class="text-right">${fmt(r.amount)}</td><td class="text-right">${fmt(r.gst_collected || 0)}</td></tr>`;
+        });
+        rows += `<tr class="subtotal-row"><td colspan="3">Total Output GST</td><td class="text-right">${fmt(totalGstOut)}</td></tr>`;
+        rows += `<tr class="section-header"><td colspan="4">Input Tax Credit (ITC on bills)</td></tr>
+            <tr class="indent"><td colspan="3">CGST ITC (bills with cgst_amount)</td><td class="text-right text-slate-400">— add GST to bills</td></tr>
+            <tr class="indent"><td colspan="3">SGST ITC</td><td class="text-right text-slate-400">— add GST to bills</td></tr>
+            <tr class="indent"><td colspan="3">IGST ITC</td><td class="text-right text-slate-400">— add GST to bills</td></tr>
+            <tr class="total-row"><td colspan="3"><b>Net GST Payable (Output − ITC)</b></td><td class="text-right">${fmt(totalGstOut)}</td></tr>`;
+        document.getElementById('gstBody').innerHTML = rows;
+    }
+
+    function renderSpend(d) {
+        const tagData = d.tag_breakdown || {};
+        let rows = '';
+        ['COGS', 'FULFILLMENT', 'MARKETING', 'OPERATIONS'].forEach(g => {
+            const td = tagData[g];
+            if (!td || !td.lines.length) return;
+            rows += `<tr class="section-header"><td colspan="4">${g}</td></tr>`;
+            td.lines.forEach(l => {
+                rows += `<tr class="indent"><td>${l.account_code}</td><td>${l.tag_name}</td><td>${g}</td><td class="text-right">${fmt(l.amount)}</td></tr>`;
+            });
+            rows += `<tr class="subtotal-row"><td colspan="3">${g} Total</td><td class="text-right">${fmt(td.total)}</td></tr>`;
+        });
+        // Fallback to bill category breakdown if no tags
+        if (!rows) {
+            (d.cogs?.accounts || []).forEach(a => {
+                rows += `<tr><td>5xxx</td><td>${a.account_name}</td><td>COGS</td><td class="text-right">${fmt(a.amount)}</td></tr>`;
+            });
+            (d.expenses?.accounts || []).forEach(a => {
+                rows += `<tr><td>—</td><td>${a.account_name}</td><td>OPERATING</td><td class="text-right">${fmt(a.amount)}</td></tr>`;
+            });
+        }
+        if (!rows) rows = `<tr><td colspan="4" class="text-center py-8 text-slate-400">No tagged expenses for this period. Tag bills to see CoA breakdown.</td></tr>`;
+        document.getElementById('spendBody').innerHTML = rows;
+    }
+
+    function showTab(name) {
+        ['pl','bs','gst','spend'].forEach(t => {
+            document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
+        });
+        document.querySelectorAll('.tab-btn').forEach((b, i) => {
+            b.classList.toggle('active', ['pl','bs','gst','spend'][i] === name);
+        });
+    }
+
+    buildMonthChips();
+    </script>
 </body>
 </html>
