@@ -272,7 +272,7 @@ async function init() {
   document.getElementById('fEnd').value = today;
   document.getElementById('fDate').value = today;
 
-  const dr = await fetch('/api/drops').then(r => r.json()).catch(() => ({ drops: [] }));
+  const dr = await fetch('/api/meta/drops', {credentials:'include'}).then(r => r.json()).catch(() => ({ drops: [] }));
   drops = dr.drops || dr || [];
   ['fDrop','fDropNew'].forEach(id => {
     const sel = document.getElementById(id);
