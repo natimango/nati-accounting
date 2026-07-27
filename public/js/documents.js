@@ -1,4 +1,63 @@
 const API_URL = '/api';
+
+const CATEGORY_GROUPS = {
+    COGS: [
+        { value: 'fabric',          label: 'Fabric & Raw Materials' },
+        { value: 'manufacturing',   label: 'Manufacturing / Job Work' },
+        { value: 'embroidery',      label: 'Embroidery & Embellishment' },
+        { value: 'washing',         label: 'Washing & Finishing' },
+        { value: 'trims',           label: 'Trims & Accessories' },
+        { value: 'packaging',       label: 'Packaging' },
+        { value: 'quality',         label: 'Quality Inspection' },
+        { value: 'quality check',   label: 'Quality Inspection' },
+        { value: 'inbound_freight', label: 'Inbound Freight' },
+        { value: 'inbound freight', label: 'Inbound Freight' },
+    ],
+    FULFILLMENT: [
+        { value: 'shipping',         label: 'Shipping & Courier' },
+        { value: 'logistics',        label: 'Shipping & Courier' },
+        { value: 'warehousing',      label: 'Warehousing & Storage' },
+        { value: 'returns',          label: 'Returns & Reverse Logistics' },
+        { value: 'commission',       label: 'Marketplace Commission' },
+        { value: 'gateway',          label: 'Payment Gateway' },
+        { value: 'payment gateway',  label: 'Payment Gateway' },
+        { value: 'cod',              label: 'COD Charges' },
+    ],
+    MARKETING: [
+        { value: 'marketing',        label: 'Digital Ads (Meta / Google)' },
+        { value: 'ads',              label: 'Digital Ads (Meta / Google)' },
+        { value: 'influencer',       label: 'Influencer & Gifting' },
+        { value: 'content',          label: 'Content & Photography' },
+        { value: 'content creation', label: 'Content & Photography' },
+        { value: 'platform_fees',    label: 'Platform Fees / Shopify' },
+        { value: 'platform fees',    label: 'Platform Fees / Shopify' },
+        { value: 'pr',               label: 'PR & Events' },
+        { value: 'affiliate',        label: 'Affiliate' },
+    ],
+    OPERATIONS: [
+        { value: 'rent',             label: 'Rent & Workspace' },
+        { value: 'salary',           label: 'Salaries & Wages' },
+        { value: 'contractor',       label: 'Contractor / Freelancer' },
+        { value: 'software',         label: 'Software & Subscriptions' },
+        { value: 'travel',           label: 'Travel & Conveyance' },
+        { value: 'bank_charges',     label: 'Bank Charges' },
+        { value: 'bank charges',     label: 'Bank Charges' },
+        { value: 'legal',            label: 'Legal & Professional' },
+        { value: 'compliance',       label: 'GST Filing & Compliance' },
+        { value: 'insurance',        label: 'Insurance' },
+        { value: 'utilities',        label: 'Utilities & Electricity' },
+        { value: 'food_meals',       label: 'Food & Meals' },
+        { value: 'food',             label: 'Food & Meals' },
+        { value: 'misc',             label: 'Miscellaneous' },
+    ],
+};
+
+const GROUP_LABELS = {
+    COGS:        'COGS / Purchase',
+    FULFILLMENT: 'Fulfilment',
+    MARKETING:   'Marketing',
+    OPERATIONS:  'Operations',
+};
 const VERIFICATION_FILTER_OPTIONS = [
     { key: 'all', label: 'All', countKey: 'total' },
     { key: 'needs_review', label: 'Needs review', countKey: 'needs_review' },
@@ -1246,66 +1305,6 @@ document.addEventListener('keydown', (e) => {
         closeAIModal();
     }
 });
-
-// Canonical group → category mapping (mirrors categoryMap.js + upload.html)
-const CATEGORY_GROUPS = {
-    COGS: [
-        { value: 'fabric',          label: 'Fabric & Raw Materials' },
-        { value: 'manufacturing',   label: 'Manufacturing / Job Work' },
-        { value: 'embroidery',      label: 'Embroidery & Embellishment' },
-        { value: 'washing',         label: 'Washing & Finishing' },
-        { value: 'trims',           label: 'Trims & Accessories' },
-        { value: 'packaging',       label: 'Packaging' },
-        { value: 'quality',         label: 'Quality Inspection' },
-        { value: 'quality check',   label: 'Quality Inspection' },
-        { value: 'inbound_freight', label: 'Inbound Freight' },
-        { value: 'inbound freight', label: 'Inbound Freight' },
-    ],
-    FULFILLMENT: [
-        { value: 'shipping',         label: 'Shipping & Courier' },
-        { value: 'logistics',        label: 'Shipping & Courier' },
-        { value: 'warehousing',      label: 'Warehousing & Storage' },
-        { value: 'returns',          label: 'Returns & Reverse Logistics' },
-        { value: 'commission',       label: 'Marketplace Commission' },
-        { value: 'gateway',          label: 'Payment Gateway' },
-        { value: 'payment gateway',  label: 'Payment Gateway' },
-        { value: 'cod',              label: 'COD Charges' },
-    ],
-    MARKETING: [
-        { value: 'marketing',        label: 'Digital Ads (Meta / Google)' },
-        { value: 'ads',              label: 'Digital Ads (Meta / Google)' },
-        { value: 'influencer',       label: 'Influencer & Gifting' },
-        { value: 'content',          label: 'Content & Photography' },
-        { value: 'content creation', label: 'Content & Photography' },
-        { value: 'platform_fees',    label: 'Platform Fees / Shopify' },
-        { value: 'platform fees',    label: 'Platform Fees / Shopify' },
-        { value: 'pr',               label: 'PR & Events' },
-        { value: 'affiliate',        label: 'Affiliate' },
-    ],
-    OPERATIONS: [
-        { value: 'rent',             label: 'Rent & Workspace' },
-        { value: 'salary',           label: 'Salaries & Wages' },
-        { value: 'contractor',       label: 'Contractor / Freelancer' },
-        { value: 'software',         label: 'Software & Subscriptions' },
-        { value: 'travel',           label: 'Travel & Conveyance' },
-        { value: 'bank_charges',     label: 'Bank Charges' },
-        { value: 'bank charges',     label: 'Bank Charges' },
-        { value: 'legal',            label: 'Legal & Professional' },
-        { value: 'compliance',       label: 'GST Filing & Compliance' },
-        { value: 'insurance',        label: 'Insurance' },
-        { value: 'utilities',        label: 'Utilities & Electricity' },
-        { value: 'food_meals',       label: 'Food & Meals' },
-        { value: 'food',             label: 'Food & Meals' },
-        { value: 'misc',             label: 'Miscellaneous' },
-    ],
-};
-
-const GROUP_LABELS = {
-    COGS:        'COGS / Purchase',
-    FULFILLMENT: 'Fulfilment',
-    MARKETING:   'Marketing',
-    OPERATIONS:  'Operations',
-};
 
 function populateCategoryDropdown(selectedGroup) {
     const catSel = document.getElementById('filter-category');
