@@ -101,6 +101,12 @@
                         <input type="date" id="customStart" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
                         <span class="text-slate-400">to</span>
                         <input type="date" id="customEnd" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                        <select id="filterSection" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                            <option value="">All sections</option>
+                            <option value="Regulars">Regulars</option>
+                            <option value="Artwear">Artwear</option>
+                            <option value="Collectibles">Collectibles</option>
+                        </select>
                         <button onclick="applyCustomRange()" class="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">Apply</button>
                     </div>
                 </section>
@@ -217,7 +223,7 @@
     function selectMonth(el, start, end, label) {
         document.querySelectorAll('.month-chip').forEach(c => c.classList.remove('selected'));
         el.classList.add('selected');
-        loadReports(start, end, label);
+        loadReports(start, end, label + (getSection() ? ` · ${getSection()}` : ''));
     }
 
     function applyCustomRange() {
@@ -229,6 +235,10 @@
         loadReports(start, end, label);
     }
 
+    function getSection() {
+        return document.getElementById('filterSection')?.value || '';
+    }
+
     async function loadReports(start, end, label) {
         currentStart = start; currentEnd = end;
         document.getElementById('plPeriodSub').textContent = label;
@@ -237,9 +247,12 @@
         document.getElementById('plStatus').textContent = 'Loading…';
         document.getElementById('bsStatus').textContent = 'Loading…';
 
+        const opts = { credentials: 'include' };
+        const section = getSection();
+        const secParam = section ? `&section=${encodeURIComponent(section)}` : '';
         const [pl, bs] = await Promise.all([
-            fetch(`/api/reports/profit-loss?start_date=${start}&end_date=${end}`).then(r => r.json()).catch(() => ({})),
-            fetch(`/api/reports/balance-sheet?as_of_date=${end}`).then(r => r.json()).catch(() => ({}))
+            fetch(`/api/reports/profit-loss?start_date=${start}&end_date=${end}${secParam}`, opts).then(r => r.json()).catch(() => ({})),
+            fetch(`/api/reports/balance-sheet?as_of_date=${end}`, opts).then(r => r.json()).catch(() => ({}))
         ]);
 
         renderPL(pl);
@@ -250,74 +263,87 @@
 
     function renderPL(d) {
         if (!d.success) { document.getElementById('plBody').innerHTML = `<tr><td colspan="3" class="text-center py-6 text-red-400">Failed to load</td></tr>`; return; }
-        const rev = d.revenue?.total || 0;
-        const cogs = d.cogs?.total || 0;
-        const gp = d.gross_profit || 0;
-        const exp = d.expenses?.total || 0;
-        const np = d.net_profit || 0;
-        const gpPct = pct(gp, rev);
-        const npPct = pct(np, rev);
+
+        const ns  = d.net_sales   || 0;
+        const gp  = d.gross_profit || 0;
+        const cm1 = d.cm1 ?? (gp - (d.fulfilment?.total || 0));
+        const cm2 = d.cm2 ?? (cm1 - (d.marketing?.total || 0));
+        const ebitda = d.ebitda ?? (cm2 - (d.opex?.total || 0));
+
+        function watermark(val, base) {
+            if (!base) return '';
+            const p = (val / base * 100).toFixed(1);
+            return `<span class="text-xs text-slate-400">${p}% of sales</span>`;
+        }
+        function plRow(label, amount, cls, extra) {
+            const sign = amount < 0 ? 'negative' : amount > 0 ? 'positive' : '';
+            return `<tr class="${cls || ''}"><td>${label}</td><td class="text-right ${sign}">${fmt(amount)}</td><td class="text-right">${extra || watermark(amount, ns)}</td></tr>`;
+        }
+        function milestone(label, amount, pctVal) {
+            const sign = amount < 0 ? 'negative' : 'positive';
+            return `<tr class="total-row"><td><b>${label}</b></td><td class="text-right ${sign}"><b>${fmt(amount)}</b></td><td class="text-right text-xs font-semibold">${pctVal !== undefined ? pctVal + '% margin' : ''}</td></tr>`;
+        }
 
         let rows = '';
 
-        // Revenue
+        // ── REVENUE ──
         rows += `<tr class="section-header"><td colspan="3">Revenue</td></tr>`;
-        (d.revenue?.accounts || []).forEach(a => {
-            rows += `<tr class="indent"><td>${a.account_code} · ${a.account_name}</td><td class="text-right">${fmt(a.amount)}</td><td class="text-right text-slate-400 text-xs">${a.units ? fmtN(a.units) + ' units' : ''}</td></tr>`;
+        rows += `<tr class="indent"><td>Gross Product Sales</td><td class="text-right">${fmt(d.gross_sales || 0)}</td><td></td></tr>`;
+        if (d.returns) rows += `<tr class="indent"><td>Less: Returns &amp; Cancellations</td><td class="text-right negative">(${fmt(d.returns)})</td><td></td></tr>`;
+        (d.revenue_by_channel || []).forEach(r => {
+            rows += `<tr class="indent" style="padding-left:40px"><td style="padding-left:40px">${r.channel.replace(/_/g,' ')} · Net Sales</td><td class="text-right">${fmt(r.net_sales)}</td><td class="text-right text-xs text-slate-400">${r.units > 0 ? fmtN(r.units) + ' units' : ''}</td></tr>`;
         });
-        rows += `<tr class="subtotal-row"><td>Total Revenue</td><td class="text-right">${fmt(rev)}</td><td></td></tr>`;
+        rows += milestone('Net Sales (excl. GST)', ns, '');
 
-        // COGS
-        rows += `<tr class="section-header"><td colspan="3">Cost of Goods Sold (COGS)</td></tr>`;
-        (d.cogs?.accounts || []).forEach(a => {
-            rows += `<tr class="indent"><td>${a.account_name}</td><td class="text-right">${fmt(a.amount)}</td><td></td></tr>`;
+        // ── COGS ──
+        rows += `<tr class="section-header"><td colspan="3">Manufacturing COGS</td></tr>`;
+        (d.cogs?.lines || []).forEach(l => {
+            rows += `<tr class="indent"><td>${l.category.replace(/_/g,' ')}</td><td class="text-right">${fmt(l.amount)}</td><td></td></tr>`;
         });
-        rows += `<tr class="subtotal-row"><td>Total COGS</td><td class="text-right">${fmt(cogs)}</td><td></td></tr>`;
+        if (!(d.cogs?.lines || []).length) rows += `<tr class="indent"><td class="text-slate-400">No COGS bills for this period</td><td></td><td></td></tr>`;
+        rows += `<tr class="subtotal-row"><td>Total COGS</td><td class="text-right">${fmt(d.cogs?.total || 0)}</td><td></td></tr>`;
+        rows += milestone('Gross Profit', gp, d.gross_margin_pct);
 
-        // Gross profit
-        rows += `<tr class="total-row"><td><b>Gross Profit</b></td><td class="text-right ${gp >= 0 ? 'positive' : 'negative'}">${fmt(gp)}</td><td class="text-right text-xs">${gpPct} margin</td></tr>`;
-
-        // Expenses by group
-        const groups = {};
-        (d.expenses?.accounts || []).forEach(a => {
-            const parts = a.account_name.split(' - ');
-            const g = parts[0] || 'OTHER';
-            const name = parts.slice(1).join(' - ') || a.account_name;
-            if (!groups[g]) groups[g] = [];
-            groups[g].push({ name, amount: a.amount });
+        // ── FULFILMENT → CM1 ──
+        rows += `<tr class="section-header"><td colspan="3">Fulfilment &amp; Variable Selling Costs</td></tr>`;
+        (d.fulfilment?.lines || []).forEach(l => {
+            rows += `<tr class="indent"><td>${l.category.replace(/_/g,' ')}</td><td class="text-right">${fmt(l.amount)}</td><td></td></tr>`;
         });
+        if (d.fulfilment?.marketplace_commission) rows += `<tr class="indent"><td>Marketplace Commissions</td><td class="text-right">${fmt(d.fulfilment.marketplace_commission)}</td><td></td></tr>`;
+        if (d.fulfilment?.payment_gateway) rows += `<tr class="indent"><td>Payment Gateway Charges</td><td class="text-right">${fmt(d.fulfilment.payment_gateway)}</td><td></td></tr>`;
+        rows += `<tr class="subtotal-row"><td>Total Fulfilment</td><td class="text-right">${fmt(d.fulfilment?.total || 0)}</td><td></td></tr>`;
+        rows += milestone('Contribution Margin 1 (CM1)', cm1, d.cm1_pct);
 
-        // Also render tag breakdown if available
-        const tagData = d.tag_breakdown || {};
-        const hasTagData = Object.keys(tagData).length > 0;
+        // ── MARKETING → CM2 ──
+        rows += `<tr class="section-header"><td colspan="3">Marketing &amp; CAC</td></tr>`;
+        (d.marketing?.lines || []).forEach(l => {
+            rows += `<tr class="indent"><td>${l.category.replace(/_/g,' ')}</td><td class="text-right">${fmt(l.amount)}</td><td></td></tr>`;
+        });
+        if (!(d.marketing?.lines || []).length) rows += `<tr class="indent"><td class="text-slate-400">No marketing bills for this period</td><td></td><td></td></tr>`;
+        rows += `<tr class="subtotal-row"><td>Total Marketing / CAC</td><td class="text-right">${fmt(d.marketing?.total || 0)}</td><td></td></tr>`;
+        rows += milestone('Contribution Margin 2 (CM2)', cm2, d.cm2_pct);
 
-        if (hasTagData) {
-            rows += `<tr class="section-header"><td colspan="3">Operating Expenses (by CoA group)</td></tr>`;
-            ['FULFILLMENT', 'MARKETING', 'OPERATIONS'].forEach(g => {
-                const td = tagData[g];
-                if (!td) return;
-                rows += `<tr class="group-header"><td colspan="3">${g}</td></tr>`;
-                td.lines.forEach(l => {
-                    rows += `<tr class="indent"><td>${l.account_code} · ${l.tag_name}</td><td class="text-right">${fmt(l.amount)}</td><td></td></tr>`;
-                });
-                rows += `<tr class="subtotal-row"><td>  ${g} Total</td><td class="text-right">${fmt(td.total)}</td><td></td></tr>`;
-            });
-        } else {
-            rows += `<tr class="section-header"><td colspan="3">Operating Expenses</td></tr>`;
-            Object.entries(groups).forEach(([g, lines]) => {
-                rows += `<tr class="group-header"><td colspan="3">${g}</td></tr>`;
-                lines.forEach(l => { rows += `<tr class="indent"><td>${l.name}</td><td class="text-right">${fmt(l.amount)}</td><td></td></tr>`; });
+        // ── OPEX → EBITDA ──
+        rows += `<tr class="section-header"><td colspan="3">Operating Expenses</td></tr>`;
+        (d.opex?.lines || []).forEach(l => {
+            rows += `<tr class="indent"><td>${l.category.replace(/_/g,' ')}</td><td class="text-right">${fmt(l.amount)}</td><td></td></tr>`;
+        });
+        rows += `<tr class="subtotal-row"><td>Total OpEx</td><td class="text-right">${fmt(d.opex?.total || 0)}</td><td></td></tr>`;
+        rows += milestone('EBITDA', ebitda, d.ebitda_pct);
+
+        // ── SECTION BREAKDOWN ──
+        if (d.section_breakdown && d.section_breakdown.length) {
+            rows += `<tr class="section-header"><td colspan="3">By Section</td></tr>`;
+            rows += `<tr class="group-header"><td>Section</td><td class="text-right">Net Sales</td><td class="text-right">Gross Margin</td></tr>`;
+            d.section_breakdown.forEach(s => {
+                rows += `<tr class="indent"><td>${s.section}</td><td class="text-right">${fmt(s.net_sales)}</td><td class="text-right">${s.gross_margin_pct.toFixed(1)}%</td></tr>`;
             });
         }
-        rows += `<tr class="subtotal-row"><td>Total Expenses</td><td class="text-right">${fmt(exp)}</td><td></td></tr>`;
-
-        // Net profit
-        rows += `<tr class="total-row"><td><b>Net Profit / (Loss)</b></td><td class="text-right ${np >= 0 ? 'positive' : 'negative'}">${fmt(np)}</td><td class="text-right text-xs">${npPct} margin</td></tr>`;
 
         document.getElementById('plBody').innerHTML = rows;
         const st = document.getElementById('plStatus');
-        if (np >= 0) { st.textContent = 'Profitable'; st.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-emerald-100 text-emerald-700'; }
-        else { st.textContent = 'Loss'; st.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-red-100 text-red-600'; }
+        if (ebitda >= 0) { st.textContent = 'EBITDA Positive'; st.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-emerald-100 text-emerald-700'; }
+        else { st.textContent = 'EBITDA Negative'; st.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-red-100 text-red-600'; }
     }
 
     function renderBS(d) {
@@ -367,27 +393,30 @@
     }
 
     function renderSpend(d) {
-        const tagData = d.tag_breakdown || {};
         let rows = '';
-        ['COGS', 'FULFILLMENT', 'MARKETING', 'OPERATIONS'].forEach(g => {
-            const td = tagData[g];
-            if (!td || !td.lines.length) return;
-            rows += `<tr class="section-header"><td colspan="4">${g}</td></tr>`;
-            td.lines.forEach(l => {
-                rows += `<tr class="indent"><td>${l.account_code}</td><td>${l.tag_name}</td><td>${g}</td><td class="text-right">${fmt(l.amount)}</td></tr>`;
+        const sections = [
+            { key: 'cogs',       label: 'COGS',        linesKey: 'lines' },
+            { key: 'fulfilment', label: 'FULFILMENT',   linesKey: 'lines' },
+            { key: 'marketing',  label: 'MARKETING',    linesKey: 'lines' },
+            { key: 'opex',       label: 'OPERATIONS',   linesKey: 'lines' }
+        ];
+        sections.forEach(({ key, label, linesKey }) => {
+            const section = d[key];
+            const lines = section?.[linesKey] || [];
+            if (!lines.length && !section?.total) return;
+            rows += `<tr class="section-header"><td colspan="4">${label}</td></tr>`;
+            lines.forEach(l => {
+                const cat = (l.category || l.tag_name || l.account_name || '').replace(/_/g,' ');
+                const code = l.account_code || '—';
+                rows += `<tr class="indent"><td>${code}</td><td>${cat}</td><td>${label}</td><td class="text-right">${fmt(l.amount)}</td></tr>`;
             });
-            rows += `<tr class="subtotal-row"><td colspan="3">${g} Total</td><td class="text-right">${fmt(td.total)}</td></tr>`;
+            if (key === 'fulfilment') {
+                if (d.fulfilment?.marketplace_commission) rows += `<tr class="indent"><td>—</td><td>Marketplace Commissions</td><td>FULFILMENT</td><td class="text-right">${fmt(d.fulfilment.marketplace_commission)}</td></tr>`;
+                if (d.fulfilment?.payment_gateway) rows += `<tr class="indent"><td>—</td><td>Payment Gateway</td><td>FULFILMENT</td><td class="text-right">${fmt(d.fulfilment.payment_gateway)}</td></tr>`;
+            }
+            rows += `<tr class="subtotal-row"><td colspan="3">${label} Total</td><td class="text-right">${fmt(section?.total || 0)}</td></tr>`;
         });
-        // Fallback to bill category breakdown if no tags
-        if (!rows) {
-            (d.cogs?.accounts || []).forEach(a => {
-                rows += `<tr><td>5xxx</td><td>${a.account_name}</td><td>COGS</td><td class="text-right">${fmt(a.amount)}</td></tr>`;
-            });
-            (d.expenses?.accounts || []).forEach(a => {
-                rows += `<tr><td>—</td><td>${a.account_name}</td><td>OPERATING</td><td class="text-right">${fmt(a.amount)}</td></tr>`;
-            });
-        }
-        if (!rows) rows = `<tr><td colspan="4" class="text-center py-8 text-slate-400">No tagged expenses for this period. Tag bills to see CoA breakdown.</td></tr>`;
+        if (!rows) rows = `<tr><td colspan="4" class="text-center py-8 text-slate-400">No bills categorised for this period.</td></tr>`;
         document.getElementById('spendBody').innerHTML = rows;
     }
 

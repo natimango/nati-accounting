@@ -194,6 +194,8 @@ async function uploadFile() {
             ? (document.getElementById('due_date_pending')?.value || null)
             : null;
 
+    const section = document.getElementById('section')?.value || '';
+
     // Prepare form data
     const formData = new FormData();
     formData.append('bill', selectedFile);
@@ -202,6 +204,7 @@ async function uploadFile() {
     formData.append('notes', notes);
     formData.append('payment_method', paymentMethod);
     formData.append('payment_status', paymentStatus);
+    if (section) formData.append('section', section);
     if (advancePct) formData.append('advance_percentage', advancePct);
     if (dueDate) formData.append('due_date', dueDate);
     

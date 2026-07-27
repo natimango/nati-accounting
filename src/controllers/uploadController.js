@@ -123,11 +123,12 @@ function computeFileHash(filePath) {
 // Upload and AUTO-PROCESS with AI
 const uploadBill = async (req, res) => {
   try {
-    const { category, notes, payment_method, drop_name, payment_status, advance_percentage, due_date } = req.body;
+    const { category, notes, payment_method, drop_name, payment_status, advance_percentage, due_date, section } = req.body;
     const file = req.file;
     const paymentMethod = (payment_method || '').toUpperCase();
     const dropName = drop_name || null;
     const uploaderId = req.user?.userId || null;
+    const billSection = section || null;  // 'Regulars' | 'Artwear' | 'Collectibles' | null
     // User-supplied payment context — overrides AI extraction
     const userPaymentStatus = payment_status || null;   // 'paid' | 'advance' | 'pending'
     const userAdvancePct    = advance_percentage ? parseFloat(advance_percentage) : null;
@@ -176,6 +177,7 @@ const uploadBill = async (req, res) => {
       document_category: category || docResult.rows[0].document_category || 'uncategorized',
       payment_method: paymentMethod,
       drop_name: dropName,
+      section: billSection,
       user_payment_status: userPaymentStatus,
       user_advance_pct: userAdvancePct,
       user_due_date: userDueDate
@@ -919,10 +921,10 @@ async function processDocumentWithAI(
     }
 
     const billUpsert = await pool.query(
-      `INSERT INTO bills 
-         (document_id, vendor_id, bill_number, bill_date, subtotal, tax_amount, total_amount, 
-          category, category_group, drop_name, confidence_score, status, payment_status, payment_method)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      `INSERT INTO bills
+         (document_id, vendor_id, bill_number, bill_date, subtotal, tax_amount, total_amount,
+          category, category_group, drop_name, section, confidence_score, status, payment_status, payment_method)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        ON CONFLICT ON CONSTRAINT ux_bills_document DO UPDATE SET
           vendor_id = EXCLUDED.vendor_id,
           bill_number = EXCLUDED.bill_number,
@@ -933,6 +935,7 @@ async function processDocumentWithAI(
           category = EXCLUDED.category,
           category_group = EXCLUDED.category_group,
           drop_name = EXCLUDED.drop_name,
+          section = COALESCE(EXCLUDED.section, bills.section),
           confidence_score = EXCLUDED.confidence_score,
           status = EXCLUDED.status,
           payment_status = EXCLUDED.payment_status,
@@ -949,6 +952,7 @@ async function processDocumentWithAI(
         data.category || document.document_category || 'misc',
         categoryInfo.category_group,
         dropName,
+        document.section || null,
         data.confidence || 0.8,
         'approved',
         'pending',
