@@ -1236,7 +1236,6 @@ const CATEGORY_GROUPS = {
         { value: 'bank charges',     label: 'Bank Charges' },
         { value: 'legal',            label: 'Legal & Professional' },
         { value: 'compliance',       label: 'GST Filing & Compliance' },
-        { value: 'gst',              label: 'GST Filing & Compliance' },
         { value: 'insurance',        label: 'Insurance' },
         { value: 'utilities',        label: 'Utilities & Electricity' },
         { value: 'food_meals',       label: 'Food & Meals' },
