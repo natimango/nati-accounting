@@ -370,17 +370,18 @@ async function loadReports(start, end, label) {
             (sec  ? `&section=${encodeURIComponent(sec)}`   : '') +
             (drop ? `&drop_name=${encodeURIComponent(drop)}` : '');
 
-        const [pl, prior, dims] = await Promise.all([
+        const [pl, prior, dims, metrics] = await Promise.all([
             fetch(`/api/reports/profit-loss?${qs}`, { credentials: 'include' }).then(r => r.json()),
             fetch(`/api/reports/profit-loss?${priorQs}`, { credentials: 'include' }).then(r => r.json()).catch(() => null),
             fetch(`/api/reports/spend-dimensions?start_date=${start}&end_date=${end}`, { credentials: 'include' }).then(r => r.json()).catch(() => null),
+            fetch(`/api/metrics/summary?start_date=${start}&end_date=${end}`, { credentials: 'include' }).then(r => r.json()).catch(() => null),
         ]);
         lastPLData = pl;
         renderKPIs(pl, prior);
         renderPL(pl);
         renderSectionGrid(pl);
         renderGST(pl);
-        renderSpend(pl);
+        renderSpend(pl, metrics);
         renderDropSpend(dims);
     } catch (e) {
         document.getElementById('plBody').innerHTML = `<tr><td colspan="3" class="text-center py-8 text-red-400">Failed to load — ${e.message}</td></tr>`;
@@ -553,7 +554,7 @@ function renderGST(d) {
 }
 
 // ── Spend Detail ───────────────────────────────────────────────────────────────
-function renderSpend(d) {
+function renderSpend(d, metrics) {
     const GROUPS = [
         { key: 'cogs',      label: 'COGS' },
         { key: 'fulfilment',label: 'FULFILLMENT' },
@@ -579,6 +580,18 @@ function renderSpend(d) {
         });
         h += `<tr class="sub"><td colspan="2">${label} Total</td><td class="tr">${fmt(grp?.total || 0)}</td></tr>`;
     });
+
+    // Top vendors
+    const vendors = metrics?.spend_by_vendor || [];
+    if (vendors.length) {
+        const totalVendorSpend = vendors.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+        h += `<tr class="sec-hdr"><td colspan="3">Top Vendors by Spend</td></tr>`;
+        vendors.forEach(v => {
+            const amt = parseFloat(v.total || 0);
+            const share = totalVendorSpend ? (amt / totalVendorSpend * 100).toFixed(0) : 0;
+            h += `<tr class="item"><td colspan="2">${v.vendor_name}</td><td class="tr">${fmt(amt)} <span class="muted">${share}%</span></td></tr>`;
+        });
+    }
 
     if (!h) h = `<tr><td colspan="3" class="text-center py-10 text-slate-400">No bills categorised for this period</td></tr>`;
     document.getElementById('spendBody').innerHTML = h;
