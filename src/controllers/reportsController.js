@@ -154,9 +154,9 @@ async function getProfitLoss(req, res) {
          WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
            AND ${ACTIVE_BILL_FILTER}
            AND b.section IS NOT NULL
-           AND (b.category_group = 'COGS' OR b.category IN (${[...FULFILMENT_CATS].map((_,i)=>`$${i+3}`).join(',')}))
+           AND b.category_group IN ('COGS', 'FULFILLMENT')
          GROUP BY section`,
-        [startDate, endDate, ...FULFILMENT_CATS]
+        [startDate, endDate]
       );
       const secMap = {};
       secSales.rows.forEach(r => {
