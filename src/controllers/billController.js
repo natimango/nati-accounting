@@ -155,7 +155,10 @@ async function processBillManual(req, res) {
 
     const categoryInfo = normalizeCategory(category || document.document_category || 'misc');
     const normalizedCategory = categoryInfo.category;
-    const categoryGroup = categoryInfo.category_group;
+    const VALID_GROUPS = ['COGS', 'FULFILLMENT', 'MARKETING', 'OPERATIONS'];
+    const categoryGroup = VALID_GROUPS.includes((department || '').toUpperCase())
+      ? department.toUpperCase()
+      : categoryInfo.category_group;
 
     const dimError = validateDimensions(normalizedCategory, drop_name, channel, campaign);
     if (dimError) {
@@ -995,16 +998,19 @@ async function updateBillMeta(req, res) {
     }
     const documentId = bill.rows[0].document_id;
 
+    const VALID_GROUPS = ['COGS', 'FULFILLMENT', 'MARKETING', 'OPERATIONS'];
+    const newGroup = VALID_GROUPS.includes((department || '').toUpperCase()) ? department.toUpperCase() : null;
     await pool.query(
-      `UPDATE bills 
+      `UPDATE bills
        SET drop_name = COALESCE($1, drop_name),
            trip_name = COALESCE($2, trip_name),
            channel = COALESCE($3, channel),
            campaign = COALESCE($4, campaign),
            department = COALESCE($5, department),
-           category = COALESCE($6, category)
+           category = COALESCE($6, category),
+           category_group = COALESCE($8, category_group)
        WHERE bill_id = $7`,
-      [drop_name || null, trip_name || null, channel || null, campaign || null, department || null, category || null, bill_id]
+      [drop_name || null, trip_name || null, channel || null, campaign || null, department || null, category || null, bill_id, newGroup]
     );
 
     if (documentId) {
