@@ -171,22 +171,33 @@ function renderRecentDocs(data) {
         return;
     }
 
+    const GRP_CHIP = {
+        COGS:        '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-700">COGS</span>',
+        FULFILLMENT: '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700">Fulfil.</span>',
+        MARKETING:   '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-100 text-violet-700">Mktg</span>',
+        OPERATIONS:  '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">Ops</span>',
+    };
     container.innerHTML = docs.map(doc => {
         const vendor  = doc.bill_vendor_name || doc.vendor_name || doc.file_name || '—';
-        const group   = doc.bill_category_group || doc.category_group || '';
+        const grp     = (doc.bill_category_group || doc.category_group || '').toUpperCase();
         const amount  = doc.total_amount || doc.bill_total_amount;
         const amtStr  = amount ? fmt(amount) : '';
+        const grpChip = GRP_CHIP[grp] || '';
+        const uploadDate = doc.uploaded_at
+            ? new Date(doc.uploaded_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+            : '';
         const STATUS_MAP = { uploaded: ['Pending', 'bg-amber-100 text-amber-700'], processed: ['Done', 'bg-emerald-100 text-emerald-700'], manual_required: ['Review', 'bg-orange-100 text-orange-700'], error: ['Error', 'bg-red-100 text-red-600'] };
         const [statusLabel, statusCls] = STATUS_MAP[doc.status] || ['—', 'bg-slate-100 text-slate-500'];
         const icon = doc.file_type?.includes('pdf') ? 'fa-file-pdf text-red-400' : 'fa-file-image text-blue-400';
         return `
-        <div class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition cursor-pointer" onclick="location.href='documents.html'">
+        <div class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition cursor-pointer" onclick="location.href='documents.html'">
             <i class="fas ${icon} text-lg w-5 shrink-0"></i>
             <div class="flex-1 min-w-0">
                 <p class="font-medium text-slate-800 text-sm truncate">${vendor}</p>
-                <div class="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-                    ${group ? `<span class="font-medium text-slate-500">${group}</span>` : ''}
+                <div class="flex items-center gap-1.5 flex-wrap text-xs text-slate-400 mt-0.5">
+                    ${grpChip}
                     ${amtStr ? `<span class="font-semibold text-slate-700">${amtStr}</span>` : ''}
+                    ${uploadDate ? `<span class="text-slate-400">${uploadDate}</span>` : ''}
                 </div>
             </div>
             <span class="text-xs font-medium px-2 py-0.5 rounded-full ${statusCls} shrink-0">${statusLabel}</span>
