@@ -266,23 +266,50 @@ async function loadDrops() {
 }
 
 // ── Month chips ────────────────────────────────────────────────────────────────
+function makeChip(label, start, end, active) {
+    const chip = document.createElement('span');
+    chip.className = 'chip' + (active ? ' on' : '');
+    chip.textContent = label;
+    chip.dataset.start = start;
+    chip.dataset.end   = end;
+    chip.onclick = () => {
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+        chip.classList.add('on');
+        loadReports(start, end, label);
+    };
+    return chip;
+}
+
 function buildMonthChips() {
     const wrap = document.getElementById('monthChips');
     const now  = new Date();
+
+    // ── FY / YTD preset chips ─────────────────────────────────────────────────
+    // India FY: April 1 → March 31
+    const fyStartYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+    const fyStart = `${fyStartYear}-04-01`;
+    const fyEnd   = `${fyStartYear + 1}-03-31`;
+    const fyLabel = `FY ${fyStartYear}-${String(fyStartYear + 1).slice(-2)}`;
+
+    const ytdEnd   = now.toISOString().split('T')[0];
+    const ytdStart = fyStart; // YTD = FY start to today
+
+    const sep = document.createElement('span');
+    sep.className = 'text-slate-300 text-xs self-center mx-1';
+    sep.textContent = '|';
+
+    wrap.appendChild(makeChip(fyLabel, fyStart, fyEnd, false));
+    wrap.appendChild(makeChip('FY to date', ytdStart, ytdEnd, false));
+    wrap.appendChild(sep);
+
+    // ── Rolling 7 months ──────────────────────────────────────────────────────
     for (let i = 0; i < 7; i++) {
         const d     = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const label = d.toLocaleString('en-IN', { month: 'short', year: 'numeric' });
         const start = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
         const last  = new Date(d.getFullYear(), d.getMonth() + 1, 0);
         const end   = `${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
-        const chip  = document.createElement('span');
-        chip.className = 'chip' + (i === 0 ? ' on' : '');
-        chip.textContent = label;
-        chip.onclick = () => {
-            document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
-            chip.classList.add('on');
-            loadReports(start, end, label);
-        };
+        const chip  = makeChip(label, start, end, i === 0);
         wrap.appendChild(chip);
         if (i === 0) loadReports(start, end, label);
     }

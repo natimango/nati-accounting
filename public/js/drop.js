@@ -21,9 +21,10 @@ function formatGroupLabel(group) {
 
 function getBudgetWindow() {
   const now = new Date();
+  const fyYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
   return {
-    start: new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0],
-    end: new Date(now.getFullYear(), 11, 31).toISOString().split('T')[0]
+    start: new Date(fyYear, 3, 1).toISOString().split('T')[0],
+    end: new Date(fyYear + 1, 2, 31).toISOString().split('T')[0]
   };
 }
 
