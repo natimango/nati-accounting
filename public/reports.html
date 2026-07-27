@@ -223,12 +223,19 @@
             <!-- ── Trend ── -->
             <section id="tab-trend" class="print-area hidden">
                 <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
                         <div>
-                            <h3 class="font-semibold text-base">6-Month Trend</h3>
-                            <p class="text-xs text-slate-400 mt-0.5">Net Sales · Gross Profit · EBITDA — last 6 months</p>
+                            <h3 class="font-semibold text-base">P&amp;L Trend</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Net Sales · Gross Profit · EBITDA — rolling months</p>
                         </div>
-                        <button onclick="loadTrend()" class="text-xs text-indigo-600 hover:underline"><i class="fas fa-rotate mr-1"></i>Refresh</button>
+                        <div class="flex items-center gap-3">
+                            <select id="trendMonths" class="px-2 py-1.5 border border-slate-300 rounded-lg text-xs bg-white" onchange="trendLoaded=false; loadTrend()">
+                                <option value="3">3 months</option>
+                                <option value="6" selected>6 months</option>
+                                <option value="12">12 months</option>
+                            </select>
+                            <button onclick="trendLoaded=false; loadTrend()" class="text-xs text-indigo-600 hover:underline"><i class="fas fa-rotate mr-1"></i>Refresh</button>
+                        </div>
                     </div>
                     <div id="trendChart" class="p-5">
                         <div class="text-center py-8 text-slate-400">Loading trend…</div>
@@ -596,8 +603,9 @@ let trendLoaded = false;
 async function loadTrend() {
     const el = document.getElementById('trendChart');
     el.innerHTML = '<div class="text-center py-8 text-slate-400">Loading…</div>';
+    const months = document.getElementById('trendMonths')?.value || 6;
     try {
-        const d = await fetch('/api/reports/trend?months=6', { credentials: 'include' }).then(r => r.json());
+        const d = await fetch(`/api/reports/trend?months=${months}`, { credentials: 'include' }).then(r => r.json());
         renderTrend(d.months || []);
         trendLoaded = true;
     } catch (e) {
@@ -616,39 +624,73 @@ function renderTrend(months) {
         return `<div style="height:100%;width:${pct}%;background:${color};border-radius:3px;min-width:${val > 0 ? 2 : 0}px"></div>`;
     };
 
-    const rows = months.map(m => {
+    const momDelta = (cur, prev) => {
+        if (!prev || prev === 0) return '';
+        const chg = ((cur - prev) / Math.abs(prev) * 100);
+        const sign = chg >= 0 ? '+' : '';
+        const color = chg >= 0 ? '#059669' : '#dc2626';
+        return `<span style="font-size:9px;font-weight:700;color:${color};margin-left:3px">${sign}${chg.toFixed(0)}%</span>`;
+    };
+
+    const bars = months.map((m, i) => {
+        const prev = i > 0 ? months[i - 1] : null;
         const gp = Math.max(0, m.gross_profit);
         const eb = Math.max(0, m.ebitda);
         return `
-        <div class="flex items-end gap-2 mb-4">
+        <div class="flex items-center gap-2 mb-3">
             <div class="text-xs text-slate-400 w-16 shrink-0 text-right">${m.label}</div>
-            <div class="flex-1 space-y-1.5">
+            <div class="flex-1 space-y-1">
                 <div class="flex items-center gap-2">
-                    <div class="w-20 text-xs text-slate-500 shrink-0">Net Sales</div>
-                    <div class="flex-1 h-4 bg-slate-100 rounded flex items-center overflow-hidden">
+                    <div class="w-16 text-xs text-slate-400 shrink-0">Sales</div>
+                    <div class="flex-1 h-3 bg-slate-100 rounded flex items-center overflow-hidden">
                         ${bar(m.net_sales, maxSales, '#6366f1')}
                     </div>
-                    <div class="text-xs font-semibold text-slate-700 w-24 text-right">${fmt(m.net_sales)}</div>
+                    <div class="text-xs font-semibold text-slate-700 w-28 text-right">${fmt(m.net_sales)}${momDelta(m.net_sales, prev?.net_sales)}</div>
                 </div>
                 <div class="flex items-center gap-2">
-                    <div class="w-20 text-xs text-slate-500 shrink-0">Gross Profit</div>
-                    <div class="flex-1 h-4 bg-slate-100 rounded flex items-center overflow-hidden">
+                    <div class="w-16 text-xs text-slate-400 shrink-0">GP</div>
+                    <div class="flex-1 h-3 bg-slate-100 rounded flex items-center overflow-hidden">
                         ${bar(gp, maxSales, '#3b82f6')}
                     </div>
-                    <div class="text-xs font-semibold text-blue-600 w-24 text-right">${fmt(m.gross_profit)} <span class="text-slate-400">${m.gross_margin_pct}%</span></div>
+                    <div class="text-xs font-semibold text-blue-600 w-28 text-right">${fmt(m.gross_profit)} <span class="text-slate-400 font-normal">${m.gross_margin_pct}%</span></div>
                 </div>
                 <div class="flex items-center gap-2">
-                    <div class="w-20 text-xs text-slate-500 shrink-0">EBITDA</div>
-                    <div class="flex-1 h-4 bg-slate-100 rounded flex items-center overflow-hidden">
+                    <div class="w-16 text-xs text-slate-400 shrink-0">EBITDA</div>
+                    <div class="flex-1 h-3 bg-slate-100 rounded flex items-center overflow-hidden">
                         ${bar(eb, maxSales, m.ebitda >= 0 ? '#059669' : '#dc2626')}
                     </div>
-                    <div class="text-xs font-semibold w-24 text-right ${m.ebitda >= 0 ? 'text-emerald-600' : 'text-red-500'}">${fmt(m.ebitda)} <span class="text-slate-400">${m.ebitda_pct}%</span></div>
+                    <div class="text-xs font-semibold w-28 text-right ${m.ebitda >= 0 ? 'text-emerald-600' : 'text-red-500'}">${fmt(m.ebitda)} <span class="text-slate-400 font-normal">${m.ebitda_pct}%</span></div>
                 </div>
             </div>
         </div>`;
     }).join('');
 
-    el.innerHTML = rows;
+    // Summary table
+    const tableRows = months.map(m => `
+        <tr class="border-t border-slate-100">
+            <td class="px-3 py-2 text-xs text-slate-500">${m.label}</td>
+            <td class="px-3 py-2 text-xs text-right font-medium">${fmt(m.net_sales)}</td>
+            <td class="px-3 py-2 text-xs text-right text-blue-600">${fmt(m.gross_profit)}</td>
+            <td class="px-3 py-2 text-xs text-right text-slate-500">${m.gross_margin_pct}%</td>
+            <td class="px-3 py-2 text-xs text-right ${m.ebitda >= 0 ? 'text-emerald-600' : 'text-red-500'} font-semibold">${fmt(m.ebitda)}</td>
+            <td class="px-3 py-2 text-xs text-right text-slate-400">${m.ebitda_pct}%</td>
+        </tr>`).join('');
+
+    el.innerHTML = `
+        ${bars}
+        <div class="mt-6 border-t border-slate-100 pt-4 overflow-x-auto">
+            <table class="rt w-full text-xs">
+                <thead><tr>
+                    <th class="px-3 py-2 text-left">Month</th>
+                    <th class="px-3 py-2 text-right">Net Sales</th>
+                    <th class="px-3 py-2 text-right">Gross Profit</th>
+                    <th class="px-3 py-2 text-right">GM%</th>
+                    <th class="px-3 py-2 text-right">EBITDA</th>
+                    <th class="px-3 py-2 text-right">EBITDA%</th>
+                </tr></thead>
+                <tbody>${tableRows}</tbody>
+            </table>
+        </div>`;
 }
 
 // ── CSV Export ────────────────────────────────────────────────────────────────
