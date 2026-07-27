@@ -521,14 +521,14 @@ async function getDimensionSpend(req, res) {
         COALESCE(trip_name, 'Unassigned') AS trip_name,
               'Unassigned' AS channel,
               'Unassigned' AS campaign,
-        COALESCE(department, 'Unassigned') AS department,
+        COALESCE(category_group, department, 'OPERATIONS') AS department,
         SUM(total_amount) AS spend_total,
         SUM(subtotal) AS spend_subtotal,
         SUM(tax_amount) AS spend_tax,
         COUNT(*) AS bill_count
       FROM bills
       WHERE bill_date BETWEEN $1 AND $2
-      GROUP BY drop_name, trip_name, department
+      GROUP BY drop_name, trip_name, COALESCE(category_group, department, 'OPERATIONS')
       ORDER BY spend_total DESC NULLS LAST, bill_count DESC;
     `;
 
@@ -1005,8 +1005,92 @@ async function upsertSizeSellThrough(req, res) {
   }
 }
 
+// GET /api/reports/trend?months=6
+// Returns monthly P&L metrics for the last N months — for sparklines/charts
+async function getPLTrend(req, res) {
+  try {
+    const months = Math.min(parseInt(req.query.months || 6), 24);
+    const now = new Date();
+
+    // Build month ranges
+    const ranges = [];
+    for (let i = months - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      ranges.push({
+        label: d.toLocaleString('en-IN', { month: 'short', year: 'numeric' }),
+        start: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`,
+        end: `${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`,
+      });
+    }
+
+    const salesAgg = await pool.query(
+      `SELECT DATE_TRUNC('month', entry_date) AS month,
+              SUM(net_sales) AS net_sales, SUM(gross_units - returned_units) AS net_units
+       FROM sales_entries
+       WHERE entry_date >= $1 AND entry_date <= $2
+       GROUP BY 1 ORDER BY 1`,
+      [ranges[0].start, ranges[ranges.length - 1].end]
+    );
+
+    const billAgg = await pool.query(
+      `SELECT DATE_TRUNC('month', COALESCE(bill_date, created_at::date)) AS month,
+              COALESCE(category_group, 'OPERATIONS') AS category_group,
+              SUM(total_amount) AS total
+       FROM bills b
+       LEFT JOIN documents d ON b.document_id = d.document_id
+       WHERE COALESCE(bill_date, b.created_at::date) >= $1
+         AND COALESCE(bill_date, b.created_at::date) <= $2
+         AND COALESCE(b.total_amount, 0) > 0
+         AND COALESCE(b.status, 'pending') NOT IN ('deleted','void')
+       GROUP BY 1, 2 ORDER BY 1`,
+      [ranges[0].start, ranges[ranges.length - 1].end]
+    );
+
+    // Build lookup maps
+    const salesMap = {};
+    salesAgg.rows.forEach(r => {
+      const key = r.month.toISOString().slice(0, 7);
+      salesMap[key] = { net_sales: parseFloat(r.net_sales || 0), net_units: parseInt(r.net_units || 0) };
+    });
+    const billMap = {};
+    billAgg.rows.forEach(r => {
+      const key = r.month.toISOString().slice(0, 7);
+      if (!billMap[key]) billMap[key] = { COGS: 0, FULFILLMENT: 0, MARKETING: 0, OPERATIONS: 0 };
+      const grp = (r.category_group || 'OPERATIONS').toUpperCase();
+      billMap[key][grp] = (billMap[key][grp] || 0) + parseFloat(r.total || 0);
+    });
+
+    const data = ranges.map(r => {
+      const key = r.start.slice(0, 7);
+      const s = salesMap[key] || { net_sales: 0, net_units: 0 };
+      const b = billMap[key] || { COGS: 0, FULFILLMENT: 0, MARKETING: 0, OPERATIONS: 0 };
+      const ns    = s.net_sales;
+      const gp    = ns - b.COGS;
+      const ebitda = gp - b.FULFILLMENT - b.MARKETING - b.OPERATIONS;
+      return {
+        label: r.label,
+        month: key,
+        net_sales: ns,
+        net_units: s.net_units,
+        cogs: b.COGS,
+        gross_profit: gp,
+        gross_margin_pct: ns ? parseFloat((gp / ns * 100).toFixed(1)) : 0,
+        ebitda: ebitda,
+        ebitda_pct: ns ? parseFloat((ebitda / ns * 100).toFixed(1)) : 0,
+      };
+    });
+
+    res.json({ success: true, months: data });
+  } catch (err) {
+    console.error('PLTrend error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 module.exports = {
   getProfitLoss,
+  getPLTrend,
   getTrialBalance,
   getBalanceSheet,
   getJournalEntries,

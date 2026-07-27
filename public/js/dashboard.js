@@ -28,11 +28,12 @@ async function loadDashboard() {
     const mEnd   = now.toISOString().split('T')[0];
 
     // Fire all requests in parallel
-    const [docsData, pl, payDash, drops] = await Promise.all([
+    const [docsData, pl, payDash, drops, trend] = await Promise.all([
         authFetch(`${API}/documents`).then(r => r.json()).catch(() => ({})),
         authFetch(`${API}/reports/profit-loss?start_date=${mStart}&end_date=${mEnd}`).then(r => r.json()).catch(() => ({})),
         authFetch(`${API}/payments/dashboard`).then(r => r.json()).catch(() => ({})),
         authFetch(`${API}/meta/drops`).then(r => r.json()).catch(() => ({})),
+        authFetch(`${API}/reports/trend?months=6`).then(r => r.json()).catch(() => ({})),
     ]);
 
     renderDocStats(docsData, mStart);
@@ -40,6 +41,7 @@ async function loadDashboard() {
     renderPayablesStrip(payDash);
     renderRecentDocs(docsData);
     renderDropStrip(drops);
+    renderMiniTrend(trend);
     loadWatchdog();
 }
 
@@ -168,6 +170,24 @@ function renderDropStrip(data) {
             <div class="font-bold text-slate-900 text-sm truncate">${d.drop_name}</div>
             ${d.launch_date ? `<div class="text-xs text-slate-400 mt-1"><i class="fas fa-calendar mr-1"></i>${new Date(d.launch_date).toLocaleDateString('en-IN', {day:'numeric',month:'short'})}</div>` : ''}
         </a>`).join('');
+}
+
+// ── Mini trend sparkline ───────────────────────────────────────────────────────
+function renderMiniTrend(data) {
+    const months = data.months || [];
+    const wrap = document.getElementById('mini-trend');
+    const bars = document.getElementById('mini-trend-bars');
+    if (!bars || !months.length) return;
+    const maxSales = Math.max(...months.map(m => m.net_sales), 1);
+    bars.innerHTML = months.map(m => {
+        const pct = Math.round(m.net_sales / maxSales * 100);
+        const isPos = m.ebitda >= 0;
+        return `<div class="flex flex-col items-center flex-1 gap-0.5" title="${m.label}: ${fmt(m.net_sales).replace(/&#8377;/,'₹')} sales">
+            <div style="height:${pct}%;min-height:2px;width:100%;background:${isPos ? '#6366f1' : '#e2e8f0'};border-radius:2px 2px 0 0"></div>
+            <span class="text-[9px] text-slate-400">${m.label.split(' ')[0]}</span>
+        </div>`;
+    }).join('');
+    wrap.classList.remove('hidden');
 }
 
 // ── Watchdog ──────────────────────────────────────────────────────────────────

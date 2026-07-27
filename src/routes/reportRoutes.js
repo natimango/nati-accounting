@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getProfitLoss,
+  getPLTrend,
   getBalanceSheet,
   getDimensionSpend,
   upsertDropBudget,
@@ -26,6 +27,7 @@ const { authorize } = require('../middleware/auth');
 router.use(authorize('uploader', 'manager', 'admin'));
 
 router.get('/reports/profit-loss', getProfitLoss);
+router.get('/reports/trend', getPLTrend);
 router.get('/reports/balance-sheet', getBalanceSheet);
 router.get('/reports/spend-dimensions', getDimensionSpend);
 router.post('/reports/drop-budgets', authorize('admin'), upsertDropBudget);
