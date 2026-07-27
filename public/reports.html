@@ -3,452 +3,484 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monthly Reports — NATI Accounting</title>
+    <title>Reports — NATI Accounting</title>
     <link rel="stylesheet" href="css/tailwind.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/theme.css">
     <style>
-        .tab-btn { padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid #e5e7eb; background: #f9fafb; color: #374151; cursor: pointer; }
+        /* ── Tab bar ── */
+        .tab-btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; cursor: pointer; transition: all .15s; }
+        .tab-btn:hover { background: #f1f5f9; }
         .tab-btn.active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
-        .report-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .report-table th { padding: 9px 14px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; background: #f9fafb; border-bottom: 2px solid #e5e7eb; }
-        .report-table td { padding: 9px 14px; border-bottom: 1px solid #f3f4f6; color: #374151; }
-        .report-table tr:last-child td { border-bottom: none; }
-        .report-table .total-row td { font-weight: 700; background: #f0f9ff; border-top: 2px solid #bae6fd; color: #0369a1; }
-        .report-table .subtotal-row td { font-weight: 600; background: #fafafa; border-top: 1px solid #e5e7eb; }
-        .report-table .section-header td { background: #1e293b; color: #fff; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
-        .report-table .group-header td { background: #f1f5f9; color: #475569; font-weight: 600; font-size: 12px; }
-        .report-table .indent td:first-child { padding-left: 28px; }
-        .report-table .text-right { text-align: right; }
-        .report-table .positive { color: #059669; }
-        .report-table .negative { color: #dc2626; }
-        .month-chip { display: inline-block; padding: 4px 12px; border-radius: 99px; font-size: 12px; font-weight: 600; border: 1px solid #e5e7eb; background: #f9fafb; color: #374151; cursor: pointer; }
-        .month-chip.selected { background: #4f46e5; color: #fff; border-color: #4f46e5; }
-        .print-btn { padding: 8px 18px; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-        .print-btn:hover { background: #f9fafb; }
+
+        /* ── Report table ── */
+        .rt { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .rt td, .rt th { padding: 9px 16px; border-bottom: 1px solid #f1f5f9; }
+        .rt th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; background: #f8fafc; border-bottom: 2px solid #e2e8f0; }
+        .rt tr.sec-hdr td { background: #1e293b; color: #e2e8f0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; padding: 7px 16px; border: none; }
+        .rt tr.grp-hdr td { background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 600; }
+        .rt tr.item td:first-child { padding-left: 32px; }
+        .rt tr.sub td { font-weight: 600; background: #fafafa; border-top: 1px solid #e2e8f0; }
+        .rt tr.milestone td { font-weight: 700; background: #eff6ff; border-top: 2px solid #bfdbfe; color: #1d4ed8; }
+        .rt tr.milestone.neg td { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+        .rt .tr { text-align: right; }
+        .rt .pos { color: #059669; }
+        .rt .neg-val { color: #dc2626; }
+        .rt .muted { color: #94a3b8; font-size: 12px; }
+
+        /* ── Month chip ── */
+        .chip { display: inline-flex; align-items: center; padding: 4px 14px; border-radius: 99px; font-size: 12px; font-weight: 600; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; cursor: pointer; transition: all .15s; }
+        .chip:hover { border-color: #c7d2fe; background: #eef2ff; }
+        .chip.on { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+
+        /* ── KPI tiles ── */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+        .kpi { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
+        .kpi .label { font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+        .kpi .value { font-size: 20px; font-weight: 700; color: #1e293b; margin-top: 4px; }
+        .kpi .pct { font-size: 12px; color: #64748b; margin-top: 2px; }
+        .kpi.green .value { color: #059669; }
+        .kpi.red .value { color: #dc2626; }
+
         @media print {
             header, .no-print { display: none !important; }
             .print-area { box-shadow: none !important; border: none !important; }
-            body { background: white !important; }
+            body { background: #fff !important; }
         }
     </style>
 </head>
 <body class="nati-page bg-gradient-to-br from-slate-50 via-slate-100 to-white text-slate-900">
-    <div class="min-h-screen flex flex-col">
-        <header class="nati-hero bg-gradient-to-r from-indigo-700 via-blue-700 to-slate-900 text-white shadow-md no-print">
-            <div class="nati-shell">
-                <div class="py-5 flex flex-wrap items-center gap-4 justify-between">
-                    <div class="flex items-center gap-3">
-                        <a href="index.html" class="block">
-                            <img src="logo.jpg" alt="NATI logo" class="h-14 w-14 rounded-xl border border-white/40 bg-white object-cover shadow">
-                        </a>
-                        <div>
-                            <p class="text-xs uppercase tracking-[0.2em] text-white/70">Monthly Reports</p>
-                            <h1 class="text-2xl font-semibold">P&amp;L · Balance Sheet · GST</h1>
-                        </div>
+<div class="min-h-screen flex flex-col">
+
+    <header class="nati-hero bg-gradient-to-r from-indigo-700 via-blue-700 to-slate-900 text-white shadow-md no-print">
+        <div class="nati-shell">
+            <div class="py-5 flex flex-wrap items-center gap-4 justify-between">
+                <div class="flex items-center gap-3">
+                    <a href="index.html"><img src="logo.jpg" alt="NATI" class="h-14 w-14 rounded-xl border border-white/40 bg-white object-cover shadow"></a>
+                    <div>
+                        <p class="text-xs uppercase tracking-[.2em] text-white/70">Finance Reports</p>
+                        <h1 class="text-2xl font-semibold">P&amp;L &middot; GST &middot; Spend</h1>
                     </div>
-                    <div class="flex items-center gap-4">
-                        <div class="nati-nav-wrapper">
-                            <button class="nati-nav-toggle" onclick="toggleNav('nav-reports')"><i class="fas fa-bars"></i><span>Menu</span></button>
-                            <nav class="nati-nav" id="nav-reports">
-                                <a href="index.html" class="nati-nav-link"><i class="fas fa-gauge"></i><span>Dashboard</span></a>
-                                <a href="documents.html" class="nati-nav-link"><i class="fas fa-folder-open"></i><span>Documents</span></a>
-                                <a href="upload.html" class="nati-nav-link"><i class="fas fa-upload"></i><span>Upload</span></a>
-                                <a href="drop.html" class="nati-nav-link"><i class="fas fa-layer-group"></i><span>Drop</span></a>
-                                <a href="reports.html" class="nati-nav-link is-active"><i class="fas fa-chart-line"></i><span>Reports</span></a>
-                                <a href="sales.html" class="nati-nav-link"><i class="fas fa-store"></i><span>Sales Revenue</span></a>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="nati-nav-wrapper">
+                        <button class="nati-nav-toggle" onclick="toggleNav('nav-reports')"><i class="fas fa-bars"></i><span>Menu</span></button>
+                        <nav class="nati-nav" id="nav-reports">
+                            <a href="index.html"    class="nati-nav-link"><i class="fas fa-gauge"></i><span>Dashboard</span></a>
+                            <a href="documents.html" class="nati-nav-link"><i class="fas fa-folder-open"></i><span>Documents</span></a>
+                            <a href="upload.html"   class="nati-nav-link"><i class="fas fa-upload"></i><span>Upload</span></a>
+                            <a href="drop.html"     class="nati-nav-link"><i class="fas fa-layer-group"></i><span>Drop</span></a>
+                            <a href="reports.html"  class="nati-nav-link is-active"><i class="fas fa-chart-line"></i><span>Reports</span></a>
+                            <a href="sales.html"    class="nati-nav-link"><i class="fas fa-store"></i><span>Sales</span></a>
                             <a href="payables.html" class="nati-nav-link"><i class="fas fa-file-invoice-dollar"></i><span>Payables</span></a>
-                                <a href="admin.html" class="nati-nav-link hidden" id="nav-admin"><i class="fas fa-user-shield"></i><span>Admin</span></a>
-                            </nav>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <div id="user-pill" class="hidden sm:flex items-center gap-2 px-3 py-2 rounded-2xl border border-white/30 bg-white/10 backdrop-blur">
-                                <div>
-                                    <p id="user-name" class="text-sm font-semibold leading-tight">—</p>
-                                    <p id="user-role" class="text-[11px] tracking-[0.2em] text-white/70 uppercase">—</p>
-                                </div>
-                            </div>
-                            <button id="logout-btn" class="hidden px-3 py-2 bg-white/15 hover:bg-white/25 text-sm font-semibold rounded-2xl flex items-center gap-2 transition">
-                                <i class="fas fa-sign-out-alt"></i><span>Logout</span>
-                            </button>
-                        </div>
+                            <a href="admin.html"    class="nati-nav-link hidden" id="nav-admin"><i class="fas fa-user-shield"></i><span>Admin</span></a>
+                        </nav>
                     </div>
-                </div>
-            </div>
-        </header>
-
-        <main class="flex-1 py-6">
-            <div class="nati-shell max-w-5xl mx-auto space-y-5">
-
-                <!-- Month selector + controls -->
-                <section class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 no-print">
-                    <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                    <div id="user-pill" class="hidden sm:flex items-center gap-2 px-3 py-2 rounded-2xl border border-white/30 bg-white/10 backdrop-blur">
                         <div>
-                            <h2 class="text-base font-semibold">Select Period</h2>
-                            <p class="text-xs text-slate-500 mt-0.5">Reports are generated month-by-month for GST & compliance filing</p>
-                        </div>
-                        <div class="flex gap-2">
-                            <button class="print-btn" onclick="window.print()"><i class="fas fa-print"></i> Print / PDF</button>
+                            <p id="user-name" class="text-sm font-semibold leading-tight">—</p>
+                            <p id="user-role" class="text-[11px] tracking-[.2em] text-white/70 uppercase">—</p>
                         </div>
                     </div>
-
-                    <!-- Quick month chips -->
-                    <div class="flex flex-wrap gap-2 mb-4" id="monthChips"></div>
-
-                    <!-- Custom range + filters -->
-                    <div class="flex flex-wrap items-center gap-3 text-sm">
-                        <label class="text-slate-500">Custom range:</label>
-                        <input type="date" id="customStart" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
-                        <span class="text-slate-400">to</span>
-                        <input type="date" id="customEnd" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
-                        <select id="filterSection" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
-                            <option value="">All sections</option>
-                            <option value="Regulars">Regulars</option>
-                            <option value="Artwear">Artwear</option>
-                            <option value="Collectibles">Collectibles</option>
-                        </select>
-                        <select id="filterDrop" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
-                            <option value="">All drops</option>
-                        </select>
-                        <button onclick="applyCustomRange()" class="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">Apply</button>
-                    </div>
-                </section>
-
-                <!-- Period header shown in print -->
-                <div id="reportHeader" class="hidden print:block text-center py-4">
-                    <div class="text-2xl font-bold">Nati Collective</div>
-                    <div class="text-slate-500 text-sm" id="reportPeriodLabel"></div>
+                    <button id="logout-btn" class="hidden px-3 py-2 bg-white/15 hover:bg-white/25 text-sm font-semibold rounded-2xl flex items-center gap-2 transition">
+                        <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+                    </button>
                 </div>
-
-                <!-- Tabs -->
-                <div class="flex gap-2 no-print" id="tabRow">
-                    <button class="tab-btn active" onclick="showTab('pl')"><i class="fas fa-chart-line mr-1"></i>Profit & Loss</button>
-                    <button class="tab-btn" onclick="showTab('bs')"><i class="fas fa-scale-balanced mr-1"></i>Balance Sheet</button>
-                    <button class="tab-btn" onclick="showTab('gst')"><i class="fas fa-percent mr-1"></i>GST Summary</button>
-                    <button class="tab-btn" onclick="showTab('spend')"><i class="fas fa-receipt mr-1"></i>Spend Detail</button>
-                </div>
-
-                <!-- ── P&L ── -->
-                <section id="tab-pl" class="print-area">
-                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                            <div>
-                                <h3 class="font-semibold text-base">Profit & Loss Statement</h3>
-                                <p class="text-xs text-slate-500 mt-0.5" id="plPeriodSub">—</p>
-                            </div>
-                            <div id="plStatus" class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-500">Loading…</div>
-                        </div>
-                        <table class="report-table" id="plTable">
-                            <tbody id="plBody"><tr><td colspan="3" class="text-center py-8 text-slate-400">Select a period above</td></tr></tbody>
-                        </table>
-                    </div>
-                </section>
-
-                <!-- ── Balance Sheet ── -->
-                <section id="tab-bs" class="print-area hidden">
-                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                            <div>
-                                <h3 class="font-semibold text-base">Balance Sheet</h3>
-                                <p class="text-xs text-slate-500 mt-0.5" id="bsPeriodSub">As of end of period</p>
-                            </div>
-                            <div id="bsStatus" class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-500">Loading…</div>
-                        </div>
-                        <table class="report-table" id="bsTable">
-                            <tbody id="bsBody"><tr><td colspan="2" class="text-center py-8 text-slate-400">Select a period above</td></tr></tbody>
-                        </table>
-                    </div>
-                </section>
-
-                <!-- ── GST Summary ── -->
-                <section id="tab-gst" class="print-area hidden">
-                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                        <div class="px-5 py-4 border-b border-slate-100">
-                            <h3 class="font-semibold text-base">GST Summary</h3>
-                            <p class="text-xs text-slate-500 mt-0.5">Output GST collected (sales) vs Input Tax Credit (bills) — for GSTR-3B filing</p>
-                        </div>
-                        <table class="report-table" id="gstTable">
-                            <tbody id="gstBody"><tr><td colspan="4" class="text-center py-8 text-slate-400">Select a period above</td></tr></tbody>
-                        </table>
-                    </div>
-                </section>
-
-                <!-- ── Spend Detail ── -->
-                <section id="tab-spend" class="print-area hidden">
-                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                        <div class="px-5 py-4 border-b border-slate-100">
-                            <h3 class="font-semibold text-base">Expense Detail</h3>
-                            <p class="text-xs text-slate-500 mt-0.5">All bills grouped by CoA account — for audit & filing</p>
-                        </div>
-                        <table class="report-table" id="spendTable">
-                            <thead><tr>
-                                <th>Account Code</th><th>Account / Category</th><th>Group</th><th class="text-right">Amount (₹)</th>
-                            </tr></thead>
-                            <tbody id="spendBody"><tr><td colspan="4" class="text-center py-8 text-slate-400">Select a period above</td></tr></tbody>
-                        </table>
-                    </div>
-                </section>
-
             </div>
-        </main>
-    </div>
+        </div>
+    </header>
 
-    <script src="js/session.js" defer></script>
-    <script src="js/nav.js" defer></script>
-    <script>
-    const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
-    const fmtN = n => Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
-    const pct = (a, b) => b ? ((a / b) * 100).toFixed(1) + '%' : '—';
+    <main class="flex-1 py-6">
+        <div class="nati-shell max-w-5xl mx-auto space-y-5">
 
-    let currentStart = '', currentEnd = '';
+            <!-- ── Period & filter bar ── -->
+            <section class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 no-print">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div>
+                        <h2 class="text-base font-semibold">Period</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Click a month or set a custom range</p>
+                    </div>
+                    <button onclick="window.print()" class="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-50">
+                        <i class="fas fa-print text-slate-500"></i> Print / PDF
+                    </button>
+                </div>
 
-    async function loadDropList() {
-        try {
-            const r = await fetch('/api/meta/drops', { credentials: 'include' });
-            const data = await r.json();
-            const sel = document.getElementById('filterDrop');
-            (data.drops || []).forEach(d => {
-                const opt = document.createElement('option');
-                opt.value = d.drop_name;
-                opt.textContent = d.drop_name;
-                sel.appendChild(opt);
-            });
-        } catch (e) { /* silent */ }
+                <!-- Month chips -->
+                <div class="flex flex-wrap gap-2 mb-4" id="monthChips"></div>
+
+                <!-- Filters row -->
+                <div class="flex flex-wrap items-center gap-3 text-sm pt-3 border-t border-slate-100">
+                    <span class="text-slate-400 text-xs font-semibold uppercase tracking-wide">Filters</span>
+                    <input type="date" id="customStart" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                    <span class="text-slate-400">to</span>
+                    <input type="date" id="customEnd"   class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                    <select id="filterSection" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm bg-white">
+                        <option value="">All sections</option>
+                        <option value="Regulars">Regulars</option>
+                        <option value="Artwear">Artwear</option>
+                        <option value="Collectibles">Collectibles</option>
+                    </select>
+                    <select id="filterDrop" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm bg-white">
+                        <option value="">All drops</option>
+                    </select>
+                    <button onclick="applyFilters()" class="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">Apply</button>
+                </div>
+            </section>
+
+            <!-- Print header -->
+            <div id="reportHeader" class="hidden text-center py-4">
+                <div class="text-xl font-bold">Nati Collective</div>
+                <div class="text-slate-500 text-sm mt-1" id="reportPeriodLabel"></div>
+            </div>
+
+            <!-- ── KPI tiles ── -->
+            <div class="kpi-grid no-print" id="kpiRow">
+                <div class="kpi"><div class="label">Net Sales</div><div class="value" id="kpi-sales">—</div></div>
+                <div class="kpi"><div class="label">Gross Profit</div><div class="value" id="kpi-gp">—</div><div class="pct" id="kpi-gp-pct"></div></div>
+                <div class="kpi"><div class="label">CM1</div><div class="value" id="kpi-cm1">—</div><div class="pct" id="kpi-cm1-pct"></div></div>
+                <div class="kpi"><div class="label">CM2</div><div class="value" id="kpi-cm2">—</div><div class="pct" id="kpi-cm2-pct"></div></div>
+                <div class="kpi"><div class="label">EBITDA</div><div class="value" id="kpi-ebitda">—</div><div class="pct" id="kpi-ebitda-pct"></div></div>
+            </div>
+
+            <!-- ── Tabs ── -->
+            <div class="flex gap-2 no-print">
+                <button class="tab-btn active" onclick="showTab('pl')"><i class="fas fa-chart-line mr-1.5"></i>P&amp;L</button>
+                <button class="tab-btn" onclick="showTab('gst')"><i class="fas fa-percent mr-1.5"></i>GST</button>
+                <button class="tab-btn" onclick="showTab('spend')"><i class="fas fa-receipt mr-1.5"></i>Spend Detail</button>
+            </div>
+
+            <!-- ── P&L ── -->
+            <section id="tab-pl" class="print-area">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h3 class="font-semibold text-base">Profit &amp; Loss Statement</h3>
+                            <p class="text-xs text-slate-400 mt-0.5" id="plSub">—</p>
+                        </div>
+                        <div id="plBadge" class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-400">—</div>
+                    </div>
+                    <table class="rt">
+                        <tbody id="plBody">
+                            <tr><td colspan="3" class="text-center py-10 text-slate-400">Select a period above</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ── GST ── -->
+            <section id="tab-gst" class="print-area hidden">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100">
+                        <h3 class="font-semibold text-base">GST Summary</h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Output GST (collected from customers) vs Input Tax Credit (ITC on bills) — GSTR-3B</p>
+                    </div>
+                    <table class="rt">
+                        <tbody id="gstBody">
+                            <tr><td colspan="4" class="text-center py-10 text-slate-400">Select a period above</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ── Spend Detail ── -->
+            <section id="tab-spend" class="print-area hidden">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100">
+                        <h3 class="font-semibold text-base">Expense Detail</h3>
+                        <p class="text-xs text-slate-400 mt-0.5">All bills by group and category — for audit &amp; filing</p>
+                    </div>
+                    <table class="rt">
+                        <thead>
+                            <tr><th>Group</th><th>Category</th><th class="tr">Amount (₹)</th></tr>
+                        </thead>
+                        <tbody id="spendBody">
+                            <tr><td colspan="3" class="text-center py-10 text-slate-400">Select a period above</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </div>
+    </main>
+</div>
+
+<script src="js/session.js" defer></script>
+<script src="js/nav.js" defer></script>
+<script>
+const fmt  = n => '&#8377;' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+const fmtN = n => Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+
+let currentLabel = '';
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function getSection() { return document.getElementById('filterSection').value || ''; }
+function getDrop()    { return document.getElementById('filterDrop').value    || ''; }
+
+async function loadDrops() {
+    try {
+        const r = await fetch('/api/meta/drops', { credentials: 'include' });
+        const d = await r.json();
+        const sel = document.getElementById('filterDrop');
+        (d.drops || []).forEach(drop => {
+            const o = document.createElement('option');
+            o.value = o.textContent = drop.drop_name;
+            sel.appendChild(o);
+        });
+    } catch (_) {}
+}
+
+// ── Month chips ────────────────────────────────────────────────────────────────
+function buildMonthChips() {
+    const wrap = document.getElementById('monthChips');
+    const now  = new Date();
+    for (let i = 0; i < 7; i++) {
+        const d     = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const label = d.toLocaleString('en-IN', { month: 'short', year: 'numeric' });
+        const start = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+        const last  = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        const end   = `${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
+        const chip  = document.createElement('span');
+        chip.className = 'chip' + (i === 0 ? ' on' : '');
+        chip.textContent = label;
+        chip.onclick = () => {
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+            chip.classList.add('on');
+            loadReports(start, end, label);
+        };
+        wrap.appendChild(chip);
+        if (i === 0) loadReports(start, end, label);
     }
+}
 
-    function getSection() { return document.getElementById('filterSection')?.value || ''; }
-    function getDrop()    { return document.getElementById('filterDrop')?.value    || ''; }
+function applyFilters() {
+    const start = document.getElementById('customStart').value;
+    const end   = document.getElementById('customEnd').value;
+    if (!start || !end) return;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+    loadReports(start, end, `${start} to ${end}`);
+}
 
-    // Build last 6 month chips
-    function buildMonthChips() {
-        const chips = document.getElementById('monthChips');
-        const now = new Date();
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const label = d.toLocaleString('en-IN', { month: 'short', year: 'numeric' });
-            const start = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
-            const last = new Date(d.getFullYear(), d.getMonth()+1, 0);
-            const end = `${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
-            const chip = document.createElement('span');
-            chip.className = 'month-chip' + (i === 0 ? ' selected' : '');
-            chip.textContent = label;
-            chip.dataset.start = start;
-            chip.dataset.end = end;
-            chip.onclick = () => selectMonth(chip, start, end, label);
-            chips.appendChild(chip);
-            if (i === 0) loadReports(start, end, label);
-        }
-    }
+// ── Load ───────────────────────────────────────────────────────────────────────
+async function loadReports(start, end, label) {
+    currentLabel = label;
+    document.getElementById('plSub').textContent  = label;
+    document.getElementById('plBadge').textContent = 'Loading…';
+    document.getElementById('plBadge').className   = 'text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-400';
+    document.getElementById('reportPeriodLabel').textContent = label;
 
-    function selectMonth(el, start, end, label) {
-        document.querySelectorAll('.month-chip').forEach(c => c.classList.remove('selected'));
-        el.classList.add('selected');
-        loadReports(start, end, label + (getSection() ? ` · ${getSection()}` : ''));
-    }
+    const sec  = getSection();
+    const drop = getDrop();
+    const qs   = `start_date=${start}&end_date=${end}` +
+                 (sec  ? `&section=${encodeURIComponent(sec)}`       : '') +
+                 (drop ? `&drop_name=${encodeURIComponent(drop)}` : '');
 
-    function applyCustomRange() {
-        const start = document.getElementById('customStart').value;
-        const end = document.getElementById('customEnd').value;
-        if (!start || !end) return;
-        document.querySelectorAll('.month-chip').forEach(c => c.classList.remove('selected'));
-        const label = `${start} to ${end}`;
-        loadReports(start, end, label);
-    }
-
-    async function loadReports(start, end, label) {
-        currentStart = start; currentEnd = end;
-        document.getElementById('plPeriodSub').textContent = label;
-        document.getElementById('bsPeriodSub').textContent = 'As of ' + end;
-        document.getElementById('reportPeriodLabel').textContent = label;
-        document.getElementById('plStatus').textContent = 'Loading…';
-        document.getElementById('bsStatus').textContent = 'Loading…';
-
-        const opts = { credentials: 'include' };
-        const section = getSection();
-        const drop    = getDrop();
-        const secParam  = section ? `&section=${encodeURIComponent(section)}`   : '';
-        const dropParam = drop    ? `&drop_name=${encodeURIComponent(drop)}` : '';
-        const [pl, bs] = await Promise.all([
-            fetch(`/api/reports/profit-loss?start_date=${start}&end_date=${end}${secParam}${dropParam}`, opts).then(r => r.json()).catch(() => ({})),
-            fetch(`/api/reports/balance-sheet?as_of_date=${end}`, opts).then(r => r.json()).catch(() => ({}))
-        ]);
-
+    try {
+        const pl = await fetch(`/api/reports/profit-loss?${qs}`, { credentials: 'include' }).then(r => r.json());
+        renderKPIs(pl);
         renderPL(pl);
-        renderBS(bs);
         renderGST(pl);
         renderSpend(pl);
+    } catch (e) {
+        document.getElementById('plBody').innerHTML = `<tr><td colspan="3" class="text-center py-8 text-red-400">Failed to load — ${e.message}</td></tr>`;
+    }
+}
+
+// ── KPI tiles ─────────────────────────────────────────────────────────────────
+function renderKPIs(d) {
+    if (!d.success) return;
+    const ns = d.net_sales || 0;
+    const gp = d.gross_profit || 0;
+    const cm1 = d.cm1 || 0;
+    const cm2 = d.cm2 || 0;
+    const ebitda = d.ebitda || 0;
+
+    function setKPI(id, val, pctId, pct, positive) {
+        const el = document.getElementById(id);
+        el.innerHTML = fmt(val);
+        el.parentElement.classList.toggle('green', positive && val >= 0);
+        el.parentElement.classList.toggle('red',   positive && val < 0);
+        if (pctId) document.getElementById(pctId).textContent = pct !== undefined ? pct + '% margin' : '';
+    }
+    document.getElementById('kpi-sales').innerHTML = fmt(ns);
+    setKPI('kpi-gp',    gp,    'kpi-gp-pct',    d.gross_margin_pct, true);
+    setKPI('kpi-cm1',   cm1,   'kpi-cm1-pct',   d.cm1_pct,         true);
+    setKPI('kpi-cm2',   cm2,   'kpi-cm2-pct',   d.cm2_pct,         true);
+    setKPI('kpi-ebitda',ebitda,'kpi-ebitda-pct', d.ebitda_pct,      true);
+}
+
+// ── P&L waterfall ─────────────────────────────────────────────────────────────
+function renderPL(d) {
+    const body = document.getElementById('plBody');
+    if (!d.success) {
+        body.innerHTML = `<tr><td colspan="3" class="text-center py-8 text-red-400">Could not load P&amp;L</td></tr>`;
+        return;
     }
 
-    function renderPL(d) {
-        if (!d.success) { document.getElementById('plBody').innerHTML = `<tr><td colspan="3" class="text-center py-6 text-red-400">Failed to load</td></tr>`; return; }
+    const ns     = d.net_sales     || 0;
+    const gp     = d.gross_profit  || 0;
+    const cm1    = d.cm1           || 0;
+    const cm2    = d.cm2           || 0;
+    const ebitda = d.ebitda        || 0;
 
-        const ns  = d.net_sales   || 0;
-        const gp  = d.gross_profit || 0;
-        const cm1 = d.cm1 ?? (gp - (d.fulfilment?.total || 0));
-        const cm2 = d.cm2 ?? (cm1 - (d.marketing?.total || 0));
-        const ebitda = d.ebitda ?? (cm2 - (d.opex?.total || 0));
+    const pctOf = val => ns ? `<span class="muted">${(val/ns*100).toFixed(1)}%</span>` : '';
 
-        function watermark(val, base) {
-            if (!base) return '';
-            const p = (val / base * 100).toFixed(1);
-            return `<span class="text-xs text-slate-400">${p}% of sales</span>`;
-        }
-        function plRow(label, amount, cls, extra) {
-            const sign = amount < 0 ? 'negative' : amount > 0 ? 'positive' : '';
-            return `<tr class="${cls || ''}"><td>${label}</td><td class="text-right ${sign}">${fmt(amount)}</td><td class="text-right">${extra || watermark(amount, ns)}</td></tr>`;
-        }
-        function milestone(label, amount, pctVal) {
-            const sign = amount < 0 ? 'negative' : 'positive';
-            return `<tr class="total-row"><td><b>${label}</b></td><td class="text-right ${sign}"><b>${fmt(amount)}</b></td><td class="text-right text-xs font-semibold">${pctVal !== undefined ? pctVal + '% margin' : ''}</td></tr>`;
-        }
-
-        let rows = '';
-
-        // ── REVENUE ──
-        rows += `<tr class="section-header"><td colspan="3">Revenue</td></tr>`;
-        rows += `<tr class="indent"><td>Gross Product Sales</td><td class="text-right">${fmt(d.gross_sales || 0)}</td><td></td></tr>`;
-        if (d.returns) rows += `<tr class="indent"><td>Less: Returns &amp; Cancellations</td><td class="text-right negative">(${fmt(d.returns)})</td><td></td></tr>`;
-        (d.revenue_by_channel || []).forEach(r => {
-            rows += `<tr class="indent" style="padding-left:40px"><td style="padding-left:40px">${r.channel.replace(/_/g,' ')} · Net Sales</td><td class="text-right">${fmt(r.net_sales)}</td><td class="text-right text-xs text-slate-400">${r.units > 0 ? fmtN(r.units) + ' units' : ''}</td></tr>`;
-        });
-        rows += milestone('Net Sales (excl. GST)', ns, '');
-
-        // ── COGS ──
-        rows += `<tr class="section-header"><td colspan="3">Manufacturing COGS</td></tr>`;
-        (d.cogs?.lines || []).forEach(l => {
-            rows += `<tr class="indent"><td>${l.category.replace(/_/g,' ')}</td><td class="text-right">${fmt(l.amount)}</td><td></td></tr>`;
-        });
-        if (!(d.cogs?.lines || []).length) rows += `<tr class="indent"><td class="text-slate-400">No COGS bills for this period</td><td></td><td></td></tr>`;
-        rows += `<tr class="subtotal-row"><td>Total COGS</td><td class="text-right">${fmt(d.cogs?.total || 0)}</td><td></td></tr>`;
-        rows += milestone('Gross Profit', gp, d.gross_margin_pct);
-
-        // ── FULFILMENT → CM1 ──
-        rows += `<tr class="section-header"><td colspan="3">Fulfilment &amp; Variable Selling Costs</td></tr>`;
-        (d.fulfilment?.lines || []).forEach(l => {
-            rows += `<tr class="indent"><td>${l.category.replace(/_/g,' ')}</td><td class="text-right">${fmt(l.amount)}</td><td></td></tr>`;
-        });
-        if (d.fulfilment?.marketplace_commission) rows += `<tr class="indent"><td>Marketplace Commissions</td><td class="text-right">${fmt(d.fulfilment.marketplace_commission)}</td><td></td></tr>`;
-        if (d.fulfilment?.payment_gateway) rows += `<tr class="indent"><td>Payment Gateway Charges</td><td class="text-right">${fmt(d.fulfilment.payment_gateway)}</td><td></td></tr>`;
-        rows += `<tr class="subtotal-row"><td>Total Fulfilment</td><td class="text-right">${fmt(d.fulfilment?.total || 0)}</td><td></td></tr>`;
-        rows += milestone('Contribution Margin 1 (CM1)', cm1, d.cm1_pct);
-
-        // ── MARKETING → CM2 ──
-        rows += `<tr class="section-header"><td colspan="3">Marketing &amp; CAC</td></tr>`;
-        (d.marketing?.lines || []).forEach(l => {
-            rows += `<tr class="indent"><td>${l.category.replace(/_/g,' ')}</td><td class="text-right">${fmt(l.amount)}</td><td></td></tr>`;
-        });
-        if (!(d.marketing?.lines || []).length) rows += `<tr class="indent"><td class="text-slate-400">No marketing bills for this period</td><td></td><td></td></tr>`;
-        rows += `<tr class="subtotal-row"><td>Total Marketing / CAC</td><td class="text-right">${fmt(d.marketing?.total || 0)}</td><td></td></tr>`;
-        rows += milestone('Contribution Margin 2 (CM2)', cm2, d.cm2_pct);
-
-        // ── OPEX → EBITDA ──
-        rows += `<tr class="section-header"><td colspan="3">Operating Expenses</td></tr>`;
-        (d.opex?.lines || []).forEach(l => {
-            rows += `<tr class="indent"><td>${l.category.replace(/_/g,' ')}</td><td class="text-right">${fmt(l.amount)}</td><td></td></tr>`;
-        });
-        rows += `<tr class="subtotal-row"><td>Total OpEx</td><td class="text-right">${fmt(d.opex?.total || 0)}</td><td></td></tr>`;
-        rows += milestone('EBITDA', ebitda, d.ebitda_pct);
-
-        // ── SECTION BREAKDOWN ──
-        if (d.section_breakdown && d.section_breakdown.length) {
-            rows += `<tr class="section-header"><td colspan="3">By Section</td></tr>`;
-            rows += `<tr class="group-header"><td>Section</td><td class="text-right">Net Sales</td><td class="text-right">Gross Margin</td></tr>`;
-            d.section_breakdown.forEach(s => {
-                rows += `<tr class="indent"><td>${s.section}</td><td class="text-right">${fmt(s.net_sales)}</td><td class="text-right">${s.gross_margin_pct.toFixed(1)}%</td></tr>`;
-            });
-        }
-
-        document.getElementById('plBody').innerHTML = rows;
-        const st = document.getElementById('plStatus');
-        if (ebitda >= 0) { st.textContent = 'EBITDA Positive'; st.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-emerald-100 text-emerald-700'; }
-        else { st.textContent = 'EBITDA Negative'; st.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-red-100 text-red-600'; }
+    function row(label, amt, indent) {
+        const cls = indent ? 'item' : '';
+        const col = amt < 0 ? 'neg-val' : '';
+        const display = amt < 0 ? `(${fmt(Math.abs(amt))})` : fmt(amt);
+        return `<tr class="${cls}"><td>${label}</td><td class="tr ${col}">${display}</td><td class="tr">${pctOf(Math.abs(amt))}</td></tr>`;
+    }
+    function sub(label, amt) {
+        return `<tr class="sub"><td>${label}</td><td class="tr">${fmt(amt)}</td><td></td></tr>`;
+    }
+    function stone(label, amt, pct, isNeg) {
+        const cls = 'milestone' + (isNeg ? ' neg' : '');
+        return `<tr class="${cls}"><td><b>${label}</b></td><td class="tr"><b>${fmt(amt)}</b></td><td class="tr" style="font-size:12px;font-weight:600">${pct !== undefined ? pct + '% margin' : ''}</td></tr>`;
     }
 
-    function renderBS(d) {
-        const tbody = document.getElementById('bsBody');
-        if (!d.success) { tbody.innerHTML = `<tr><td colspan="2" class="text-center py-6 text-red-400">Failed to load</td></tr>`; return; }
-        let rows = '';
-        rows += `<tr class="section-header"><td colspan="2">Assets</td></tr>`;
-        (d.assets?.accounts || []).forEach(a => { rows += `<tr class="indent"><td>${a.account_code} · ${a.account_name}</td><td class="text-right">${fmt(a.balance)}</td></tr>`; });
-        rows += `<tr class="subtotal-row"><td>Total Assets</td><td class="text-right">${fmt(d.assets?.total)}</td></tr>`;
+    let h = '';
 
-        rows += `<tr class="section-header"><td colspan="2">Liabilities</td></tr>`;
-        (d.liabilities?.accounts || []).forEach(a => { rows += `<tr class="indent"><td>${a.account_code} · ${a.account_name}</td><td class="text-right">${fmt(a.balance)}</td></tr>`; });
-        rows += `<tr class="subtotal-row"><td>Total Liabilities</td><td class="text-right">${fmt(d.liabilities?.total)}</td></tr>`;
+    // Revenue
+    h += `<tr class="sec-hdr"><td colspan="3">Revenue</td></tr>`;
+    h += row('Gross Product Sales', d.gross_sales || 0, true);
+    if (d.returns) h += row('Less: Returns &amp; Cancellations', -(d.returns), true);
+    (d.revenue_by_channel || []).forEach(r => {
+        h += `<tr class="item" style="opacity:.85"><td style="padding-left:48px">${r.channel.replace(/_/g,' ')} · Net</td><td class="tr">${fmt(r.net_sales)}</td><td class="tr muted">${r.units > 0 ? fmtN(r.units) + ' units' : ''}</td></tr>`;
+    });
+    h += stone('Net Sales (excl. GST)', ns, '', false);
 
-        rows += `<tr class="section-header"><td colspan="2">Equity</td></tr>`;
-        (d.equity?.accounts || []).forEach(a => { rows += `<tr class="indent"><td>${a.account_code} · ${a.account_name}</td><td class="text-right">${fmt(a.balance)}</td></tr>`; });
-        rows += `<tr class="subtotal-row"><td>Total Equity</td><td class="text-right">${fmt(d.equity?.total)}</td></tr>`;
-
-        const liabEquity = (d.liabilities?.total || 0) + (d.equity?.total || 0);
-        const balanced = Math.abs((d.assets?.total || 0) - liabEquity) < 1;
-        rows += `<tr class="total-row"><td><b>Total Liabilities + Equity</b></td><td class="text-right">${fmt(liabEquity)}</td></tr>`;
-
-        tbody.innerHTML = rows;
-        const st = document.getElementById('bsStatus');
-        if (balanced) { st.textContent = 'Balanced ✓'; st.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-emerald-100 text-emerald-700'; }
-        else { st.textContent = 'Check entries'; st.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-amber-100 text-amber-700'; }
+    // COGS
+    h += `<tr class="sec-hdr"><td colspan="3">COGS &mdash; Manufacturing &amp; Materials</td></tr>`;
+    if ((d.cogs?.lines || []).length) {
+        d.cogs.lines.forEach(l => h += row(cap(l.category), l.amount, true));
+    } else {
+        h += `<tr class="item"><td class="muted" colspan="3">No COGS bills this period</td></tr>`;
     }
+    h += sub('Total COGS', d.cogs?.total || 0);
+    h += stone('Gross Profit', gp, d.gross_margin_pct, gp < 0);
 
-    function renderGST(d) {
-        const channels = d.revenue_by_channel || [];
-        const totalGstOut = d.gst_collected || channels.reduce((s, r) => s + (r.gst_collected || 0), 0);
-        let rows = `
-            <tr class="section-header"><td colspan="4">Output GST (Collected from customers)</td></tr>
-            <tr class="group-header"><td>Account Code</td><td>Channel</td><td class="text-right">Net Sales</td><td class="text-right">GST Collected</td></tr>`;
-        if (channels.length) {
-            channels.forEach(r => {
-                rows += `<tr class="indent"><td>${r.account_code || '—'}</td><td>${(r.channel || '').replace(/_/g,' ')}</td><td class="text-right">${fmt(r.net_sales)}</td><td class="text-right">${fmt(r.gst_collected || 0)}</td></tr>`;
-            });
-        } else {
-            rows += `<tr class="indent"><td colspan="3" class="text-slate-400">No sales entries for this period</td><td></td></tr>`;
-        }
-        rows += `<tr class="subtotal-row"><td colspan="3">Total Output GST</td><td class="text-right">${fmt(totalGstOut)}</td></tr>`;
-        rows += `<tr class="section-header"><td colspan="4">Input Tax Credit (ITC on bills)</td></tr>
-            <tr class="indent"><td colspan="3">CGST / SGST / IGST ITC</td><td class="text-right text-slate-400">— add GST fields to bills</td></tr>
-            <tr class="total-row"><td colspan="3"><b>Net GST Payable (Output − ITC)</b></td><td class="text-right">${fmt(totalGstOut)}</td></tr>`;
-        document.getElementById('gstBody').innerHTML = rows;
+    // Fulfilment → CM1
+    h += `<tr class="sec-hdr"><td colspan="3">Fulfilment &amp; Variable Selling</td></tr>`;
+    (d.fulfilment?.lines || []).forEach(l => h += row(cap(l.category), l.amount, true));
+    if (d.fulfilment?.marketplace_commission) h += row('Marketplace Commissions', d.fulfilment.marketplace_commission, true);
+    if (d.fulfilment?.payment_gateway)        h += row('Payment Gateway Charges', d.fulfilment.payment_gateway, true);
+    if (!(d.fulfilment?.lines || []).length && !d.fulfilment?.marketplace_commission) {
+        h += `<tr class="item"><td class="muted" colspan="3">No fulfilment bills this period</td></tr>`;
     }
+    h += sub('Total Fulfilment', d.fulfilment?.total || 0);
+    h += stone('Contribution Margin 1 (CM1)', cm1, d.cm1_pct, cm1 < 0);
 
-    function renderSpend(d) {
-        let rows = '';
-        const sections = [
-            { key: 'cogs',       label: 'COGS',        linesKey: 'lines' },
-            { key: 'fulfilment', label: 'FULFILMENT',   linesKey: 'lines' },
-            { key: 'marketing',  label: 'MARKETING',    linesKey: 'lines' },
-            { key: 'opex',       label: 'OPERATIONS',   linesKey: 'lines' }
-        ];
-        sections.forEach(({ key, label, linesKey }) => {
-            const section = d[key];
-            const lines = section?.[linesKey] || [];
-            if (!lines.length && !section?.total) return;
-            rows += `<tr class="section-header"><td colspan="4">${label}</td></tr>`;
-            lines.forEach(l => {
-                const cat = (l.category || l.tag_name || l.account_name || '').replace(/_/g,' ');
-                const code = l.account_code || '—';
-                rows += `<tr class="indent"><td>${code}</td><td>${cat}</td><td>${label}</td><td class="text-right">${fmt(l.amount)}</td></tr>`;
-            });
-            if (key === 'fulfilment') {
-                if (d.fulfilment?.marketplace_commission) rows += `<tr class="indent"><td>—</td><td>Marketplace Commissions</td><td>FULFILMENT</td><td class="text-right">${fmt(d.fulfilment.marketplace_commission)}</td></tr>`;
-                if (d.fulfilment?.payment_gateway) rows += `<tr class="indent"><td>—</td><td>Payment Gateway</td><td>FULFILMENT</td><td class="text-right">${fmt(d.fulfilment.payment_gateway)}</td></tr>`;
-            }
-            rows += `<tr class="subtotal-row"><td colspan="3">${label} Total</td><td class="text-right">${fmt(section?.total || 0)}</td></tr>`;
-        });
-        if (!rows) rows = `<tr><td colspan="4" class="text-center py-8 text-slate-400">No bills categorised for this period.</td></tr>`;
-        document.getElementById('spendBody').innerHTML = rows;
+    // Marketing → CM2
+    h += `<tr class="sec-hdr"><td colspan="3">Marketing &amp; CAC</td></tr>`;
+    if ((d.marketing?.lines || []).length) {
+        d.marketing.lines.forEach(l => h += row(cap(l.category), l.amount, true));
+    } else {
+        h += `<tr class="item"><td class="muted" colspan="3">No marketing bills this period</td></tr>`;
     }
+    h += sub('Total Marketing', d.marketing?.total || 0);
+    h += stone('Contribution Margin 2 (CM2)', cm2, d.cm2_pct, cm2 < 0);
 
-    function showTab(name) {
-        ['pl','bs','gst','spend'].forEach(t => {
-            document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
-        });
-        document.querySelectorAll('.tab-btn').forEach((b, i) => {
-            b.classList.toggle('active', ['pl','bs','gst','spend'][i] === name);
+    // OPEX → EBITDA
+    h += `<tr class="sec-hdr"><td colspan="3">Operating Expenses</td></tr>`;
+    if ((d.opex?.lines || []).length) {
+        d.opex.lines.forEach(l => h += row(cap(l.category), l.amount, true));
+    } else {
+        h += `<tr class="item"><td class="muted" colspan="3">No opex bills this period</td></tr>`;
+    }
+    h += sub('Total OpEx', d.opex?.total || 0);
+    h += stone('EBITDA', ebitda, d.ebitda_pct, ebitda < 0);
+
+    // Section breakdown
+    if (d.section_breakdown && d.section_breakdown.length) {
+        h += `<tr class="sec-hdr"><td colspan="3">Performance by Section</td></tr>`;
+        h += `<tr class="grp-hdr"><td>Section</td><td class="tr">Net Sales</td><td class="tr">Gross Margin</td></tr>`;
+        d.section_breakdown.forEach(s => {
+            h += `<tr class="item"><td>${s.section}</td><td class="tr">${fmt(s.net_sales)}</td><td class="tr">${s.gross_margin_pct.toFixed(1)}%</td></tr>`;
         });
     }
 
-    buildMonthChips();
-    loadDropList();
-    </script>
+    body.innerHTML = h;
+
+    const badge = document.getElementById('plBadge');
+    if (ebitda >= 0) { badge.textContent = 'EBITDA Positive'; badge.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-emerald-100 text-emerald-700'; }
+    else             { badge.textContent = 'EBITDA Negative'; badge.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-red-100 text-red-600'; }
+}
+
+// ── GST ───────────────────────────────────────────────────────────────────────
+function renderGST(d) {
+    const channels    = d.revenue_by_channel || [];
+    const totalGstOut = d.gst_collected || channels.reduce((s, r) => s + (r.gst_collected || 0), 0);
+
+    let h = `<tr class="sec-hdr"><td colspan="4">Output GST — Collected from Customers</td></tr>`;
+    h += `<tr class="grp-hdr"><td>Account</td><td>Channel</td><td class="tr">Net Sales</td><td class="tr">GST Collected</td></tr>`;
+
+    if (channels.length) {
+        channels.forEach(r => {
+            h += `<tr class="item"><td>${r.account_code || '—'}</td><td>${r.channel.replace(/_/g,' ')}</td><td class="tr">${fmt(r.net_sales)}</td><td class="tr">${fmt(r.gst_collected || 0)}</td></tr>`;
+        });
+    } else {
+        h += `<tr class="item"><td colspan="4" class="muted">No sales entries for this period</td></tr>`;
+    }
+    h += `<tr class="sub"><td colspan="3">Total Output GST</td><td class="tr">${fmt(totalGstOut)}</td></tr>`;
+
+    h += `<tr class="sec-hdr"><td colspan="4">Input Tax Credit (ITC) — From Bills</td></tr>`;
+    h += `<tr class="item"><td colspan="3" class="muted">CGST / SGST / IGST ITC</td><td class="tr muted">— capture GST on bills to unlock</td></tr>`;
+
+    h += `<tr class="milestone"><td colspan="3"><b>Net GST Payable (Output − ITC)</b></td><td class="tr"><b>${fmt(totalGstOut)}</b></td></tr>`;
+
+    document.getElementById('gstBody').innerHTML = h;
+}
+
+// ── Spend Detail ───────────────────────────────────────────────────────────────
+function renderSpend(d) {
+    const GROUPS = [
+        { key: 'cogs',      label: 'COGS' },
+        { key: 'fulfilment',label: 'FULFILLMENT' },
+        { key: 'marketing', label: 'MARKETING' },
+        { key: 'opex',      label: 'OPERATIONS' },
+    ];
+
+    let h = '';
+    GROUPS.forEach(({ key, label }) => {
+        const grp   = d[key];
+        const lines = grp?.lines || [];
+        const extra = key === 'fulfilment' ? [
+            grp?.marketplace_commission ? { category: 'Marketplace Commissions', amount: grp.marketplace_commission } : null,
+            grp?.payment_gateway        ? { category: 'Payment Gateway',         amount: grp.payment_gateway }        : null,
+        ].filter(Boolean) : [];
+
+        const allLines = [...lines, ...extra];
+        if (!allLines.length && !grp?.total) return;
+
+        h += `<tr class="sec-hdr"><td colspan="3">${label}</td></tr>`;
+        allLines.forEach(l => {
+            h += `<tr class="item"><td>${label}</td><td>${cap(l.category)}</td><td class="tr">${fmt(l.amount)}</td></tr>`;
+        });
+        h += `<tr class="sub"><td colspan="2">${label} Total</td><td class="tr">${fmt(grp?.total || 0)}</td></tr>`;
+    });
+
+    if (!h) h = `<tr><td colspan="3" class="text-center py-10 text-slate-400">No bills categorised for this period</td></tr>`;
+    document.getElementById('spendBody').innerHTML = h;
+}
+
+// ── Tab switcher ──────────────────────────────────────────────────────────────
+function showTab(name) {
+    ['pl','gst','spend'].forEach(t => {
+        document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
+    });
+    document.querySelectorAll('.tab-btn').forEach((b, i) => {
+        b.classList.toggle('active', ['pl','gst','spend'][i] === name);
+    });
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function cap(str) {
+    return (str || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+buildMonthChips();
+loadDrops();
+</script>
 </body>
 </html>
