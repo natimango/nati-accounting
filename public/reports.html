@@ -311,9 +311,22 @@ async function loadReports(start, end, label) {
                  (drop ? `&drop_name=${encodeURIComponent(drop)}` : '');
 
     try {
-        const pl = await fetch(`/api/reports/profit-loss?${qs}`, { credentials: 'include' }).then(r => r.json());
+        // Compute prior period (same length, shifted back)
+        const startMs = new Date(start).getTime();
+        const endMs   = new Date(end).getTime();
+        const diff    = endMs - startMs;
+        const priorEnd   = new Date(startMs - 1).toISOString().split('T')[0];
+        const priorStart = new Date(startMs - diff - 86400000).toISOString().split('T')[0];
+        const priorQs = `start_date=${priorStart}&end_date=${priorEnd}` +
+            (sec  ? `&section=${encodeURIComponent(sec)}`   : '') +
+            (drop ? `&drop_name=${encodeURIComponent(drop)}` : '');
+
+        const [pl, prior] = await Promise.all([
+            fetch(`/api/reports/profit-loss?${qs}`, { credentials: 'include' }).then(r => r.json()),
+            fetch(`/api/reports/profit-loss?${priorQs}`, { credentials: 'include' }).then(r => r.json()).catch(() => null),
+        ]);
         lastPLData = pl;
-        renderKPIs(pl);
+        renderKPIs(pl, prior);
         renderPL(pl);
         renderSectionGrid(pl);
         renderGST(pl);
@@ -324,7 +337,7 @@ async function loadReports(start, end, label) {
 }
 
 // ── KPI tiles ─────────────────────────────────────────────────────────────────
-function renderKPIs(d) {
+function renderKPIs(d, prior) {
     if (!d.success) return;
     const ns = d.net_sales || 0;
     const gp = d.gross_profit || 0;
@@ -332,18 +345,29 @@ function renderKPIs(d) {
     const cm2 = d.cm2 || 0;
     const ebitda = d.ebitda || 0;
 
-    function setKPI(id, val, pctId, pct, positive) {
+    function delta(cur, prev) {
+        if (!prev || !prev.success || !prev) return '';
+        const old = prev || 0;
+        if (!old) return '';
+        const chg = ((cur - old) / Math.abs(old) * 100);
+        const sign = chg >= 0 ? '+' : '';
+        const color = chg >= 0 ? 'color:#059669' : 'color:#dc2626';
+        return `<span style="font-size:10px;font-weight:600;${color}">${sign}${chg.toFixed(0)}%</span>`;
+    }
+
+    function setKPI(id, val, pctId, pct, positive, prevVal) {
         const el = document.getElementById(id);
-        el.innerHTML = fmt(val);
+        el.innerHTML = fmt(val) + (prevVal !== undefined ? ' ' + delta(val, prevVal) : '');
         el.parentElement.classList.toggle('green', positive && val >= 0);
         el.parentElement.classList.toggle('red',   positive && val < 0);
         if (pctId) document.getElementById(pctId).textContent = pct !== undefined ? pct + '% margin' : '';
     }
-    document.getElementById('kpi-sales').innerHTML = fmt(ns);
-    setKPI('kpi-gp',    gp,    'kpi-gp-pct',    d.gross_margin_pct, true);
-    setKPI('kpi-cm1',   cm1,   'kpi-cm1-pct',   d.cm1_pct,         true);
-    setKPI('kpi-cm2',   cm2,   'kpi-cm2-pct',   d.cm2_pct,         true);
-    setKPI('kpi-ebitda',ebitda,'kpi-ebitda-pct', d.ebitda_pct,      true);
+    const p = (prior && prior.success) ? prior : null;
+    document.getElementById('kpi-sales').innerHTML = fmt(ns) + (p ? ' ' + delta(ns, p.net_sales) : '');
+    setKPI('kpi-gp',    gp,    'kpi-gp-pct',    d.gross_margin_pct, true, p?.gross_profit);
+    setKPI('kpi-cm1',   cm1,   'kpi-cm1-pct',   d.cm1_pct,         true, p?.cm1);
+    setKPI('kpi-cm2',   cm2,   'kpi-cm2-pct',   d.cm2_pct,         true, p?.cm2);
+    setKPI('kpi-ebitda',ebitda,'kpi-ebitda-pct', d.ebitda_pct,      true, p?.ebitda);
 }
 
 // ── P&L waterfall ─────────────────────────────────────────────────────────────
