@@ -219,9 +219,10 @@ function renderWatchdog(data, alerts) {
     if (!container) return;
     const summary = data.summary || {};
     const checks = [
-        { key: 'duplicates',   label: 'Duplicate bills',    icon: 'fa-copy',          items: (data.duplicates   || []).slice(0,2).map(d => d.vendor_name || 'Vendor') },
-        { key: 'stale_manual', label: 'Stale reviews 24h+', icon: 'fa-hourglass-half', items: (data.stale_manual || []).slice(0,2).map(d => d.file_name || 'Doc') },
-        { key: 'aged_unpaid',  label: 'Unpaid > 30d',       icon: 'fa-calendar-xmark', items: (data.aged_unpaid  || []).slice(0,2).map(b => (b.vendor_name || 'Vendor') + ' · ' + fmt(b.total_amount)) },
+        { key: 'duplicates',    label: 'Duplicate bills',      icon: 'fa-copy',          items: (data.duplicates    || []).slice(0,2).map(d => d.vendor_name || 'Vendor') },
+        { key: 'stale_manual',  label: 'Stale reviews 48h+',   icon: 'fa-hourglass-half', items: (data.stale_manual  || []).slice(0,2).map(d => d.file_name || 'Doc') },
+        { key: 'aged_unpaid',   label: 'Unpaid > 30d',         icon: 'fa-calendar-xmark', items: (data.aged_unpaid   || []).slice(0,2).map(b => (b.vendor_name || 'Vendor') + ' · ' + fmt(b.total_amount)) },
+        { key: 'uncategorized', label: 'Uncategorised bills',   icon: 'fa-tag',            items: (data.uncategorized || []).slice(0,2).map(b => (b.vendor_name || 'Vendor') + ' · ' + fmt(b.total_amount)) },
     ];
     const checksHtml = checks.map(c => {
         const count = summary[c.key] ?? c.items.length;

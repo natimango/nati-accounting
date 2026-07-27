@@ -453,6 +453,19 @@ function sectionChip(section) {
     return `<span class="px-1.5 py-0.5 rounded text-xs font-medium ${map[section] || 'bg-slate-100 text-slate-600'}">${section}</span>`;
 }
 
+function groupChip(grp) {
+    const map = {
+        COGS:        'bg-orange-100 text-orange-700',
+        FULFILLMENT: 'bg-blue-100 text-blue-700',
+        MARKETING:   'bg-violet-100 text-violet-700',
+        OPERATIONS:  'bg-slate-100 text-slate-600',
+    };
+    const short = { COGS: 'COGS', FULFILLMENT: 'Fulfil.', MARKETING: 'Mktg', OPERATIONS: 'Ops' };
+    const key = (grp || '').toUpperCase();
+    if (!key || !map[key]) return '<span class="text-xs text-slate-300">—</span>';
+    return `<span class="px-1.5 py-0.5 rounded text-xs font-medium ${map[key]}">${short[key]}</span>`;
+}
+
 function renderTable(documents) {
     const body = document.getElementById('documents-table-body');
     if (!body) return;
@@ -467,6 +480,7 @@ function renderTable(documents) {
         const paymentRaw = (getPayment(doc) || '').toUpperCase();
         const paymentMethod = paymentRaw && paymentRaw !== 'UNSPECIFIED' ? formatLabel(paymentRaw.toLowerCase()) : '—';
         const categoryValue = formatLabel(getCategory(doc));
+        const grp = getCategoryGroup(doc);
         const fileNumber = `#${String(doc.document_id || idx + 1).padStart(4, '0')}`;
         const section = doc.bill_section || doc.section || null;
         const drop = doc.bill_drop_name || doc.drop_name || null;
@@ -478,7 +492,12 @@ function renderTable(documents) {
             <tr class="${rowCls} cursor-pointer border-t border-slate-100" onclick="openBillModal(${doc.document_id})">
                 <td class="px-3 py-2 text-xs text-slate-500">${fileNumber}</td>
                 <td class="px-3 py-2 text-sm font-medium text-slate-900">${vendor}</td>
-                <td class="px-3 py-2 text-xs text-slate-600">${categoryValue}</td>
+                <td class="px-3 py-2 text-xs text-slate-600">
+                    <div class="flex items-center gap-1 flex-wrap">
+                        ${groupChip(grp)}
+                        ${categoryValue !== '—' ? `<span class="text-slate-500">${categoryValue}</span>` : ''}
+                    </div>
+                </td>
                 <td class="px-3 py-2 text-xs">${sectionChip(section)}</td>
                 <td class="px-3 py-2 text-xs text-slate-500">${drop || '—'}</td>
                 <td class="px-3 py-2 text-xs text-slate-600">${paymentMethod}</td>

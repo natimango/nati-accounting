@@ -399,7 +399,7 @@ async function getSkuOverview(req, res) {
 // Simple watchdog: duplicate invoice numbers per vendor + oversized bills.
 async function getWatchdog(req, res) {
   try {
-    const [billDupes, fileDupes, oversized, staleDocs, agedUnpaid, budgetsOpen] = await Promise.all([
+    const [billDupes, fileDupes, oversized, staleDocs, agedUnpaid, budgetsOpen, uncategorized] = await Promise.all([
       pool.query(
         `
         SELECT v.vendor_name, bill_number, COUNT(*) AS count
@@ -490,6 +490,19 @@ async function getWatchdog(req, res) {
         ORDER BY created_at DESC
         LIMIT 20
         `
+      ),
+      pool.query(
+        `
+        SELECT b.bill_id, COALESCE(v.vendor_name, 'Unknown') AS vendor_name, b.total_amount, d.file_name
+        FROM bills b
+        LEFT JOIN documents d ON b.document_id = d.document_id
+        LEFT JOIN vendors v ON v.vendor_id = b.vendor_id
+        WHERE b.category_group IS NULL
+          AND (b.status IS NULL OR b.status NOT IN ('deleted','void'))
+          AND COALESCE(b.total_amount, 0) > 0
+        ORDER BY b.bill_id DESC
+        LIMIT 20
+        `
       )
     ]);
     const duplicateRows = [
@@ -514,13 +527,15 @@ async function getWatchdog(req, res) {
         oversized: oversized.rowCount,
         stale_manual: staleDocs.rowCount,
         aged_unpaid: agedUnpaid.rowCount,
-        budget: budgetsOpen.rowCount
+        budget: budgetsOpen.rowCount,
+        uncategorized: uncategorized.rowCount
       },
       duplicates: duplicateRows,
       oversized: oversized.rows,
       stale_manual: staleDocs.rows,
       aged_unpaid: agedUnpaid.rows,
-      budget_alerts: budgetsOpen.rows
+      budget_alerts: budgetsOpen.rows,
+      uncategorized: uncategorized.rows
     });
   } catch (err) {
     console.error('Watchdog error', err);
