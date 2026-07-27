@@ -250,9 +250,18 @@ function renderPayablesTable(rows) {
         return da - db;
     });
 
+    const GRP_CHIP = {
+        COGS:        '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700">COGS</span>',
+        FULFILLMENT: '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">Fulfil.</span>',
+        MARKETING:   '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-violet-100 text-violet-700">Mktg</span>',
+        OPERATIONS:  '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">Ops</span>',
+    };
+
     tbody.innerHTML = rows.map(d => {
         const vendor = d.bill_vendor_name || d.vendor_name || d.gemini_data?.vendor_name || '—';
-        const category = (d.bill_category || d.category || '—').replace(/_/g, ' ');
+        const category = (d.bill_category || d.category || '').replace(/_/g, ' ');
+        const grp = (d.bill_category_group || d.category_group || '').toUpperCase();
+        const grpChip = GRP_CHIP[grp] || '';
         const total = Number(d.total_amount || d.bill_total_amount || 0);
         const billId = d.bill_id;
         const dueDate = d.bill_payment_due_date;
@@ -261,7 +270,9 @@ function renderPayablesTable(rows) {
 
         return `<tr class="${rowClass} hover:bg-slate-50 border-t border-slate-100">
             <td class="px-4 py-3 font-medium text-slate-900">${vendor}</td>
-            <td class="px-4 py-3 text-slate-600 capitalize">${category}</td>
+            <td class="px-4 py-3 text-slate-600">
+                <div class="flex items-center gap-1.5 flex-wrap">${grpChip}${category ? `<span class="capitalize text-xs">${category}</span>` : ''}</div>
+            </td>
             <td class="px-4 py-3 text-slate-500">${fmtDate(d.bill_date)}</td>
             <td class="px-4 py-3 ${isOverdue ? 'text-red-600 font-medium' : 'text-slate-500'}">${fmtDate(dueDate)}</td>
             <td class="px-4 py-3">${statusBadge(d.bill_payment_status, dueDate)}</td>
