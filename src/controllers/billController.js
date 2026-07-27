@@ -769,15 +769,24 @@ async function recordSimplePayment(req, res) {
     );
 
     await pool.query(
-      `UPDATE payment_schedule 
+      `UPDATE payment_schedule
        SET amount_paid = amount_paid + $1,
-           payment_status = CASE 
+           payment_status = CASE
              WHEN amount_paid + $1 >= amount_due THEN 'PAID'
              ELSE 'PARTIAL'
            END
        WHERE schedule_id = $2`,
       [amount, schedule_id]
     );
+
+    // Update bill payment_status based on all schedules
+    const allPaid = await pool.query(
+      `SELECT COUNT(*) FILTER (WHERE payment_status != 'PAID') AS pending_count
+       FROM payment_schedule WHERE bill_id = $1`,
+      [bill_id]
+    );
+    const billStatus = parseInt(allPaid.rows[0].pending_count) === 0 ? 'paid' : 'advance';
+    await pool.query(`UPDATE bills SET payment_status = $1 WHERE bill_id = $2`, [billStatus, bill_id]);
 
     res.json({
       success: true,

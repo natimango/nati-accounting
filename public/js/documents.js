@@ -501,6 +501,10 @@ async function openBillModal(id) {
         const deleteButton = canDeleteDoc
             ? `<button onclick="actionDelete(${fullDoc.document_id}, ${fullDoc.bill_id || 'null'})" class="px-3 py-2 bg-red-600 text-white rounded-lg text-sm"><i class='fas fa-trash mr-1'></i>Delete</button>`
             : '';
+        const payStatus = fullDoc.bill_payment_status;
+        const payButton = fullDoc.bill_id && payStatus && payStatus !== 'paid'
+            ? `<button onclick="actionMarkPaid(${fullDoc.bill_id}, '${(fullDoc.bill_vendor_name || fullDoc.vendor_name || 'Vendor').replace(/'/g, '')}', ${fullDoc.total_amount || 0})" class="px-3 py-2 bg-green-600 text-white rounded-lg text-sm"><i class='fas fa-check mr-1'></i>Mark Paid</button>`
+            : '';
 
         titleEl.textContent = vendor;
         subEl.textContent = `Bill: ${billNo} • ${formatDateDisplay(billDate)}`;
@@ -549,8 +553,9 @@ async function openBillModal(id) {
                     ${previewButton}
                     ${processButton}
                     ${manualButton}
+                    ${payButton}
                     ${deleteButton}
-                    <button onclick="actionDownload(${fullDoc.document_id})" class="px-3 py-2 bg-green-600 text-white rounded-lg text-sm"><i class='fas fa-download mr-1'></i>Download</button>
+                    <button onclick="actionDownload(${fullDoc.document_id})" class="px-3 py-2 bg-slate-600 text-white rounded-lg text-sm"><i class='fas fa-download mr-1'></i>Download</button>
                 </div>
             </div>
         `;
@@ -1803,6 +1808,92 @@ function actionManual(documentId) {
 function actionDelete(documentId, billId) {
     if (billId) return deleteBill(billId);
     return deleteDocument(documentId);
+}
+
+function actionMarkPaid(billId, vendor, outstanding) {
+    // Inline quick-pay modal
+    const existing = document.getElementById('quick-pay-modal');
+    if (existing) existing.remove();
+
+    const today = new Date().toISOString().split('T')[0];
+    const modal = document.createElement('div');
+    modal.id = 'quick-pay-modal';
+    modal.className = 'fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="font-semibold text-slate-900">Record Payment</h3>
+                <button onclick="document.getElementById('quick-pay-modal').remove()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 space-y-3">
+                <div class="p-3 bg-slate-50 rounded-lg text-sm">
+                    <strong>${vendor}</strong> — outstanding: <strong>₹${Number(outstanding).toLocaleString()}</strong>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Amount Paid (₹) *</label>
+                    <input type="number" id="qp-amount" value="${outstanding}" min="1" step="0.01" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Payment Date *</label>
+                    <input type="date" id="qp-date" value="${today}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Payment Method</label>
+                    <select id="qp-method" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                        <option value="CASH">Cash</option>
+                        <option value="UPI" selected>UPI</option>
+                        <option value="BANK_TRANSFER">Bank Transfer</option>
+                        <option value="CHEQUE">Cheque</option>
+                        <option value="OTHER">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Reference / Notes</label>
+                    <input type="text" id="qp-notes" placeholder="UTR no., cheque no., etc." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+            </div>
+            <div class="px-5 py-4 border-t border-slate-100 flex gap-3 justify-end">
+                <button onclick="document.getElementById('quick-pay-modal').remove()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm hover:bg-slate-200">Cancel</button>
+                <button id="qp-submit" onclick="submitQuickPay(${billId})" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">
+                    <i class="fas fa-check mr-1"></i>Record Payment
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+}
+
+async function submitQuickPay(billId) {
+    const amount = parseFloat(document.getElementById('qp-amount').value);
+    const date = document.getElementById('qp-date').value;
+    const method = document.getElementById('qp-method').value;
+    const notes = document.getElementById('qp-notes').value;
+    if (!amount || !date) { showToast('Amount and date are required'); return; }
+
+    const btn = document.getElementById('qp-submit');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    try {
+        const res = await authFetch(`${API_URL}/payments/record-simple`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bill_id: billId, amount, payment_date: date, payment_method: method, notes })
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('quick-pay-modal').remove();
+            showToast('Payment recorded — bill marked paid');
+            await loadDocuments();
+        } else {
+            showToast('Error: ' + (data.error || 'Unknown'));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check mr-1"></i>Record Payment';
+        }
+    } catch (e) {
+        showToast('Network error, please retry');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check mr-1"></i>Record Payment';
+    }
 }
 
 function actionDownload(documentId) {
