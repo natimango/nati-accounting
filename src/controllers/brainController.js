@@ -968,6 +968,18 @@ async function getDropCostOverview(req, res) {
       [dropName]
     );
 
+    const bySectionResult = await client.query(
+      `SELECT COALESCE(b.section, 'Unassigned') AS section,
+              SUM(b.total_amount) AS committed
+       FROM bills b
+       WHERE b.drop_name = $1
+         AND b.section IS NOT NULL
+         AND (b.status IS NULL OR b.status NOT IN ('deleted','void'))
+       GROUP BY COALESCE(b.section, 'Unassigned')
+       ORDER BY committed DESC`,
+      [dropName]
+    );
+
     const byGroupResult = await client.query(
       `
       SELECT
@@ -1060,6 +1072,7 @@ async function getDropCostOverview(req, res) {
         paid: Number(r.paid || 0)
       })),
       byGroup: Object.values(groupMap),
+      bySection: bySectionResult.rows.map(r => ({ section: r.section, committed: Number(r.committed || 0) })),
       budgetSummary,
       budgetTotals: {
         budgeted: totalBudget,

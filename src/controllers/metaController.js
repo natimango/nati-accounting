@@ -44,8 +44,29 @@ async function listDrops(req, res) {
   }
 }
 
+async function createDrop(req, res) {
+  try {
+    const { drop_name, description, launch_date, season } = req.body;
+    if (!drop_name || !drop_name.trim()) {
+      return res.status(400).json({ success: false, error: 'drop_name is required' });
+    }
+    const result = await pool.query(
+      `INSERT INTO drops (drop_name, description, launch_date, season, is_active)
+       VALUES ($1, $2, $3, $4, true)
+       ON CONFLICT (drop_name) DO UPDATE SET is_active = true
+       RETURNING drop_id, drop_name`,
+      [drop_name.trim(), description || null, launch_date || null, season || null]
+    );
+    res.json({ success: true, drop: result.rows[0] });
+  } catch (error) {
+    console.error('Create drop error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
 module.exports = {
   listCoaAccounts,
   listDepartments,
-  listDrops
+  listDrops,
+  createDrop
 };
