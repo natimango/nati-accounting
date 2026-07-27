@@ -27,17 +27,22 @@ async function loadDashboard() {
     const mStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
     const mEnd   = now.toISOString().split('T')[0];
 
+    // Indian FY: April 1 → March 31
+    const fyYear  = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+    const fyStart = `${fyYear}-04-01`;
+
     // Fire all requests in parallel
-    const [docsData, pl, payDash, drops, trend] = await Promise.all([
+    const [docsData, pl, ytdPL, payDash, drops, trend] = await Promise.all([
         authFetch(`${API}/documents`).then(r => r.json()).catch(() => ({})),
         authFetch(`${API}/reports/profit-loss?start_date=${mStart}&end_date=${mEnd}`).then(r => r.json()).catch(() => ({})),
+        authFetch(`${API}/reports/profit-loss?start_date=${fyStart}&end_date=${mEnd}`).then(r => r.json()).catch(() => ({})),
         authFetch(`${API}/payments/dashboard`).then(r => r.json()).catch(() => ({})),
         authFetch(`${API}/meta/drops`).then(r => r.json()).catch(() => ({})),
         authFetch(`${API}/reports/trend?months=6`).then(r => r.json()).catch(() => ({})),
     ]);
 
     renderDocStats(docsData, mStart);
-    renderPLSnapshot(pl, mStart, mEnd);
+    renderPLSnapshot(pl, mStart, mEnd, ytdPL, fyStart);
     renderPayablesStrip(payDash);
     renderRecentDocs(docsData);
     renderDropStrip(drops);
@@ -57,7 +62,7 @@ function renderDocStats(data, mStart) {
 }
 
 // ── This-month P&L snapshot ───────────────────────────────────────────────────
-function renderPLSnapshot(d, start, end) {
+function renderPLSnapshot(d, start, end, ytd, fyStart) {
     const label = new Date(start).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
     setText('pl-period', label);
 
@@ -65,6 +70,8 @@ function renderPLSnapshot(d, start, end) {
         setText('pl-net-sales', '—');
         setText('pl-gross-profit', '—');
         setText('pl-ebitda', '—');
+        // Show YTD row even if month failed
+        renderYTD(ytd, fyStart);
         return;
     }
 
@@ -113,6 +120,29 @@ function renderPLSnapshot(d, start, end) {
                 </div>`;
         }
     }
+
+    renderYTD(ytd, fyStart);
+}
+
+function renderYTD(ytd, fyStart) {
+    const el = document.getElementById('ytd-strip');
+    if (!el || !ytd || !ytd.success) return;
+    const fyLabel = fyStart ? new Date(fyStart).toLocaleString('en-IN', { month: 'short', year: 'numeric' }) : 'FY';
+    const ns   = ytd.net_sales    || 0;
+    const gp   = ytd.gross_profit || 0;
+    const eb   = ytd.ebitda       || 0;
+    const gpPct = ns ? (gp / ns * 100).toFixed(1) : '—';
+    const ebPct = ns ? (eb / ns * 100).toFixed(1) : '—';
+    el.innerHTML = `
+        <div class="flex items-center gap-1 text-[10px] text-slate-400 font-semibold uppercase tracking-wide mb-2">
+            <i class="fas fa-calendar-alt"></i> FY to date (from ${fyLabel})
+        </div>
+        <div class="flex gap-4 flex-wrap">
+            <div><span class="text-xs text-slate-500">Net Sales</span><br><span class="text-sm font-bold text-slate-800">${fmt(ns)}</span></div>
+            <div><span class="text-xs text-slate-500">Gross Profit</span><br><span class="text-sm font-bold text-blue-600">${fmt(gp)}</span> <span class="text-xs text-slate-400">${gpPct}%</span></div>
+            <div><span class="text-xs text-slate-500">EBITDA</span><br><span class="text-sm font-bold ${eb >= 0 ? 'text-emerald-600' : 'text-red-500'}">${fmt(eb)}</span> <span class="text-xs text-slate-400">${ebPct}%</span></div>
+        </div>`;
+    el.classList.remove('hidden');
 }
 
 // ── Payables strip ────────────────────────────────────────────────────────────
