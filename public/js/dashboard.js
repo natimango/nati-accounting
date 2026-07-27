@@ -78,7 +78,7 @@ document.addEventListener('keydown', (e) => {
 
 document.addEventListener('DOMContentLoaded', () => {
     if (window.sessionReady) {
-        window.sessionReady.then(() => loadDashboard()).catch(() => {});
+        window.sessionReady.then(() => loadDashboard()).catch(() => loadDashboard());
     } else {
         loadDashboard();
     }
@@ -99,28 +99,27 @@ function displayRecentDocuments(documents) {
         return;
     }
     
-    container.innerHTML = documents.map(doc => `
-        <div class="flex items-center justify-between py-4 hover:bg-gray-50 px-4 rounded">
-            <div class="flex items-center flex-1">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-file-${getFileIcon(doc.file_type)} text-2xl ${getFileColor(doc.file_type)}"></i>
-                </div>
-                <div class="ml-4 flex-1">
-                    <p class="font-medium text-gray-900">${doc.file_name}</p>
-                    <div class="flex items-center space-x-4 text-sm text-gray-500 mt-1">
-                        <span><i class="fas fa-tag mr-1"></i>${doc.document_category || 'uncategorized'}</span>
-                        <span><i class="fas fa-clock mr-1"></i>${formatDate(doc.uploaded_at)}</span>
-                        <span><i class="fas fa-hdd mr-1"></i>${formatBytes(doc.file_size)}</span>
+    container.innerHTML = documents.map(doc => {
+        const vendor   = doc.bill_vendor_name || doc.vendor_name || doc.file_name || '—';
+        const category = (doc.bill_category_group || doc.category_group || '—');
+        const amount   = doc.total_amount || doc.bill_total_amount;
+        const amtStr   = amount ? '&#8377;' + Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '';
+        return `
+        <div class="flex items-center justify-between py-3 px-4 rounded-xl hover:bg-slate-50 transition">
+            <div class="flex items-center gap-3 flex-1 min-w-0">
+                <i class="fas fa-file-${getFileIcon(doc.file_type)} text-xl ${getFileColor(doc.file_type)}"></i>
+                <div class="min-w-0">
+                    <p class="font-medium text-slate-900 truncate">${vendor}</p>
+                    <div class="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
+                        <span>${category}</span>
+                        <span>${formatDate(doc.uploaded_at)}</span>
+                        ${amtStr ? `<span class="font-semibold text-slate-600">${amtStr}</span>` : ''}
                     </div>
                 </div>
             </div>
-            <div>
-                <span class="px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(doc.status)}">
-                    ${doc.status}
-                </span>
-            </div>
-        </div>
-    `).join('');
+            <span class="ml-3 px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(doc.status)} shrink-0">${doc.status}</span>
+        </div>`;
+    }).join('');
 }
 
 function getFileIcon(mimeType) {
@@ -340,5 +339,3 @@ function formatBytes(bytes) {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
-// Load on page load
-loadDashboard();

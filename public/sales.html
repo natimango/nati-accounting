@@ -1,422 +1,485 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sales Revenue — Nati Accounting</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', system-ui, sans-serif; background: #f9fafb; color: #111827; }
-    header { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 16px 28px; display: flex; align-items: center; gap: 16px; }
-    header h1 { font-size: 18px; font-weight: 700; }
-    header nav a { font-size: 13px; color: #6b7280; text-decoration: none; margin-right: 16px; }
-    header nav a:hover { color: #111; }
-    .page { max-width: 1200px; margin: 0 auto; padding: 28px; }
-    .section-title { font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 12px; text-transform: uppercase; letter-spacing: .04em; }
-
-    /* Tiles */
-    .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 28px; }
-    .tile { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 18px; }
-    .tile .label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
-    .tile .value { font-size: 22px; font-weight: 700; color: #111; }
-    .tile .sub { font-size: 11px; color: #9ca3af; margin-top: 4px; }
-    .tile.green .value { color: #059669; }
-    .tile.red .value { color: #dc2626; }
-
-    /* Form card */
-    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin-bottom: 28px; }
-    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
-    .form-group { display: flex; flex-direction: column; gap: 5px; }
-    label { font-size: 12px; font-weight: 500; color: #374151; }
-    input, select, textarea { border: 1px solid #d1d5db; border-radius: 7px; padding: 8px 10px; font-size: 13px; width: 100%; outline: none; }
-    input:focus, select:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,.12); }
-    .btn { padding: 9px 20px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; }
-    .btn-primary { background: #6366f1; color: #fff; }
-    .btn-primary:hover { background: #4f46e5; }
-    .btn-ghost { background: #f3f4f6; color: #374151; }
-    .btn-ghost:hover { background: #e5e7eb; }
-    .form-actions { display: flex; gap: 10px; margin-top: 16px; }
-
-    /* Filters */
-    .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 20px; }
-    .filters .form-group { min-width: 160px; flex: 0 0 auto; }
-
-    /* Table */
-    .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    thead th { background: #f9fafb; padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
-    tbody tr { border-bottom: 1px solid #f3f4f6; }
-    tbody tr:hover { background: #f9fafb; }
-    tbody td { padding: 10px 12px; color: #374151; white-space: nowrap; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
-    .badge-d2c { background: #ede9fe; color: #7c3aed; }
-    .badge-myntra { background: #fce7f3; color: #be185d; }
-    .badge-ajio { background: #dcfce7; color: #166534; }
-    .badge-nykaa { background: #fef3c7; color: #92400e; }
-    .badge-instagram { background: #fce7f3; color: #9d174d; }
-    .badge-popup { background: #e0f2fe; color: #0369a1; }
-    .badge-other { background: #f3f4f6; color: #374151; }
-    .text-right { text-align: right; }
-    .text-green { color: #059669; font-weight: 600; }
-    .text-red { color: #dc2626; }
-    .del-btn { background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 15px; padding: 2px 6px; border-radius: 4px; }
-    .del-btn:hover { color: #dc2626; background: #fee2e2; }
-
-    /* Channel summary bar */
-    .channel-bars { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 28px; }
-    .ch-bar { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; }
-    .ch-bar .ch-name { font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 8px; display: flex; justify-content: space-between; }
-    .ch-bar .bar-track { height: 6px; border-radius: 99px; background: #f3f4f6; overflow: hidden; }
-    .ch-bar .bar-fill { height: 100%; border-radius: 99px; background: #6366f1; }
-    .ch-bar .ch-nums { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: #9ca3af; }
-    .ch-bar .ch-rev { font-size: 16px; font-weight: 700; color: #111; margin-bottom: 4px; }
-
-    .empty { text-align: center; color: #9ca3af; padding: 40px; font-size: 13px; }
-    .toast { position: fixed; bottom: 24px; right: 24px; background: #111; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 13px; display: none; z-index: 999; }
-    .gst-section { border-top: 1px dashed #e5e7eb; margin-top: 14px; padding-top: 14px; }
-    .gst-section .section-title { font-size: 11px; margin-bottom: 10px; }
-    details > summary { cursor: pointer; font-size: 12px; color: #6366f1; font-weight: 600; margin-top: 10px; user-select: none; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Revenue — NATI Accounting</title>
+    <link rel="stylesheet" href="css/tailwind.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/theme.css">
+    <style>
+        .ch-badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+        .ch-D2C_WEBSITE  { background:#ede9fe; color:#7c3aed; }
+        .ch-MYNTRA       { background:#fce7f3; color:#be185d; }
+        .ch-AJIO         { background:#dcfce7; color:#166534; }
+        .ch-NYKAA        { background:#fef3c7; color:#92400e; }
+        .ch-INSTAGRAM    { background:#fce7f3; color:#9d174d; }
+        .ch-POPUP        { background:#e0f2fe; color:#0369a1; }
+        .ch-OTHER        { background:#f3f4f6; color:#374151; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+        .form-field label { display: block; font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
+        .form-field input, .form-field select {
+            width: 100%; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 8px;
+            font-size: 13px; background: #fff; color: #1e293b;
+        }
+        .form-field input:focus, .form-field select:focus {
+            outline: none; border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,.12);
+        }
+        .rt { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .rt th { padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #94a3b8; background: #f8fafc; border-bottom: 2px solid #e2e8f0; }
+        .rt th.tr, .rt td.tr { text-align: right; }
+        .rt td { padding: 9px 12px; border-bottom: 1px solid #f1f5f9; color: #374151; }
+        .rt tr:hover td { background: #f8fafc; }
+        .rt .pos { color: #059669; font-weight: 600; }
+        .rt .neg { color: #dc2626; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+        .kpi { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
+        .kpi .label { font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+        .kpi .value { font-size: 20px; font-weight: 700; color: #1e293b; margin-top: 4px; }
+        .kpi.green .value { color: #059669; }
+        .kpi.red .value   { color: #dc2626; }
+        .ch-bar-track { height: 6px; border-radius: 99px; background: #f1f5f9; overflow: hidden; margin-top: 6px; }
+        .ch-bar-fill  { height: 100%; border-radius: 99px; background: #6366f1; }
+    </style>
 </head>
-<body>
-<header>
-  <h1>Sales Revenue</h1>
-  <nav>
-    <a href="index.html">Dashboard</a>
-    <a href="documents.html">Documents</a>
-    <a href="upload.html">Upload</a>
-    <a href="payables.html">Payables</a>
-    <a href="drop.html">Drop</a>
-    <a href="reports.html">Reports</a>
-    <a href="sales.html" style="color:#4f46e5;font-weight:700">Sales Revenue</a>
-  </nav>
-</header>
+<body class="nati-page bg-gradient-to-br from-slate-50 via-slate-100 to-white text-slate-900">
+<div class="min-h-screen flex flex-col">
 
-<div class="page">
-  <!-- Summary tiles -->
-  <div class="tiles" id="summaryTiles">
-    <div class="tile"><div class="label">Gross Sales</div><div class="value" id="tGross">₹0</div><div class="sub">All channels</div></div>
-    <div class="tile red"><div class="label">Returns</div><div class="value" id="tReturns">₹0</div><div class="sub">Refunds & reversals</div></div>
-    <div class="tile green"><div class="label">Net Revenue</div><div class="value" id="tNet">₹0</div><div class="sub">After returns</div></div>
-    <div class="tile"><div class="label">GST Collected</div><div class="value" id="tGst">₹0</div><div class="sub">CGST + SGST + IGST</div></div>
-    <div class="tile"><div class="label">Net Units Sold</div><div class="value" id="tUnits">0</div><div class="sub">Gross − returned</div></div>
-  </div>
-
-  <!-- Channel breakdown -->
-  <div class="section-title">By Channel</div>
-  <div class="channel-bars" id="channelBars"></div>
-
-  <!-- Filters -->
-  <div class="card">
-    <div class="section-title">Filter Entries</div>
-    <div class="filters">
-      <div class="form-group">
-        <label>From</label>
-        <input type="date" id="fStart" />
-      </div>
-      <div class="form-group">
-        <label>To</label>
-        <input type="date" id="fEnd" />
-      </div>
-      <div class="form-group">
-        <label>Drop</label>
-        <select id="fDrop">
-          <option value="">All Drops</option>
-        </select>
-      </div>
-      <div style="align-self: flex-end;">
-        <button class="btn btn-ghost" onclick="loadEntries()">Apply</button>
-      </div>
-    </div>
-
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Channel</th>
-            <th>Drop</th>
-            <th class="text-right">Gross Sales</th>
-            <th class="text-right">Returns</th>
-            <th class="text-right">Net Sales</th>
-            <th class="text-right">Units</th>
-            <th class="text-right">GST</th>
-            <th>Settlement Ref</th>
-            <th>Notes</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="entriesBody">
-          <tr><td colspan="11" class="empty">Loading…</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Add entry form -->
-  <div class="card">
-    <div class="section-title">Record Sales Entry</div>
-    <div class="form-grid">
-      <div class="form-group">
-        <label>Date *</label>
-        <input type="date" id="fDate" />
-      </div>
-      <div class="form-group">
-        <label>Channel *</label>
-        <select id="fChannel">
-          <option value="">Select channel</option>
-          <option value="D2C_WEBSITE">D2C Website</option>
-          <option value="MYNTRA">Myntra</option>
-          <option value="AJIO">Ajio</option>
-          <option value="NYKAA">Nykaa Fashion</option>
-          <option value="INSTAGRAM">Instagram / Social</option>
-          <option value="POPUP">Pop-up / Offline</option>
-          <option value="OTHER">Other</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Drop</label>
-        <select id="fDropNew">
-          <option value="">No drop</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Gross Sales (₹) *</label>
-        <input type="number" id="fGross" min="0" step="0.01" placeholder="0.00" />
-      </div>
-      <div class="form-group">
-        <label>Returns Amount (₹)</label>
-        <input type="number" id="fReturns" min="0" step="0.01" placeholder="0.00" />
-      </div>
-      <div class="form-group">
-        <label>Gross Units</label>
-        <input type="number" id="fGrossUnits" min="0" placeholder="0" />
-      </div>
-      <div class="form-group">
-        <label>Returned Units</label>
-        <input type="number" id="fReturnedUnits" min="0" placeholder="0" />
-      </div>
-      <div class="form-group">
-        <label>Settlement Ref</label>
-        <input type="text" id="fSettlementRef" placeholder="Myntra payout ID / Razorpay…" />
-      </div>
-      <div class="form-group">
-        <label>Settlement Date</label>
-        <input type="date" id="fSettlementDate" />
-      </div>
-    </div>
-
-    <details>
-      <summary>Deductions & GST (optional)</summary>
-      <div class="gst-section">
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Marketplace Commission (₹)</label>
-            <input type="number" id="fCommission" min="0" step="0.01" placeholder="0.00" />
-          </div>
-          <div class="form-group">
-            <label>Payment Gateway Charges (₹)</label>
-            <input type="number" id="fGateway" min="0" step="0.01" placeholder="0.00" />
-          </div>
-          <div class="form-group">
-            <label>Shipping Collected from Customer (₹)</label>
-            <input type="number" id="fShipping" min="0" step="0.01" placeholder="0.00" />
-          </div>
-          <div class="form-group">
-            <label>CGST Collected (₹)</label>
-            <input type="number" id="fCgst" min="0" step="0.01" placeholder="0.00" />
-          </div>
-          <div class="form-group">
-            <label>SGST Collected (₹)</label>
-            <input type="number" id="fSgst" min="0" step="0.01" placeholder="0.00" />
-          </div>
-          <div class="form-group">
-            <label>IGST Collected (₹)</label>
-            <input type="number" id="fIgst" min="0" step="0.01" placeholder="0.00" />
-          </div>
+    <header class="nati-hero bg-gradient-to-r from-indigo-700 via-blue-700 to-slate-900 text-white shadow-md">
+        <div class="nati-shell">
+            <div class="py-5 flex flex-wrap items-center gap-4 justify-between">
+                <div class="flex items-center gap-3">
+                    <a href="index.html"><img src="logo.jpg" alt="NATI" class="h-14 w-14 rounded-xl border border-white/40 bg-white object-cover shadow"></a>
+                    <div>
+                        <p class="text-xs uppercase tracking-[.2em] text-white/70">Sales Revenue</p>
+                        <h1 class="text-2xl font-semibold">Channel &middot; GST &middot; Settlements</h1>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="nati-nav-wrapper">
+                        <button class="nati-nav-toggle" onclick="toggleNav('nav-sales')"><i class="fas fa-bars"></i><span>Menu</span></button>
+                        <nav class="nati-nav" id="nav-sales">
+                            <a href="index.html"     class="nati-nav-link"><i class="fas fa-gauge"></i><span>Dashboard</span></a>
+                            <a href="documents.html" class="nati-nav-link"><i class="fas fa-folder-open"></i><span>Documents</span></a>
+                            <a href="upload.html"    class="nati-nav-link"><i class="fas fa-upload"></i><span>Upload</span></a>
+                            <a href="drop.html"      class="nati-nav-link"><i class="fas fa-layer-group"></i><span>Drop</span></a>
+                            <a href="reports.html"   class="nati-nav-link"><i class="fas fa-chart-line"></i><span>Reports</span></a>
+                            <a href="sales.html"     class="nati-nav-link is-active"><i class="fas fa-store"></i><span>Sales</span></a>
+                            <a href="payables.html"  class="nati-nav-link"><i class="fas fa-file-invoice-dollar"></i><span>Payables</span></a>
+                            <a href="admin.html"     class="nati-nav-link hidden" id="nav-admin"><i class="fas fa-user-shield"></i><span>Admin</span></a>
+                        </nav>
+                    </div>
+                    <div id="user-pill" class="hidden sm:flex items-center gap-2 px-3 py-2 rounded-2xl border border-white/30 bg-white/10 backdrop-blur">
+                        <div>
+                            <p id="user-name" class="text-sm font-semibold leading-tight">—</p>
+                            <p id="user-role" class="text-[11px] tracking-[.2em] text-white/70 uppercase">—</p>
+                        </div>
+                    </div>
+                    <button id="logout-btn" class="hidden px-3 py-2 bg-white/15 hover:bg-white/25 text-sm font-semibold rounded-2xl flex items-center gap-2 transition">
+                        <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+                    </button>
+                </div>
+            </div>
         </div>
-      </div>
-    </details>
+    </header>
 
-    <div class="form-group" style="margin-top:14px;">
-      <label>Notes</label>
-      <input type="text" id="fNotes" placeholder="Settlement period, remarks…" />
-    </div>
+    <main class="flex-1 py-6">
+        <div class="nati-shell max-w-5xl mx-auto space-y-5">
 
-    <div class="form-actions">
-      <button class="btn btn-primary" onclick="submitEntry()">Save Entry</button>
-      <button class="btn btn-ghost" onclick="resetForm()">Clear</button>
-    </div>
-  </div>
+            <!-- KPI row -->
+            <div class="kpi-grid">
+                <div class="kpi"><div class="label">Gross Sales</div><div class="value" id="kpiGross">—</div></div>
+                <div class="kpi red"><div class="label">Returns</div><div class="value" id="kpiReturns">—</div></div>
+                <div class="kpi green"><div class="label">Net Revenue</div><div class="value" id="kpiNet">—</div></div>
+                <div class="kpi"><div class="label">GST Collected</div><div class="value" id="kpiGst">—</div></div>
+                <div class="kpi"><div class="label">Net Units Sold</div><div class="value" id="kpiUnits">—</div></div>
+            </div>
+
+            <!-- Channel breakdown -->
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+                <h3 class="font-semibold text-sm mb-4">By Channel</h3>
+                <div id="channelGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"></div>
+            </div>
+
+            <!-- Filters & table -->
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
+                    <span class="text-sm font-semibold text-slate-700 mr-1">Entries</span>
+                    <input type="date" id="fStart" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                    <span class="text-slate-400 text-sm">to</span>
+                    <input type="date" id="fEnd"   class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                    <select id="fDrop" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm bg-white">
+                        <option value="">All drops</option>
+                    </select>
+                    <button onclick="loadEntries()" class="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">Apply</button>
+                    <button onclick="openAddForm()" class="ml-auto px-4 py-1.5 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-700 flex items-center gap-2">
+                        <i class="fas fa-plus text-xs"></i> Add Entry
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="rt">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Channel</th>
+                                <th>Drop</th>
+                                <th>Section</th>
+                                <th class="tr">Gross Sales</th>
+                                <th class="tr">Returns</th>
+                                <th class="tr">Net Sales</th>
+                                <th class="tr">Units</th>
+                                <th class="tr">GST</th>
+                                <th>Settlement</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="entriesBody">
+                            <tr><td colspan="11" class="text-center py-10 text-slate-400">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- ── Add Entry modal ── -->
+<div id="add-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
+            <h3 class="font-semibold text-slate-900">Record Sales Entry</h3>
+            <button onclick="closeAddForm()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-6 space-y-5">
+            <!-- Core -->
+            <div class="form-row">
+                <div class="form-field">
+                    <label>Date *</label>
+                    <input type="date" id="fDate">
+                </div>
+                <div class="form-field">
+                    <label>Channel *</label>
+                    <select id="fChannel">
+                        <option value="">Select channel</option>
+                        <option value="D2C_WEBSITE">D2C Website</option>
+                        <option value="MYNTRA">Myntra</option>
+                        <option value="AJIO">Ajio</option>
+                        <option value="NYKAA">Nykaa Fashion</option>
+                        <option value="INSTAGRAM">Instagram / Social</option>
+                        <option value="POPUP">Pop-up / Offline</option>
+                        <option value="OTHER">Other</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label>Drop</label>
+                    <select id="fDropNew">
+                        <option value="">No drop</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label>Section</label>
+                    <select id="fSection">
+                        <option value="">—</option>
+                        <option value="Regulars">Regulars</option>
+                        <option value="Artwear">Artwear</option>
+                        <option value="Collectibles">Collectibles</option>
+                    </select>
+                </div>
+            </div>
 
+            <!-- Revenue -->
+            <div>
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Revenue</p>
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>Gross Sales (₹) *</label>
+                        <input type="number" id="fGross" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="form-field">
+                        <label>Returns Amount (₹)</label>
+                        <input type="number" id="fReturns" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="form-field">
+                        <label>Gross Units</label>
+                        <input type="number" id="fGrossUnits" min="0" placeholder="0">
+                    </div>
+                    <div class="form-field">
+                        <label>Returned Units</label>
+                        <input type="number" id="fReturnedUnits" min="0" placeholder="0">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Deductions -->
+            <div>
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Deductions (optional)</p>
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>Marketplace Commission (₹)</label>
+                        <input type="number" id="fCommission" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="form-field">
+                        <label>Payment Gateway (₹)</label>
+                        <input type="number" id="fGateway" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="form-field">
+                        <label>Shipping Collected (₹)</label>
+                        <input type="number" id="fShipping" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+            </div>
+
+            <!-- GST -->
+            <div>
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">GST Collected (optional)</p>
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>CGST (₹)</label>
+                        <input type="number" id="fCgst" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="form-field">
+                        <label>SGST (₹)</label>
+                        <input type="number" id="fSgst" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="form-field">
+                        <label>IGST (₹)</label>
+                        <input type="number" id="fIgst" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settlement -->
+            <div>
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Settlement</p>
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>Settlement Ref</label>
+                        <input type="text" id="fSettlementRef" placeholder="Myntra payout ID / Razorpay…">
+                    </div>
+                    <div class="form-field">
+                        <label>Settlement Date</label>
+                        <input type="date" id="fSettlementDate">
+                    </div>
+                    <div class="form-field" style="grid-column:span 2">
+                        <label>Notes</label>
+                        <input type="text" id="fNotes" placeholder="Remarks, settlement period…">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="px-6 py-4 border-t border-slate-100 flex gap-3 justify-end sticky bottom-0 bg-white">
+            <button onclick="closeAddForm()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm hover:bg-slate-200">Cancel</button>
+            <button onclick="submitEntry()" class="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">
+                <i class="fas fa-check mr-1"></i>Save Entry
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-6 right-6 bg-slate-900 text-white px-4 py-3 rounded-xl text-sm font-medium shadow-xl hidden z-50"></div>
+
+<script src="js/session.js" defer></script>
+<script src="js/nav.js" defer></script>
 <script>
-const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+const fmt  = n => '&#8377;' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 const fmtN = n => Number(n || 0).toLocaleString('en-IN');
 
-const CHANNEL_LABELS = {
-  D2C_WEBSITE: 'D2C Website', MYNTRA: 'Myntra', AJIO: 'Ajio',
-  NYKAA: 'Nykaa', INSTAGRAM: 'Instagram', POPUP: 'Pop-up', OTHER: 'Other'
-};
-const CHANNEL_CLASS = {
-  D2C_WEBSITE: 'badge-d2c', MYNTRA: 'badge-myntra', AJIO: 'badge-ajio',
-  NYKAA: 'badge-nykaa', INSTAGRAM: 'badge-instagram', POPUP: 'badge-popup', OTHER: 'badge-other'
+const CH_LABELS = {
+    D2C_WEBSITE: 'D2C Website', MYNTRA: 'Myntra', AJIO: 'Ajio',
+    NYKAA: 'Nykaa', INSTAGRAM: 'Instagram', POPUP: 'Pop-up', OTHER: 'Other'
 };
 
 let drops = [];
 
 async function init() {
-  const today = new Date().toISOString().split('T')[0];
-  const fy_start = new Date(new Date().getFullYear(), 3, 1).toISOString().split('T')[0]; // Apr 1
-  document.getElementById('fStart').value = fy_start;
-  document.getElementById('fEnd').value = today;
-  document.getElementById('fDate').value = today;
+    const today   = new Date().toISOString().split('T')[0];
+    const fyStart = new Date(new Date().getFullYear(), 3, 1).toISOString().split('T')[0];
+    document.getElementById('fStart').value = fyStart;
+    document.getElementById('fEnd').value   = today;
+    document.getElementById('fDate').value  = today;
 
-  const dr = await fetch('/api/meta/drops', {credentials:'include'}).then(r => r.json()).catch(() => ({ drops: [] }));
-  drops = dr.drops || dr || [];
-  ['fDrop','fDropNew'].forEach(id => {
-    const sel = document.getElementById(id);
-    drops.forEach(d => {
-      const opt = document.createElement('option');
-      opt.value = d.drop_id;
-      opt.textContent = d.drop_name;
-      sel.appendChild(opt);
-    });
-  });
+    try {
+        const dr = await fetch('/api/meta/drops', { credentials: 'include' }).then(r => r.json());
+        drops = dr.drops || [];
+        ['fDrop', 'fDropNew'].forEach(id => {
+            const sel = document.getElementById(id);
+            drops.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.drop_id;
+                opt.textContent = d.drop_name;
+                sel.appendChild(opt);
+            });
+        });
+    } catch (_) {}
 
-  await loadEntries();
+    loadEntries();
 }
 
 async function loadEntries() {
-  const start = document.getElementById('fStart').value;
-  const end = document.getElementById('fEnd').value;
-  const drop = document.getElementById('fDrop').value;
-  let url = `/api/reports/sales?start_date=${start}&end_date=${end}`;
-  if (drop) url += `&drop_id=${drop}`;
+    const start = document.getElementById('fStart').value;
+    const end   = document.getElementById('fEnd').value;
+    const drop  = document.getElementById('fDrop').value;
+    let url = `/api/reports/sales?start_date=${start}&end_date=${end}`;
+    if (drop) url += `&drop_id=${drop}`;
 
-  const data = await fetch(url).then(r => r.json()).catch(() => ({ entries: [] }));
-  const entries = data.entries || [];
-
-  renderTiles(entries);
-  renderChannelBars(entries);
-  renderTable(entries);
+    try {
+        const data    = await fetch(url, { credentials: 'include' }).then(r => r.json());
+        const entries = data.entries || [];
+        renderKPIs(entries);
+        renderChannelGrid(entries);
+        renderTable(entries);
+    } catch (e) {
+        document.getElementById('entriesBody').innerHTML =
+            `<tr><td colspan="11" class="text-center py-8 text-red-400">Failed to load</td></tr>`;
+    }
 }
 
-function renderTiles(entries) {
-  let gross = 0, returns = 0, net = 0, gst = 0, units = 0;
-  entries.forEach(e => {
-    gross += +e.gross_sales;
-    returns += +e.returns_amount;
-    net += +e.net_sales;
-    gst += (+e.cgst_collected + +e.sgst_collected + +e.igst_collected);
-    units += (+e.gross_units - +e.returned_units);
-  });
-  document.getElementById('tGross').textContent = fmt(gross);
-  document.getElementById('tReturns').textContent = fmt(returns);
-  document.getElementById('tNet').textContent = fmt(net);
-  document.getElementById('tGst').textContent = fmt(gst);
-  document.getElementById('tUnits').textContent = fmtN(units);
+function renderKPIs(entries) {
+    let gross = 0, returns = 0, net = 0, gst = 0, units = 0;
+    entries.forEach(e => {
+        gross   += +e.gross_sales;
+        returns += +e.returns_amount;
+        net     += +e.net_sales;
+        gst     += (+e.cgst_collected + +e.sgst_collected + +e.igst_collected);
+        units   += (+e.gross_units - +e.returned_units);
+    });
+    document.getElementById('kpiGross').innerHTML   = fmt(gross);
+    document.getElementById('kpiReturns').innerHTML = fmt(returns);
+    document.getElementById('kpiNet').innerHTML     = fmt(net);
+    document.getElementById('kpiGst').innerHTML     = fmt(gst);
+    document.getElementById('kpiUnits').textContent = fmtN(units);
 }
 
-function renderChannelBars(entries) {
-  const ch = {};
-  entries.forEach(e => {
-    if (!ch[e.channel]) ch[e.channel] = { gross: 0, net: 0, units: 0 };
-    ch[e.channel].gross += +e.gross_sales;
-    ch[e.channel].net += +e.net_sales;
-    ch[e.channel].units += (+e.gross_units - +e.returned_units);
-  });
-  const maxNet = Math.max(...Object.values(ch).map(c => c.net), 1);
-  const container = document.getElementById('channelBars');
-  if (!Object.keys(ch).length) { container.innerHTML = '<div class="empty">No data</div>'; return; }
-  container.innerHTML = Object.entries(ch).sort((a,b) => b[1].net - a[1].net).map(([key, val]) => `
-    <div class="ch-bar">
-      <div class="ch-name"><span>${CHANNEL_LABELS[key] || key}</span><span class="badge ${CHANNEL_CLASS[key] || 'badge-other'}">${key}</span></div>
-      <div class="ch-rev">${fmt(val.net)}</div>
-      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(val.net/maxNet*100)}%"></div></div>
-      <div class="ch-nums"><span>Gross ${fmt(val.gross)}</span><span>${fmtN(val.units)} units</span></div>
-    </div>
-  `).join('');
+function renderChannelGrid(entries) {
+    const ch = {};
+    entries.forEach(e => {
+        if (!ch[e.channel]) ch[e.channel] = { gross: 0, net: 0, units: 0 };
+        ch[e.channel].gross += +e.gross_sales;
+        ch[e.channel].net   += +e.net_sales;
+        ch[e.channel].units += (+e.gross_units - +e.returned_units);
+    });
+    const grid    = document.getElementById('channelGrid');
+    const maxNet  = Math.max(...Object.values(ch).map(c => c.net), 1);
+    const sorted  = Object.entries(ch).sort((a, b) => b[1].net - a[1].net);
+    if (!sorted.length) { grid.innerHTML = '<p class="text-sm text-slate-400 col-span-4">No data for this period</p>'; return; }
+    grid.innerHTML = sorted.map(([key, val]) => `
+        <div class="border border-slate-200 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-2">
+                <span class="ch-badge ch-${key}">${CH_LABELS[key] || key}</span>
+                <span class="text-xs text-slate-400">${fmtN(val.units)} units</span>
+            </div>
+            <div class="text-lg font-bold text-slate-900">${fmt(val.net)}</div>
+            <div class="text-xs text-slate-400 mb-2">Gross ${fmt(val.gross)}</div>
+            <div class="ch-bar-track"><div class="ch-bar-fill" style="width:${Math.round(val.net/maxNet*100)}%"></div></div>
+        </div>
+    `).join('');
 }
 
 function renderTable(entries) {
-  const tbody = document.getElementById('entriesBody');
-  if (!entries.length) {
-    tbody.innerHTML = '<tr><td colspan="11" class="empty">No entries for this period</td></tr>';
-    return;
-  }
-  tbody.innerHTML = entries.map(e => {
-    const gst = +e.cgst_collected + +e.sgst_collected + +e.igst_collected;
-    const dropLabel = e.drop_label || e.drop_name || '—';
-    return `<tr>
-      <td>${e.entry_date || '—'}</td>
-      <td><span class="badge ${CHANNEL_CLASS[e.channel] || 'badge-other'}">${CHANNEL_LABELS[e.channel] || e.channel}</span></td>
-      <td>${dropLabel}</td>
-      <td class="text-right">${fmt(e.gross_sales)}</td>
-      <td class="text-right text-red">${e.returns_amount > 0 ? fmt(e.returns_amount) : '—'}</td>
-      <td class="text-right text-green">${fmt(e.net_sales)}</td>
-      <td class="text-right">${fmtN(+e.gross_units - +e.returned_units)}</td>
-      <td class="text-right">${gst > 0 ? fmt(gst) : '—'}</td>
-      <td>${e.settlement_ref || '—'}</td>
-      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis">${e.notes || ''}</td>
-      <td><button class="del-btn" onclick="deleteEntry(${e.entry_id})" title="Delete">✕</button></td>
-    </tr>`;
-  }).join('');
+    const tbody = document.getElementById('entriesBody');
+    if (!entries.length) {
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center py-10 text-slate-400">No entries for this period</td></tr>';
+        return;
+    }
+    tbody.innerHTML = entries.map(e => {
+        const gst      = +e.cgst_collected + +e.sgst_collected + +e.igst_collected;
+        const drop     = e.drop_label || e.drop_name || '—';
+        const section  = e.section || '—';
+        const isRet    = +e.returns_amount > 0;
+        return `<tr>
+            <td class="text-slate-500">${e.entry_date || '—'}</td>
+            <td><span class="ch-badge ch-${e.channel}">${CH_LABELS[e.channel] || e.channel}</span></td>
+            <td class="text-slate-600">${drop}</td>
+            <td class="text-slate-600">${section}</td>
+            <td class="tr font-medium">${fmt(e.gross_sales)}</td>
+            <td class="tr ${isRet ? 'neg' : 'text-slate-300'}">${isRet ? fmt(e.returns_amount) : '—'}</td>
+            <td class="tr pos">${fmt(e.net_sales)}</td>
+            <td class="tr text-slate-500">${fmtN(+e.gross_units - +e.returned_units)}</td>
+            <td class="tr text-slate-500">${gst > 0 ? fmt(gst) : '—'}</td>
+            <td class="text-slate-400 text-xs" style="max-width:140px;overflow:hidden;text-overflow:ellipsis">${e.settlement_ref || '—'}</td>
+            <td><button onclick="deleteEntry(${e.entry_id})" class="text-slate-300 hover:text-red-500 px-1 py-0.5 rounded text-xs transition"><i class="fas fa-times"></i></button></td>
+        </tr>`;
+    }).join('');
+}
+
+function openAddForm() {
+    document.getElementById('add-modal').classList.remove('hidden');
+}
+
+function closeAddForm() {
+    document.getElementById('add-modal').classList.add('hidden');
+    resetForm();
 }
 
 async function submitEntry() {
-  const channel = document.getElementById('fChannel').value;
-  const gross_sales = document.getElementById('fGross').value;
-  if (!channel || !gross_sales) { showToast('Channel and Gross Sales are required'); return; }
-  const body = {
-    entry_date: document.getElementById('fDate').value,
-    channel,
-    drop_id: document.getElementById('fDropNew').value || null,
-    gross_sales: parseFloat(gross_sales),
-    returns_amount: parseFloat(document.getElementById('fReturns').value || 0),
-    gross_units: parseInt(document.getElementById('fGrossUnits').value || 0),
-    returned_units: parseInt(document.getElementById('fReturnedUnits').value || 0),
-    marketplace_commission: parseFloat(document.getElementById('fCommission').value || 0),
-    payment_gateway_charges: parseFloat(document.getElementById('fGateway').value || 0),
-    shipping_collected: parseFloat(document.getElementById('fShipping').value || 0),
-    cgst_collected: parseFloat(document.getElementById('fCgst').value || 0),
-    sgst_collected: parseFloat(document.getElementById('fSgst').value || 0),
-    igst_collected: parseFloat(document.getElementById('fIgst').value || 0),
-    settlement_ref: document.getElementById('fSettlementRef').value || null,
-    settlement_date: document.getElementById('fSettlementDate').value || null,
-    notes: document.getElementById('fNotes').value || null
-  };
-  const r = await fetch('/api/reports/sales', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  }).then(r => r.json());
-  if (r.success) { showToast('Entry saved'); resetForm(); loadEntries(); }
-  else showToast('Error: ' + (r.error || 'unknown'));
+    const channel    = document.getElementById('fChannel').value;
+    const gross_sales = document.getElementById('fGross').value;
+    if (!channel || !gross_sales) { showToast('Channel and Gross Sales are required'); return; }
+
+    const body = {
+        entry_date:             document.getElementById('fDate').value,
+        channel,
+        drop_id:                document.getElementById('fDropNew').value || null,
+        section:                document.getElementById('fSection').value || null,
+        gross_sales:            parseFloat(gross_sales),
+        returns_amount:         parseFloat(document.getElementById('fReturns').value || 0),
+        gross_units:            parseInt(document.getElementById('fGrossUnits').value || 0),
+        returned_units:         parseInt(document.getElementById('fReturnedUnits').value || 0),
+        marketplace_commission: parseFloat(document.getElementById('fCommission').value || 0),
+        payment_gateway_charges:parseFloat(document.getElementById('fGateway').value || 0),
+        shipping_collected:     parseFloat(document.getElementById('fShipping').value || 0),
+        cgst_collected:         parseFloat(document.getElementById('fCgst').value || 0),
+        sgst_collected:         parseFloat(document.getElementById('fSgst').value || 0),
+        igst_collected:         parseFloat(document.getElementById('fIgst').value || 0),
+        settlement_ref:         document.getElementById('fSettlementRef').value || null,
+        settlement_date:        document.getElementById('fSettlementDate').value || null,
+        notes:                  document.getElementById('fNotes').value || null
+    };
+
+    try {
+        const r = await fetch('/api/reports/sales', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(body)
+        }).then(r => r.json());
+        if (r.success) { showToast('Entry saved'); closeAddForm(); loadEntries(); }
+        else showToast('Error: ' + (r.error || 'unknown'));
+    } catch (e) {
+        showToast('Error: ' + e.message);
+    }
 }
 
 async function deleteEntry(id) {
-  if (!confirm('Delete this entry?')) return;
-  const r = await fetch(`/api/reports/sales/${id}`, { method: 'DELETE' }).then(r => r.json());
-  if (r.success) { showToast('Deleted'); loadEntries(); }
-  else showToast('Error: ' + r.error);
+    if (!confirm('Delete this entry?')) return;
+    try {
+        const r = await fetch(`/api/reports/sales/${id}`, {
+            method: 'DELETE', credentials: 'include'
+        }).then(r => r.json());
+        if (r.success) { showToast('Deleted'); loadEntries(); }
+        else showToast('Error: ' + r.error);
+    } catch (e) {
+        showToast('Error: ' + e.message);
+    }
 }
 
 function resetForm() {
-  ['fChannel','fDropNew','fReturns','fGrossUnits','fReturnedUnits','fCommission','fGateway','fShipping','fCgst','fSgst','fIgst','fSettlementRef','fSettlementDate','fNotes'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
-  document.getElementById('fGross').value = '';
-  document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
+    ['fChannel','fDropNew','fSection','fReturns','fGrossUnits','fReturnedUnits',
+     'fCommission','fGateway','fShipping','fCgst','fSgst','fIgst',
+     'fSettlementRef','fSettlementDate','fNotes','fGross'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
 }
 
 function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.style.display = 'block';
-  setTimeout(() => { t.style.display = 'none'; }, 3000);
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.remove('hidden');
+    setTimeout(() => t.classList.add('hidden'), 3000);
 }
 
 init();
