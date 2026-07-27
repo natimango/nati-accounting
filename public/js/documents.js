@@ -195,6 +195,7 @@ async function loadDocuments() {
         if (data.success) {
             allDocuments = data.documents;
             filteredDocuments = allDocuments;
+            populateFilterDropdowns(allDocuments);
             displayDocuments(filteredDocuments);
             await loadVerificationSummary();
             updateDocCount();
@@ -396,43 +397,57 @@ function showToast(msg) {
     t._timer = setTimeout(() => { t.style.display = 'none'; }, 5000);
 }
 
+function payStatusBadge(status) {
+    if (!status || status === '—') return '<span class="text-xs text-slate-400">—</span>';
+    const map = {
+        paid:    'bg-green-100 text-green-700',
+        pending: 'bg-amber-100 text-amber-700',
+        advance: 'bg-blue-100 text-blue-700'
+    };
+    const labels = { paid: 'Paid', pending: 'Unpaid', advance: 'Advance' };
+    const cls = map[status] || 'bg-slate-100 text-slate-600';
+    return `<span class="px-1.5 py-0.5 rounded text-xs font-medium ${cls}">${labels[status] || status}</span>`;
+}
+
+function sectionChip(section) {
+    if (!section) return '<span class="text-xs text-slate-300">—</span>';
+    const map = { Regulars: 'bg-indigo-100 text-indigo-700', Artwear: 'bg-purple-100 text-purple-700', Collectibles: 'bg-rose-100 text-rose-700' };
+    return `<span class="px-1.5 py-0.5 rounded text-xs font-medium ${map[section] || 'bg-slate-100 text-slate-600'}">${section}</span>`;
+}
+
 function renderTable(documents) {
     const body = document.getElementById('documents-table-body');
     if (!body) return;
     if (documents.length === 0) {
-        body.innerHTML = `<tr><td colspan="7" class="px-3 py-4 text-center text-gray-500">No documents found</td></tr>`;
+        body.innerHTML = `<tr><td colspan="10" class="px-3 py-4 text-center text-gray-500">No documents found</td></tr>`;
         return;
     }
     body.innerHTML = documents.map((doc, idx) => {
-        const status = getStatusBadge(doc.status);
-        const vendor = doc.vendor_name || doc.gemini_data?.vendor_name || '—';
-        const total = doc.total_amount || doc.gemini_data?.amounts?.total || 0;
+        const vendor = doc.bill_vendor_name || doc.vendor_name || doc.gemini_data?.vendor_name || '—';
+        const total = doc.total_amount || doc.bill_total_amount || doc.gemini_data?.amounts?.total || 0;
         const billDate = getDocDate(doc);
-        const providerInfo = getProviderInfo(doc.gemini_data);
         const paymentRaw = (getPayment(doc) || '').toUpperCase();
-        const paymentMethod = paymentRaw && paymentRaw !== 'UNSPECIFIED'
-            ? formatLabel(paymentRaw.toLowerCase())
-            : '—';
+        const paymentMethod = paymentRaw && paymentRaw !== 'UNSPECIFIED' ? formatLabel(paymentRaw.toLowerCase()) : '—';
         const categoryValue = formatLabel(getCategory(doc));
-        const categoryGroup = getCategoryGroup(doc);
-        const categoryDisplay = categoryGroup
-            ? `${formatLabel(categoryGroup)} • ${categoryValue}`
-            : categoryValue;
-        const fileNumber = doc.document_id
-            ? `#${String(doc.document_id).padStart(4, '0')}`
-            : `#${String(idx + 1).padStart(4, '0')}`;
-        const dateDisplay = formatDateDisplay(billDate);
-        const verificationCell = verificationBadge(doc);
+        const fileNumber = `#${String(doc.document_id || idx + 1).padStart(4, '0')}`;
+        const section = doc.bill_section || doc.section || null;
+        const drop = doc.bill_drop_name || doc.drop_name || null;
+        const payStatus = doc.bill_payment_status || doc.payment_status || null;
+        const docStatus = getStatusBadge(doc.status);
+        const isOverdue = payStatus === 'pending' && doc.bill_payment_due_date && new Date(doc.bill_payment_due_date) < new Date();
+        const rowCls = isOverdue ? 'bg-red-50' : 'hover:bg-slate-50';
         return `
-            <tr class="hover:bg-gray-50 cursor-pointer" data-id="${doc.document_id}" onclick="openBillModal(${doc.document_id})">
-                <td class="px-3 py-2 text-sm text-gray-700">${fileNumber}</td>
-                <td class="px-3 py-2 text-sm text-gray-900">${vendor}</td>
-                <td class="px-3 py-2 text-sm text-gray-700">${categoryDisplay}</td>
-                <td class="px-3 py-2 text-sm text-gray-700">${paymentMethod}</td>
-                <td class="px-3 py-2 text-xs">${status}</td>
-                <td class="px-3 py-2 text-xs">${verificationCell}</td>
-                <td class="px-3 py-2 text-right text-sm font-semibold">₹${Number(total || 0).toLocaleString()}</td>
-                <td class="px-3 py-2 text-xs text-gray-700">${dateDisplay}</td>
+            <tr class="${rowCls} cursor-pointer border-t border-slate-100" onclick="openBillModal(${doc.document_id})">
+                <td class="px-3 py-2 text-xs text-slate-500">${fileNumber}</td>
+                <td class="px-3 py-2 text-sm font-medium text-slate-900">${vendor}</td>
+                <td class="px-3 py-2 text-xs text-slate-600">${categoryValue}</td>
+                <td class="px-3 py-2 text-xs">${sectionChip(section)}</td>
+                <td class="px-3 py-2 text-xs text-slate-500">${drop || '—'}</td>
+                <td class="px-3 py-2 text-xs text-slate-600">${paymentMethod}</td>
+                <td class="px-3 py-2 text-xs">${payStatusBadge(payStatus)}</td>
+                <td class="px-3 py-2 text-xs">${docStatus}</td>
+                <td class="px-3 py-2 text-right text-sm font-semibold text-slate-900">₹${Number(total || 0).toLocaleString('en-IN')}</td>
+                <td class="px-3 py-2 text-xs text-slate-500">${formatDateDisplay(billDate)}</td>
             </tr>
         `;
     }).join('');
@@ -1176,16 +1191,69 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+function populateFilterDropdowns(docs) {
+    // Category — build from actual data, grouped by category_group
+    const catSel = document.getElementById('filter-category');
+    const catGroups = {};
+    docs.forEach(doc => {
+        const cat = getCategory(doc);
+        const grp = (getCategoryGroup(doc) || 'OPERATING').toUpperCase();
+        if (cat && cat !== '—') {
+            if (!catGroups[grp]) catGroups[grp] = new Set();
+            catGroups[grp].add(cat);
+        }
+    });
+    const groupOrder = ['COGS', 'FULFILLMENT', 'MARKETING', 'OPERATING'];
+    const groupLabels = { COGS: 'COGS / Purchase', FULFILLMENT: 'Fulfilment', MARKETING: 'Marketing', OPERATING: 'Operations' };
+    let catHTML = '<option value="">All categories</option>';
+    groupOrder.forEach(grp => {
+        const cats = catGroups[grp];
+        if (!cats || !cats.size) return;
+        catHTML += `<optgroup label="${groupLabels[grp] || grp}">`;
+        [...cats].sort().forEach(c => {
+            catHTML += `<option value="${c}">${c.replace(/_/g, ' ').replace(/\b\w/g, x => x.toUpperCase())}</option>`;
+        });
+        catHTML += '</optgroup>';
+    });
+    // Any ungrouped categories
+    const seenCats = new Set(Object.values(catGroups).flatMap(s => [...s]));
+    docs.forEach(doc => {
+        const cat = getCategory(doc);
+        if (cat && cat !== '—' && !seenCats.has(cat)) {
+            catHTML += `<option value="${cat}">${cat.replace(/_/g, ' ')}</option>`;
+        }
+    });
+    catSel.innerHTML = catHTML;
+
+    // Drop — build from actual data
+    const dropSel = document.getElementById('filter-drop');
+    if (dropSel) {
+        const drops = new Set();
+        docs.forEach(doc => {
+            const d = doc.bill_drop_name || doc.drop_name;
+            if (d && d !== 'Unassigned') drops.add(d);
+        });
+        let dropHTML = '<option value="">All drops</option>';
+        [...drops].sort().forEach(d => { dropHTML += `<option value="${d}">${d}</option>`; });
+        if (drops.size) dropHTML += '<option value="Unassigned">Unassigned</option>';
+        dropSel.innerHTML = dropHTML;
+    }
+}
+
 function filterDocuments() {
-    const dateFrom = document.getElementById('date-from').value;
-    const dateTo = document.getElementById('date-to').value;
-    const category = document.getElementById('filter-category').value;
-    const searchTerm = document.getElementById('search-box').value.toLowerCase();
-    const paymentFilter = document.getElementById('filter-payment').value.toLowerCase();
-    const statusFilter = document.getElementById('filter-status').value;
-    
+    const dateFrom    = document.getElementById('date-from').value;
+    const dateTo      = document.getElementById('date-to').value;
+    const category    = document.getElementById('filter-category').value;
+    const groupFilter = document.getElementById('filter-group')?.value || '';
+    const sectionFilter = document.getElementById('filter-section')?.value || '';
+    const dropFilter  = document.getElementById('filter-drop')?.value || '';
+    const searchTerm  = document.getElementById('search-box').value.toLowerCase();
+    const paymentFilter    = document.getElementById('filter-payment').value;
+    const payStatusFilter  = document.getElementById('filter-pay-status')?.value || '';
+    const statusFilter     = document.getElementById('filter-status').value;
+
     let filtered = allDocuments;
-    
+
     if (dateFrom) {
         const fromDate = new Date(dateFrom);
         fromDate.setHours(0, 0, 0, 0);
@@ -1195,33 +1263,52 @@ function filterDocuments() {
             return docDate >= fromDate;
         });
     }
-    
+
     if (dateTo) {
         const toDate = new Date(dateTo);
         toDate.setHours(23, 59, 59, 999);
         filtered = filtered.filter(doc => new Date(getDocDate(doc)) <= toDate);
     }
-    
+
+    if (groupFilter) {
+        filtered = filtered.filter(doc => (getCategoryGroup(doc) || 'OPERATING').toUpperCase() === groupFilter);
+    }
+
     if (category) {
         filtered = filtered.filter(doc => (getCategory(doc) || '').toLowerCase() === category.toLowerCase());
+    }
+
+    if (sectionFilter) {
+        filtered = filtered.filter(doc => (doc.bill_section || doc.section || '') === sectionFilter);
+    }
+
+    if (dropFilter) {
+        filtered = filtered.filter(doc => (doc.bill_drop_name || doc.drop_name || '') === dropFilter);
     }
 
     if (statusFilter) {
         filtered = filtered.filter(doc => (doc.status || '') === statusFilter);
     }
+
     if (paymentFilter) {
-        filtered = filtered.filter(doc => (getPayment(doc) || '').toLowerCase() === paymentFilter);
+        filtered = filtered.filter(doc => (getPayment(doc) || '').toUpperCase() === paymentFilter.toUpperCase());
     }
-    
+
+    if (payStatusFilter) {
+        filtered = filtered.filter(doc => (doc.bill_payment_status || doc.payment_status || '') === payStatusFilter);
+    }
+
     if (searchTerm) {
-        filtered = filtered.filter(doc => 
-            doc.file_name.toLowerCase().includes(searchTerm) ||
-            (doc.notes && doc.notes.toLowerCase().includes(searchTerm))
-        );
+        filtered = filtered.filter(doc => {
+            const vendor = (doc.bill_vendor_name || doc.vendor_name || doc.gemini_data?.vendor_name || '').toLowerCase();
+            const fname  = (doc.file_name || '').toLowerCase();
+            const notes  = (doc.notes || '').toLowerCase();
+            return vendor.includes(searchTerm) || fname.includes(searchTerm) || notes.includes(searchTerm);
+        });
     }
 
     filtered = filtered.filter(doc => docMatchesVerificationFilter(doc));
-    
+
     filteredDocuments = filtered;
     displayDocuments(filteredDocuments);
     updateDocCount();
@@ -1256,11 +1343,9 @@ function setDateFilter(period) {
 }
 
 function clearFilters() {
-    document.getElementById('date-from').value = '';
-    document.getElementById('date-to').value = '';
-    document.getElementById('filter-category').value = '';
-    document.getElementById('filter-payment').value = '';
-    document.getElementById('search-box').value = '';
+    ['date-from','date-to','filter-category','filter-group','filter-section',
+     'filter-drop','filter-payment','filter-pay-status','filter-status','search-box']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     verificationFilter = 'all';
     renderVerificationFilters();
     filterDocuments();
@@ -1270,19 +1355,15 @@ function sortDocuments() {
     const sortBy = document.getElementById('sort-by').value;
     let sorted = [...filteredDocuments];
     
+    const getAmount = d => Number(d.total_amount || d.bill_total_amount || d.gemini_data?.amounts?.total || 0);
+    const getVendor = d => (d.bill_vendor_name || d.vendor_name || d.gemini_data?.vendor_name || d.file_name || '').toLowerCase();
     switch(sortBy) {
-        case 'date-desc':
-            sorted.sort((a, b) => new Date(getDocDate(b)) - new Date(getDocDate(a)));
-            break;
-        case 'date-asc':
-            sorted.sort((a, b) => new Date(getDocDate(a)) - new Date(getDocDate(b)));
-            break;
-        case 'name-asc':
-            sorted.sort((a, b) => a.file_name.localeCompare(b.file_name));
-            break;
-        case 'name-desc':
-            sorted.sort((a, b) => b.file_name.localeCompare(a.file_name));
-            break;
+        case 'date-desc':    sorted.sort((a, b) => new Date(getDocDate(b)) - new Date(getDocDate(a))); break;
+        case 'date-asc':     sorted.sort((a, b) => new Date(getDocDate(a)) - new Date(getDocDate(b))); break;
+        case 'amount-desc':  sorted.sort((a, b) => getAmount(b) - getAmount(a)); break;
+        case 'amount-asc':   sorted.sort((a, b) => getAmount(a) - getAmount(b)); break;
+        case 'name-asc':     sorted.sort((a, b) => getVendor(a).localeCompare(getVendor(b))); break;
+        case 'name-desc':    sorted.sort((a, b) => getVendor(b).localeCompare(getVendor(a))); break;
     }
     
     displayDocuments(sorted);
@@ -1309,19 +1390,29 @@ function updateDocCount() {
 }
 
 function updateFilterSummary() {
-    const dateFrom = document.getElementById('date-from').value;
-    const dateTo = document.getElementById('date-to').value;
-    const category = document.getElementById('filter-category').value;
-    const searchTerm = document.getElementById('search-box').value;
-    const paymentFilter = document.getElementById('filter-payment').value;
-    
+    const dateFrom      = document.getElementById('date-from').value;
+    const dateTo        = document.getElementById('date-to').value;
+    const category      = document.getElementById('filter-category').value;
+    const groupFilter   = document.getElementById('filter-group')?.value;
+    const sectionFilter = document.getElementById('filter-section')?.value;
+    const dropFilter    = document.getElementById('filter-drop')?.value;
+    const searchTerm    = document.getElementById('search-box').value;
+    const paymentFilter     = document.getElementById('filter-payment').value;
+    const payStatusFilter   = document.getElementById('filter-pay-status')?.value;
+    const statusFilter      = document.getElementById('filter-status').value;
+
     const activeFilters = [];
-    if (dateFrom && dateTo) activeFilters.push(`${formatDateDisplay(dateFrom)} to ${formatDateDisplay(dateTo)}`);
+    if (dateFrom && dateTo) activeFilters.push(`${formatDateDisplay(dateFrom)} → ${formatDateDisplay(dateTo)}`);
     else if (dateFrom) activeFilters.push(`From ${formatDateDisplay(dateFrom)}`);
     else if (dateTo) activeFilters.push(`Until ${formatDateDisplay(dateTo)}`);
+    if (groupFilter) activeFilters.push(`Group: ${groupFilter}`);
     if (category) activeFilters.push(`Category: ${category}`);
-    if (paymentFilter) activeFilters.push(`Payment: ${paymentFilter}`);
-    if (searchTerm) activeFilters.push(`Search: "${searchTerm}"`);
+    if (sectionFilter) activeFilters.push(`Section: ${sectionFilter}`);
+    if (dropFilter) activeFilters.push(`Drop: ${dropFilter}`);
+    if (paymentFilter) activeFilters.push(`Method: ${paymentFilter}`);
+    if (payStatusFilter) activeFilters.push(`Pay status: ${payStatusFilter}`);
+    if (statusFilter) activeFilters.push(`Doc status: ${statusFilter}`);
+    if (searchTerm) activeFilters.push(`"${searchTerm}"`);
     if (verificationFilter !== 'all') activeFilters.push(`Verification: ${getVerificationFilterLabel(verificationFilter)}`);
     
     const filterContainer = document.getElementById('active-filters');

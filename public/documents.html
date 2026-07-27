@@ -126,21 +126,28 @@
                             <input type="date" id="date-to" onchange="filterDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
                         </div>
                         <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Category Group</label>
+                            <select id="filter-group" onchange="filterDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
+                                <option value="">All groups</option>
+                                <option value="COGS">COGS / Purchase</option>
+                                <option value="FULFILLMENT">Fulfilment</option>
+                                <option value="MARKETING">Marketing</option>
+                                <option value="OPERATING">Operations</option>
+                            </select>
+                        </div>
+                        <div>
                             <label class="block text-xs font-medium text-slate-600 mb-1">Category</label>
                             <select id="filter-category" onchange="filterDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
-                                <option value="">All</option>
-                                <option value="fabric">Fabric</option>
-                                <option value="manufacturing">Manufacturing</option>
-                                <option value="packaging">Packaging</option>
-                                <option value="logistics">Logistics</option>
-                                <option value="vendor">Vendor</option>
-                                <option value="food">Food</option>
-                                <option value="travel">Travel</option>
-                                <option value="rent">Rent</option>
-                                <option value="tech">Tech</option>
-                                <option value="marketing">Marketing</option>
-                                <option value="salary">Salary</option>
-                                <option value="misc">Misc</option>
+                                <option value="">All categories</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Section</label>
+                            <select id="filter-section" onchange="filterDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
+                                <option value="">All sections</option>
+                                <option value="Regulars">Regulars</option>
+                                <option value="Artwear">Artwear</option>
+                                <option value="Collectibles">Collectibles</option>
                             </select>
                         </div>
                         <div>
@@ -160,24 +167,43 @@
                             <label class="block text-xs font-medium text-slate-600 mb-1">Payment Method</label>
                             <select id="filter-payment" onchange="filterDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
                                 <option value="">All</option>
-                                <option value="cash">Cash</option>
-                                <option value="upi">UPI</option>
-                                <option value="bank_transfer">Bank Transfer</option>
-                                <option value="cheque">Cheque</option>
-                                <option value="other">Other</option>
+                                <option value="CASH">Cash</option>
+                                <option value="UPI">UPI</option>
+                                <option value="BANK_TRANSFER">Bank Transfer</option>
+                                <option value="CHEQUE">Cheque</option>
+                                <option value="OTHER">Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Payment Status</label>
+                            <select id="filter-pay-status" onchange="filterDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
+                                <option value="">All</option>
+                                <option value="paid">Paid</option>
+                                <option value="pending">Unpaid / Due</option>
+                                <option value="advance">Advance Paid</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Drop</label>
+                            <select id="filter-drop" onchange="filterDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
+                                <option value="">All drops</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-600 mb-1">Search</label>
-                            <input type="text" id="search-box" onkeyup="filterDocuments()" placeholder="Search filename or notes..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
+                            <input type="text" id="search-box" onkeyup="filterDocuments()" placeholder="Vendor, notes, filename…" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
                         </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-slate-600 mb-1">Sort</label>
                             <select id="sort-by" onchange="sortDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
-                                <option value="date-desc">Newest</option>
-                                <option value="date-asc">Oldest</option>
-                                <option value="name-asc">Name A→Z</option>
-                                <option value="name-desc">Name Z→A</option>
+                                <option value="date-desc">Newest first</option>
+                                <option value="date-asc">Oldest first</option>
+                                <option value="amount-desc">Highest amount</option>
+                                <option value="amount-asc">Lowest amount</option>
+                                <option value="name-asc">Vendor A→Z</option>
+                                <option value="name-desc">Vendor Z→A</option>
                             </select>
                         </div>
                     </div>
@@ -225,13 +251,15 @@
                     <table class="nati-table min-w-full text-sm">
                         <thead class="bg-slate-50 text-slate-600">
                             <tr>
-                                <th class="px-4 py-2 text-left">File #</th>
+                                <th class="px-4 py-2 text-left">#</th>
                                 <th class="px-4 py-2 text-left">Vendor</th>
                                 <th class="px-4 py-2 text-left">Category</th>
+                                <th class="px-4 py-2 text-left">Section</th>
+                                <th class="px-4 py-2 text-left">Drop</th>
                                 <th class="px-4 py-2 text-left">Payment</th>
-                                <th class="px-4 py-2 text-left">Status</th>
-                                <th class="px-4 py-2 text-left">Verification</th>
-                                <th class="px-4 py-2 text-right">Total</th>
+                                <th class="px-4 py-2 text-left">Pay Status</th>
+                                <th class="px-4 py-2 text-left">Doc Status</th>
+                                <th class="px-4 py-2 text-right">Amount</th>
                                 <th class="px-4 py-2 text-right">Bill Date</th>
                             </tr>
                         </thead>
