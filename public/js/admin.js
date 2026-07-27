@@ -25,6 +25,24 @@ function initAdminPage() {
     form.addEventListener('submit', handleCreateUser);
   }
   loadUsers();
+  loadHealth();
+}
+
+async function loadHealth() {
+  try {
+    const wd = await fetch('/api/brain/watchdog', { credentials: 'include' }).then(r => r.json());
+    const summary = wd.summary || {};
+    const setH = (id, val, warn) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = val ?? '—';
+      el.className = `text-2xl font-bold ${(warn && val > 0) ? 'text-rose-600' : 'text-emerald-600'}`;
+    };
+    setH('h-uncategorized', summary.uncategorized ?? (wd.uncategorized || []).length, true);
+    setH('h-pending',       summary.stale_manual   ?? (wd.stale_manual || []).length,   true);
+    setH('h-overdue',       summary.aged_unpaid    ?? (wd.aged_unpaid || []).length,     true);
+    setH('h-duplicates',    summary.duplicates     ?? (wd.duplicates || []).length,      true);
+  } catch (_) {}
 }
 
 function escapeHtml(str = '') {
