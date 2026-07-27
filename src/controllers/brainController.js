@@ -566,7 +566,7 @@ async function runBudgetAlerts(req, res) {
                SELECT SUM(b.total_amount)
                FROM bills b
                WHERE b.drop_name = db.drop_name
-                 AND COALESCE(b.department, 'OPERATING') = COALESCE(db.department, 'OPERATING')
+                 AND COALESCE(b.category_group, b.department, 'OPERATIONS') = COALESCE(db.department, 'OPERATIONS')
                  AND b.bill_date BETWEEN db.start_date AND db.end_date
                  AND (b.status IS NULL OR b.status NOT IN ('deleted','void'))
              ), 0) AS actual_amount
