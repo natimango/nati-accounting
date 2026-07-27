@@ -1086,8 +1086,9 @@ function filterDocuments() {
     if (groupFilter) {
         filtered = filtered.filter(doc => {
             const grp = (getCategoryGroup(doc) || '').toUpperCase();
-            // normalise legacy 'OPERATING' to 'OPERATIONS'
-            return (grp === 'OPERATING' ? 'OPERATIONS' : grp) === groupFilter;
+            const norm = grp === 'OPERATING' ? 'OPERATIONS' : grp;
+            if (groupFilter === 'none') return !norm;
+            return norm === groupFilter;
         });
     }
 
@@ -1826,6 +1827,19 @@ function actionDownload(documentId) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Apply URL query params as initial filters
+    const urlParams = new URLSearchParams(window.location.search);
+    const qGroup  = urlParams.get('filter_group');
+    const qStatus = urlParams.get('status');
+    if (qGroup) {
+        const el = document.getElementById('filter-group');
+        if (el) el.value = qGroup;
+    }
+    if (qStatus) {
+        const el = document.getElementById('filter-status');
+        if (el) el.value = qStatus;
+    }
+
     if (window.sessionReady) {
         window.sessionReady.then(() => loadDocuments()).catch(() => {});
     } else {

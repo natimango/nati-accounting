@@ -249,18 +249,26 @@ function renderWatchdog(data, alerts) {
     if (!container) return;
     const summary = data.summary || {};
     const checks = [
-        { key: 'duplicates',    label: 'Duplicate bills',      icon: 'fa-copy',          items: (data.duplicates    || []).slice(0,2).map(d => d.vendor_name || 'Vendor') },
-        { key: 'stale_manual',  label: 'Stale reviews 48h+',   icon: 'fa-hourglass-half', items: (data.stale_manual  || []).slice(0,2).map(d => d.file_name || 'Doc') },
-        { key: 'aged_unpaid',   label: 'Unpaid > 30d',         icon: 'fa-calendar-xmark', items: (data.aged_unpaid   || []).slice(0,2).map(b => (b.vendor_name || 'Vendor') + ' · ' + fmt(b.total_amount)) },
-        { key: 'uncategorized', label: 'Uncategorised bills',   icon: 'fa-tag',            items: (data.uncategorized || []).slice(0,2).map(b => (b.vendor_name || 'Vendor') + ' · ' + fmt(b.total_amount)) },
+        { key: 'duplicates',    label: 'Duplicate bills',      icon: 'fa-copy',           href: 'documents.html?status=duplicate',       items: (data.duplicates    || []).slice(0,2).map(d => d.vendor_name || 'Vendor') },
+        { key: 'stale_manual',  label: 'Stale reviews 48h+',   icon: 'fa-hourglass-half', href: 'documents.html?status=needs_review',    items: (data.stale_manual  || []).slice(0,2).map(d => d.file_name || 'Doc') },
+        { key: 'aged_unpaid',   label: 'Unpaid > 30d',         icon: 'fa-calendar-xmark', href: 'payables.html',                         items: (data.aged_unpaid   || []).slice(0,2).map(b => (b.vendor_name || 'Vendor') + ' · ' + fmt(b.total_amount)) },
+        { key: 'uncategorized', label: 'Uncategorised bills',   icon: 'fa-tag',            href: 'documents.html?filter_group=none',      items: (data.uncategorized || []).slice(0,2).map(b => (b.vendor_name || 'Vendor') + ' · ' + fmt(b.total_amount)) },
     ];
     const checksHtml = checks.map(c => {
         const count = summary[c.key] ?? c.items.length;
-        const color = count > 0 ? 'text-rose-600' : 'text-emerald-600';
-        return `<div class="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
-            <span class="text-xs text-slate-600"><i class="fas ${c.icon} w-4 text-slate-400 mr-1"></i>${c.label}</span>
-            <span class="text-xs font-bold ${color}">${count > 0 ? count : '✓'}</span>
+        const ok = count === 0;
+        const color = ok ? 'text-emerald-600' : 'text-rose-600';
+        const badge = ok ? '✓' : count;
+        const subItems = (!ok && c.items.length)
+            ? `<div class="mt-1 pl-5 space-y-0.5">${c.items.map(i => `<div class="text-[10px] text-slate-400 truncate">${i}</div>`).join('')}</div>`
+            : '';
+        const row = `<div class="py-2 border-b border-slate-100 last:border-0">
+            <div class="flex items-center justify-between">
+                <span class="text-xs text-slate-600"><i class="fas ${c.icon} w-4 text-slate-400 mr-1"></i>${c.label}</span>
+                <span class="text-xs font-bold ${color}">${badge}</span>
+            </div>${subItems}
         </div>`;
+        return ok ? row : `<a href="${c.href}" class="block hover:bg-slate-50 rounded -mx-1 px-1 transition">${row}</a>`;
     }).join('');
     const alertsHtml = alerts.length
         ? alerts.map(a => `<div class="text-xs px-3 py-2 rounded-lg ${a.severity === 'critical' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'} mb-1">
