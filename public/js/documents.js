@@ -40,7 +40,7 @@ function getCategory(doc) {
 }
 
 function getCategoryGroup(doc) {
-    return doc.category_group || doc.gemini_data?.category_group || null;
+    return doc.bill_category_group || doc.category_group || doc.gemini_data?.category_group || null;
 }
 
 function getVerificationStatus(doc) {
