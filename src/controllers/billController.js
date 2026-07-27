@@ -114,7 +114,8 @@ async function processBillManual(req, res) {
     payment_terms,
     line_items = [],
     notes,
-    payment_method
+    payment_method,
+    section
   } = req.body;
 
   try {
@@ -224,8 +225,9 @@ async function processBillManual(req, res) {
            campaign = $15,
            department = $16,
            tags = $17::jsonb,
-           payment_method = $18
-         WHERE bill_id = $19`,
+           payment_method = $18,
+           section = $19
+         WHERE bill_id = $20`,
         [
           vendorId,
           bill_number || null,
@@ -245,6 +247,7 @@ async function processBillManual(req, res) {
           department || null,
           tagsValue ? JSON.stringify(tagsValue) : null,
           normalizedPayment,
+          section || null,
           billId
         ]
       );
@@ -254,8 +257,8 @@ async function processBillManual(req, res) {
       const billResult = await pool.query(
         `INSERT INTO bills 
          (document_id, vendor_id, bill_number, bill_date, subtotal, tax_amount, total_amount, 
-          category, category_group, confidence_score, status, payment_status, drop_name, trip_name, channel, campaign, department, tags, payment_method)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb, $19)
+          category, category_group, confidence_score, status, payment_status, drop_name, trip_name, channel, campaign, department, tags, payment_method, section)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb, $19, $20)
          RETURNING bill_id`,
         [
           document_id,
@@ -276,7 +279,8 @@ async function processBillManual(req, res) {
           campaign || null,
           department || null,
           tagsValue ? JSON.stringify(tagsValue) : null,
-          normalizedPayment
+          normalizedPayment,
+          section || null
         ]
       );
       billId = billResult.rows[0].bill_id;
