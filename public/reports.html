@@ -234,6 +234,7 @@
                                 <option value="6" selected>6 months</option>
                                 <option value="12">12 months</option>
                             </select>
+                            <button onclick="exportTrendCSV()" class="text-xs text-slate-600 hover:underline border border-slate-200 rounded px-2 py-0.5"><i class="fas fa-file-csv mr-1"></i>CSV</button>
                             <button onclick="trendLoaded=false; loadTrend()" class="text-xs text-indigo-600 hover:underline"><i class="fas fa-rotate mr-1"></i>Refresh</button>
                         </div>
                     </div>
@@ -606,7 +607,8 @@ async function loadTrend() {
     const months = document.getElementById('trendMonths')?.value || 6;
     try {
         const d = await fetch(`/api/reports/trend?months=${months}`, { credentials: 'include' }).then(r => r.json());
-        renderTrend(d.months || []);
+        lastTrendData = d.months || [];
+        renderTrend(lastTrendData);
         trendLoaded = true;
     } catch (e) {
         el.innerHTML = `<div class="text-center py-6 text-red-400">Failed to load: ${e.message}</div>`;
@@ -694,7 +696,8 @@ function renderTrend(months) {
 }
 
 // ── CSV Export ────────────────────────────────────────────────────────────────
-let lastPLData = null;
+let lastPLData    = null;
+let lastTrendData = null;
 
 function exportCSV() {
     if (!lastPLData || !lastPLData.success) {
@@ -747,6 +750,24 @@ function exportCSV() {
     const a = document.createElement('a');
     a.href = url;
     a.download = `nati-pl-${currentLabel.replace(/\s+/g,'-')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function exportTrendCSV() {
+    if (!lastTrendData || !lastTrendData.length) { alert('Load trend data first'); return; }
+    const rows = [
+        ['NATI Collective — P&L Trend Export'],
+        [],
+        ['Month', 'Net Sales (₹)', 'COGS (₹)', 'Gross Profit (₹)', 'GM%', 'EBITDA (₹)', 'EBITDA%'],
+        ...lastTrendData.map(m => [m.label, m.net_sales, m.cogs, m.gross_profit, m.gross_margin_pct, m.ebitda, m.ebitda_pct])
+    ];
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nati-trend-${lastTrendData.length}mo.csv`;
     a.click();
     URL.revokeObjectURL(url);
 }
