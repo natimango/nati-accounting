@@ -346,10 +346,8 @@ function renderKPIs(d, prior) {
     const ebitda = d.ebitda || 0;
 
     function delta(cur, prev) {
-        if (!prev || !prev.success || !prev) return '';
-        const old = prev || 0;
-        if (!old) return '';
-        const chg = ((cur - old) / Math.abs(old) * 100);
+        if (prev == null || !Number.isFinite(Number(prev)) || Number(prev) === 0) return '';
+        const chg = ((cur - prev) / Math.abs(prev) * 100);
         const sign = chg >= 0 ? '+' : '';
         const color = chg >= 0 ? 'color:#059669' : 'color:#dc2626';
         return `<span style="font-size:10px;font-weight:600;${color}">${sign}${chg.toFixed(0)}%</span>`;

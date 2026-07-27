@@ -224,7 +224,7 @@ async function loadPayables() {
 
         document.getElementById('tile-overdue').textContent = overdueCount + ' bill' + (overdueCount !== 1 ? 's' : '');
         document.getElementById('tile-week').textContent = fmt(dash.forecast?.next_7_days || 0);
-        document.getElementById('tile-month').textContent = fmt((dash.forecast?.next_30_days || 0) + (dash.forecast?.next_7_days || 0));
+        document.getElementById('tile-month').textContent = fmt(dash.forecast?.next_30_days || 0);
 
         renderPayablesTable(allDocs);
     } catch (e) {
