@@ -6,6 +6,7 @@ const cookieParser = require('cookie-parser');
 const { execSync } = require('child_process');
 const pool = require('./config/database');
 const { authenticate } = require('./middleware/auth');
+const { runMigrations } = require('./utils/runMigrations');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -101,7 +102,8 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+  await runMigrations();
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('🚀 NATI Accounting System Started!');
   console.log(`📍 Dashboard: http://localhost:${PORT}`);
