@@ -121,6 +121,23 @@ async function getProfitLoss(req, res) {
       }
     });
 
+    // ── INPUT TAX CREDIT from bills ───────────────────────────────────────────
+    const itcRow = await pool.query(
+      `SELECT
+         COALESCE(SUM(b.cgst_amount), 0) AS cgst_itc,
+         COALESCE(SUM(b.sgst_amount), 0) AS sgst_itc,
+         COALESCE(SUM(b.igst_amount), 0) AS igst_itc
+       FROM bills b
+       LEFT JOIN documents d ON b.document_id = d.document_id
+       WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
+         AND ${ACTIVE_BILL_FILTER}${billExtra}`,
+      billParams
+    );
+    const cgstItc = parseFloat(itcRow.rows[0]?.cgst_itc || 0);
+    const sgstItc = parseFloat(itcRow.rows[0]?.sgst_itc || 0);
+    const igstItc = parseFloat(itcRow.rows[0]?.igst_itc || 0);
+    const totalItc = cgstItc + sgstItc + igstItc;
+
     // ── MANAGEMENT P&L WATERFALL ──────────────────────────────────────────────
     const grossProfit    = netSalesTotal - cogsTotal;
     const grossMarginPct = netSalesTotal ? (grossProfit / netSalesTotal * 100) : 0;
@@ -183,6 +200,10 @@ async function getProfitLoss(req, res) {
       net_sales: netSalesTotal,
       revenue_by_channel: revenueByChannel,
       gst_collected: gstCollectedTotal,
+
+      // GST / ITC
+      itc: { cgst: cgstItc, sgst: sgstItc, igst: igstItc, total: totalItc },
+      net_gst_payable: Math.max(0, gstCollectedTotal - totalItc),
 
       // COGS
       cogs: { lines: cogsLines, total: cogsTotal },

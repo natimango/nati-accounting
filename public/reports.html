@@ -535,9 +535,19 @@ function renderGST(d) {
     h += `<tr class="sub"><td colspan="3">Total Output GST</td><td class="tr">${fmt(totalGstOut)}</td></tr>`;
 
     h += `<tr class="sec-hdr"><td colspan="4">Input Tax Credit (ITC) — From Bills</td></tr>`;
-    h += `<tr class="item"><td colspan="3" class="muted">CGST / SGST / IGST ITC</td><td class="tr muted">— capture GST on bills to unlock</td></tr>`;
+    h += `<tr class="grp-hdr"><td colspan="2">Tax Type</td><td class="tr">Bills</td><td class="tr">ITC Amount</td></tr>`;
+    const itc = d.itc || {};
+    if (itc.total > 0) {
+        if (itc.cgst > 0) h += `<tr class="item"><td colspan="2">CGST ITC</td><td class="tr muted">—</td><td class="tr">${fmt(itc.cgst)}</td></tr>`;
+        if (itc.sgst > 0) h += `<tr class="item"><td colspan="2">SGST ITC</td><td class="tr muted">—</td><td class="tr">${fmt(itc.sgst)}</td></tr>`;
+        if (itc.igst > 0) h += `<tr class="item"><td colspan="2">IGST ITC</td><td class="tr muted">—</td><td class="tr">${fmt(itc.igst)}</td></tr>`;
+        h += `<tr class="sub"><td colspan="3">Total ITC Available</td><td class="tr">${fmt(itc.total)}</td></tr>`;
+    } else {
+        h += `<tr class="item"><td colspan="3" class="muted">No GST captured on bills yet — add CGST/SGST/IGST amounts to bills to see ITC</td><td class="tr muted">—</td></tr>`;
+    }
 
-    h += `<tr class="milestone"><td colspan="3"><b>Net GST Payable (Output − ITC)</b></td><td class="tr"><b>${fmt(totalGstOut)}</b></td></tr>`;
+    const netGst = d.net_gst_payable != null ? d.net_gst_payable : totalGstOut;
+    h += `<tr class="milestone${netGst > 0 ? '' : ' neg'}"><td colspan="3"><b>Net GST Payable (Output − ITC)</b></td><td class="tr"><b>${fmt(netGst)}</b></td></tr>`;
 
     document.getElementById('gstBody').innerHTML = h;
 }
