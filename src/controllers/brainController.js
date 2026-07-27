@@ -238,8 +238,10 @@ async function getFinanceSummary(req, res) {
         `
         SELECT
           SUM(total_amount) AS total_spend,
-          SUM(CASE WHEN category_group = 'MARKETING' THEN total_amount ELSE 0 END) AS marketing,
-          SUM(CASE WHEN category_group IN ('COGS', 'FULFILLMENT') THEN total_amount ELSE 0 END) AS cogs_ops
+          SUM(CASE WHEN category_group = 'COGS'        THEN total_amount ELSE 0 END) AS cogs,
+          SUM(CASE WHEN category_group = 'FULFILLMENT' THEN total_amount ELSE 0 END) AS fulfillment,
+          SUM(CASE WHEN category_group = 'MARKETING'   THEN total_amount ELSE 0 END) AS marketing,
+          SUM(CASE WHEN category_group = 'OPERATIONS'  THEN total_amount ELSE 0 END) AS operations
         FROM bills
         WHERE bill_date >= $1
         `,
@@ -293,9 +295,11 @@ async function getFinanceSummary(req, res) {
     res.json({
       period: { days, start: startISO },
       totals: {
-        spend: Number(spendTotals.rows[0]?.total_spend || 0),
-        marketing: Number(spendTotals.rows[0]?.marketing || 0),
-        cogs_ops: Number(spendTotals.rows[0]?.cogs_ops || 0)
+        spend:       Number(spendTotals.rows[0]?.total_spend  || 0),
+        cogs:        Number(spendTotals.rows[0]?.cogs         || 0),
+        fulfillment: Number(spendTotals.rows[0]?.fulfillment  || 0),
+        marketing:   Number(spendTotals.rows[0]?.marketing    || 0),
+        operations:  Number(spendTotals.rows[0]?.operations   || 0),
       },
       drops: dropTotals.rows,
       vendors: vendorTotals.rows,
@@ -317,8 +321,10 @@ async function getDropOverview(req, res) {
         `
         SELECT
           SUM(total_amount) AS total_spend,
-          SUM(CASE WHEN category_group = 'MARKETING' THEN total_amount ELSE 0 END) AS marketing_spend,
-          SUM(CASE WHEN category_group IN ('COGS', 'FULFILLMENT') THEN total_amount ELSE 0 END) AS cogs_spend
+          SUM(CASE WHEN category_group = 'COGS'        THEN total_amount ELSE 0 END) AS cogs_spend,
+          SUM(CASE WHEN category_group = 'FULFILLMENT' THEN total_amount ELSE 0 END) AS fulfillment_spend,
+          SUM(CASE WHEN category_group = 'MARKETING'   THEN total_amount ELSE 0 END) AS marketing_spend,
+          SUM(CASE WHEN category_group = 'OPERATIONS'  THEN total_amount ELSE 0 END) AS operations_spend
         FROM bills
         WHERE drop_name ILIKE $1
         `,
