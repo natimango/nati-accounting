@@ -690,12 +690,19 @@ async function getPaymentDashboard(req, res) {
       WHERE payment_status IN ('PENDING', 'PARTIAL')
       AND due_date >= $1 AND due_date <= $2
     `, [today, next30Days]);
-    
+
+    const totalOutstanding = await pool.query(`
+      SELECT SUM(amount_due - amount_paid) as total
+      FROM payment_schedule
+      WHERE payment_status IN ('PENDING', 'PARTIAL', 'OVERDUE')
+    `);
+
     res.json({
       success: true,
       overdue: overdue.rows,
       due_this_week: thisWeek.rows,
       due_this_month: thisMonth.rows,
+      total_outstanding: parseFloat(totalOutstanding.rows[0].total || 0),
       forecast: {
         next_7_days: parseFloat(forecast7Days.rows[0].total || 0),
         next_30_days: parseFloat(forecast30Days.rows[0].total || 0)

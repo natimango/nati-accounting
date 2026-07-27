@@ -155,9 +155,11 @@ function renderPayablesStrip(d) {
     const overdue = (d.overdue || []).length;
     const week    = d.forecast?.next_7_days  || 0;
     const month   = d.forecast?.next_30_days || 0;
+    const total   = d.total_outstanding || d.forecast?.total_outstanding || 0;
     setHTML('pay-overdue', overdue > 0 ? `<span class="text-red-600 font-bold">${overdue}</span>` : '0');
     setHTML('pay-week',  fmt(week));
     setHTML('pay-month', fmt(month));
+    setHTML('pay-total', fmt(total));
 }
 
 // ── Recent docs ───────────────────────────────────────────────────────────────
