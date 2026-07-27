@@ -517,18 +517,20 @@ async function getDimensionSpend(req, res) {
 
     const query = `
       SELECT
-        COALESCE(drop_name, 'Unassigned') AS drop_name,
-        COALESCE(trip_name, 'Unassigned') AS trip_name,
-              'Unassigned' AS channel,
-              'Unassigned' AS campaign,
-        COALESCE(category_group, department, 'OPERATIONS') AS department,
-        SUM(total_amount) AS spend_total,
-        SUM(subtotal) AS spend_subtotal,
-        SUM(tax_amount) AS spend_tax,
+        COALESCE(b.drop_name, 'Unassigned') AS drop_name,
+        COALESCE(b.trip_name, 'Unassigned') AS trip_name,
+        'Unassigned' AS channel,
+        'Unassigned' AS campaign,
+        COALESCE(b.category_group, b.department, 'OPERATIONS') AS department,
+        SUM(b.total_amount) AS spend_total,
+        SUM(b.subtotal) AS spend_subtotal,
+        SUM(b.tax_amount) AS spend_tax,
         COUNT(*) AS bill_count
-      FROM bills
-      WHERE bill_date BETWEEN $1 AND $2
-      GROUP BY drop_name, trip_name, COALESCE(category_group, department, 'OPERATIONS')
+      FROM bills b
+      LEFT JOIN documents d ON b.document_id = d.document_id
+      WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
+        AND ${ACTIVE_BILL_FILTER}
+      GROUP BY b.drop_name, b.trip_name, COALESCE(b.category_group, b.department, 'OPERATIONS')
       ORDER BY spend_total DESC NULLS LAST, bill_count DESC;
     `;
 
