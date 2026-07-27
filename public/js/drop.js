@@ -16,7 +16,7 @@ function formatCurrency(val) {
 }
 
 function formatGroupLabel(group) {
-  return (group || 'OPERATING').toString().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return (group || 'OPERATIONS').toString().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 function getBudgetWindow() {

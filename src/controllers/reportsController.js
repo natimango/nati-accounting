@@ -317,9 +317,9 @@ async function getBalanceSheet(req, res) {
 
     const billsRow = await pool.query(
       `SELECT
-         COALESCE(SUM(CASE WHEN COALESCE(b.category_group,'OPERATING') = 'COGS'
+         COALESCE(SUM(CASE WHEN COALESCE(b.category_group,'OPERATIONS') = 'COGS'
                           THEN b.total_amount END), 0)  AS cogs_payable,
-         COALESCE(SUM(CASE WHEN COALESCE(b.category_group,'OPERATING') <> 'COGS'
+         COALESCE(SUM(CASE WHEN COALESCE(b.category_group,'OPERATIONS') <> 'COGS'
                           THEN b.total_amount END), 0)  AS opex_payable,
          COUNT(*)                                        AS unpaid_count
        FROM bills b

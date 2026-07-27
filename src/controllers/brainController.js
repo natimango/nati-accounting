@@ -238,8 +238,8 @@ async function getFinanceSummary(req, res) {
         `
         SELECT
           SUM(total_amount) AS total_spend,
-          SUM(CASE WHEN department ILIKE 'marketing%' THEN total_amount ELSE 0 END) AS marketing,
-          SUM(CASE WHEN (department ILIKE 'cogs%' OR department ILIKE 'manufacturing%' OR category ILIKE 'logistics%' OR category ILIKE 'stitch%') THEN total_amount ELSE 0 END) AS cogs_ops
+          SUM(CASE WHEN category_group = 'MARKETING' THEN total_amount ELSE 0 END) AS marketing,
+          SUM(CASE WHEN category_group IN ('COGS', 'FULFILLMENT') THEN total_amount ELSE 0 END) AS cogs_ops
         FROM bills
         WHERE bill_date >= $1
         `,
@@ -317,8 +317,8 @@ async function getDropOverview(req, res) {
         `
         SELECT
           SUM(total_amount) AS total_spend,
-          SUM(CASE WHEN department ILIKE 'marketing%' THEN total_amount ELSE 0 END) AS marketing_spend,
-          SUM(CASE WHEN department ILIKE 'cogs%' OR category ILIKE 'stitch%' OR category ILIKE 'logistics%' THEN total_amount ELSE 0 END) AS cogs_spend
+          SUM(CASE WHEN category_group = 'MARKETING' THEN total_amount ELSE 0 END) AS marketing_spend,
+          SUM(CASE WHEN category_group IN ('COGS', 'FULFILLMENT') THEN total_amount ELSE 0 END) AS cogs_spend
         FROM bills
         WHERE drop_name ILIKE $1
         `,

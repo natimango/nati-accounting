@@ -71,7 +71,7 @@ async function fetchActualCogs(skuCodes) {
      FROM bill_items bi
      JOIN bills b ON bi.bill_id = b.bill_id
      WHERE bi.sku_code = ANY($1::text[])
-       AND COALESCE(b.category_group, 'OPERATING') = 'COGS'
+       AND COALESCE(b.category_group, 'OPERATIONS') = 'COGS'
        AND COALESCE(b.status, 'pending') NOT IN ('deleted', 'void')
      GROUP BY bi.sku_code`,
     [skuCodes]

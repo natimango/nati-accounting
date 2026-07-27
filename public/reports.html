@@ -145,6 +145,7 @@
             <!-- ── Tabs ── -->
             <div class="flex gap-2 no-print">
                 <button class="tab-btn active" onclick="showTab('pl')"><i class="fas fa-chart-line mr-1.5"></i>P&amp;L</button>
+                <button class="tab-btn" onclick="showTab('section')"><i class="fas fa-layer-group mr-1.5"></i>By Section</button>
                 <button class="tab-btn" onclick="showTab('gst')"><i class="fas fa-percent mr-1.5"></i>GST</button>
                 <button class="tab-btn" onclick="showTab('spend')"><i class="fas fa-receipt mr-1.5"></i>Spend Detail</button>
             </div>
@@ -164,6 +165,19 @@
                             <tr><td colspan="3" class="text-center py-10 text-slate-400">Select a period above</td></tr>
                         </tbody>
                     </table>
+                </div>
+            </section>
+
+            <!-- ── By Section ── -->
+            <section id="tab-section" class="print-area hidden">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100">
+                        <h3 class="font-semibold text-base">Performance by Section</h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Regulars · Artwear · Collectibles — net sales and gross margin side by side</p>
+                    </div>
+                    <div id="sectionGrid" class="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="text-center py-8 text-slate-400 col-span-3">Select a period above</div>
+                    </div>
                 </div>
             </section>
 
@@ -278,6 +292,7 @@ async function loadReports(start, end, label) {
         const pl = await fetch(`/api/reports/profit-loss?${qs}`, { credentials: 'include' }).then(r => r.json());
         renderKPIs(pl);
         renderPL(pl);
+        renderSectionGrid(pl);
         renderGST(pl);
         renderSpend(pl);
     } catch (e) {
@@ -387,7 +402,7 @@ function renderPL(d) {
     } else {
         h += `<tr class="item"><td class="muted" colspan="3">No opex bills this period</td></tr>`;
     }
-    h += sub('Total OpEx', d.opex?.total || 0);
+    h += sub('Total Operations', d.opex?.total || 0);
     h += stone('EBITDA', ebitda, d.ebitda_pct, ebitda < 0);
 
     // Section breakdown
@@ -463,13 +478,45 @@ function renderSpend(d) {
     document.getElementById('spendBody').innerHTML = h;
 }
 
+// ── Section grid ──────────────────────────────────────────────────────────────
+function renderSectionGrid(d) {
+    const grid     = document.getElementById('sectionGrid');
+    const sections = d.section_breakdown || [];
+    const ns       = d.net_sales || 0;
+    if (!sections.length) {
+        grid.innerHTML = '<div class="col-span-3 text-center py-8 text-slate-400">No section data — tag bills and sales entries with a section to see comparison</div>';
+        return;
+    }
+    const maxSales = Math.max(...sections.map(s => s.net_sales), 1);
+    grid.innerHTML = sections.map(s => {
+        const gpColor = s.gross_margin_pct >= 50 ? 'color:#059669' : s.gross_margin_pct >= 30 ? 'color:#2563eb' : 'color:#d97706';
+        const share   = ns ? (s.net_sales / ns * 100).toFixed(1) : 0;
+        return `
+        <div class="border border-slate-200 rounded-xl p-5">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-sm font-bold text-slate-900">${s.section}</span>
+                <span class="text-xs text-slate-400">${share}% of sales</span>
+            </div>
+            <div class="text-2xl font-bold text-slate-900 mb-1">${fmt(s.net_sales)}</div>
+            <div class="text-xs text-slate-400 mb-3">${(s.net_units||0).toLocaleString('en-IN')} units</div>
+            <div style="height:6px;border-radius:99px;background:#f1f5f9;overflow:hidden;margin-bottom:12px">
+                <div style="height:100%;border-radius:99px;background:#6366f1;width:${Math.round(s.net_sales/maxSales*100)}%"></div>
+            </div>
+            <div class="flex justify-between text-xs">
+                <span class="text-slate-500">Gross Profit</span>
+                <span style="${gpColor}" class="font-semibold">${fmt(s.gross_profit)} &middot; ${s.gross_margin_pct.toFixed(1)}% GM</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
 // ── Tab switcher ──────────────────────────────────────────────────────────────
 function showTab(name) {
-    ['pl','gst','spend'].forEach(t => {
+    ['pl','section','gst','spend'].forEach(t => {
         document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
     });
     document.querySelectorAll('.tab-btn').forEach((b, i) => {
-        b.classList.toggle('active', ['pl','gst','spend'][i] === name);
+        b.classList.toggle('active', ['pl','section','gst','spend'][i] === name);
     });
 }
 

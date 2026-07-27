@@ -59,7 +59,7 @@ async function setBillTags(req, res) {
       );
     }
 
-    // Derive category_group from tags: if any PURCHASE tag → COGS, else OPERATING
+    // Derive category_group from tags: if any PURCHASE tag → COGS, else OPERATIONS
     if (tag_ids.length > 0) {
       const groupRes = await client.query(
         `SELECT tag_group FROM expense_tags WHERE tag_id = ANY($1::int[])`,
@@ -68,7 +68,7 @@ async function setBillTags(req, res) {
       const hasPurchase = groupRes.rows.some(r => r.tag_group === 'PURCHASE');
       await client.query(
         `UPDATE bills SET category_group = $1 WHERE bill_id = $2`,
-        [hasPurchase ? 'COGS' : 'OPERATING', bill_id]
+        [hasPurchase ? 'COGS' : 'OPERATIONS', bill_id]
       );
     }
 
