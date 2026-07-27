@@ -50,7 +50,7 @@ function renderDocStats(data, mStart) {
     const docs = data.documents || [];
     const msDate = new Date(mStart);
     const thisMonth = docs.filter(d => new Date(d.uploaded_at) >= msDate).length;
-    const pending   = docs.filter(d => d.status === 'uploaded').length;
+    const pending   = docs.filter(d => d.status === 'uploaded' || d.status === 'manual_required').length;
     setText('total-docs',   docs.length);
     setText('month-docs',   thisMonth);
     setText('pending-docs', pending);
