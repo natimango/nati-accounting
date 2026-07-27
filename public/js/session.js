@@ -49,10 +49,9 @@
     const logoutBtn = document.getElementById('logout-btn');
 
     if (pill && nameEl && roleEl) {
-      // Keep the pill hidden per UX request; clear any placeholder text
-      nameEl.textContent = '';
-      roleEl.textContent = '';
-      pill.classList.add('hidden');
+      nameEl.textContent = user.name || user.email || '';
+      roleEl.textContent = user.role || '';
+      pill.classList.remove('hidden');
     }
 
     if (logoutBtn) {

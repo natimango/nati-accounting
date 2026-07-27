@@ -1491,7 +1491,7 @@ function populateManualForm(doc, billLineItems) {
     const due = mergedTerms.due_date ? mergedTerms.due_date.split('T')[0] : '';
     document.getElementById('manual-due-date').value = due;
     document.getElementById('manual-notes').value = doc.notes || '';
-    setSelectValue('manual-department', doc.department || '', '');
+    setSelectValue('manual-department', doc.bill_category_group || doc.category_group || doc.department || '', '');
     setSelectValue('manual-section', doc.bill_section || doc.section || '', '');
     loadManualDropList(doc.bill_drop_name || doc.drop_name || '');
     document.getElementById('manual-error').textContent = '';

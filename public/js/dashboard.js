@@ -122,7 +122,7 @@ function renderPayablesStrip(d) {
     const month   = d.forecast?.next_30_days || 0;
     setHTML('pay-overdue', overdue > 0 ? `<span class="text-red-600 font-bold">${overdue}</span>` : '0');
     setHTML('pay-week',  fmt(week));
-    setHTML('pay-month', fmt(month + week));
+    setHTML('pay-month', fmt(month));
 }
 
 // ── Recent docs ───────────────────────────────────────────────────────────────
@@ -141,7 +141,8 @@ function renderRecentDocs(data) {
         const group   = doc.bill_category_group || doc.category_group || '';
         const amount  = doc.total_amount || doc.bill_total_amount;
         const amtStr  = amount ? fmt(amount) : '';
-        const statusCls = { uploaded: 'bg-amber-100 text-amber-700', processed: 'bg-emerald-100 text-emerald-700', manual_required: 'bg-orange-100 text-orange-700', error: 'bg-red-100 text-red-600' }[doc.status] || 'bg-slate-100 text-slate-500';
+        const STATUS_MAP = { uploaded: ['Pending', 'bg-amber-100 text-amber-700'], processed: ['Done', 'bg-emerald-100 text-emerald-700'], manual_required: ['Review', 'bg-orange-100 text-orange-700'], error: ['Error', 'bg-red-100 text-red-600'] };
+        const [statusLabel, statusCls] = STATUS_MAP[doc.status] || ['—', 'bg-slate-100 text-slate-500'];
         const icon = doc.file_type?.includes('pdf') ? 'fa-file-pdf text-red-400' : 'fa-file-image text-blue-400';
         return `
         <div class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition cursor-pointer" onclick="location.href='documents.html'">
@@ -153,7 +154,7 @@ function renderRecentDocs(data) {
                     ${amtStr ? `<span class="font-semibold text-slate-700">${amtStr}</span>` : ''}
                 </div>
             </div>
-            <span class="text-xs font-medium px-2 py-0.5 rounded-full ${statusCls} shrink-0">${doc.status}</span>
+            <span class="text-xs font-medium px-2 py-0.5 rounded-full ${statusCls} shrink-0">${statusLabel}</span>
         </div>`;
     }).join('');
 }
