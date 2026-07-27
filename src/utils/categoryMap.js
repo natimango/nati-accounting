@@ -86,12 +86,12 @@ const CATEGORY_MAP = {
   misc:             { key: 'misc',             group: 'OPERATIONS',  account_code: '8099' },
 };
 
-// Map group name to category_group used on bills
+// Map group name to category_group stored on bills
 const GROUP_TO_CATEGORY_GROUP = {
   COGS:        'COGS',
-  FULFILLMENT: 'OPERATING',
-  MARKETING:   'OPERATING',
-  OPERATIONS:  'OPERATING',
+  FULFILLMENT: 'FULFILLMENT',
+  MARKETING:   'MARKETING',
+  OPERATIONS:  'OPERATIONS',
 };
 
 const DEFAULT_ENTRY = { key: 'misc', group: 'OPERATIONS', account_code: '8099' };

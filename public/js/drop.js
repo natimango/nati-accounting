@@ -1,7 +1,7 @@
 const API_URL = '/api/brain';
 const META_URL = '/api/meta';
 const REPORT_API = '/api/reports';
-const DEFAULT_BUDGET_GROUPS = ['COGS', 'FULFILMENT', 'MARKETING', 'OPERATING'];
+const DEFAULT_BUDGET_GROUPS = ['COGS', 'FULFILLMENT', 'MARKETING', 'OPERATIONS'];
 
 let currentDrop = null;
 let budgetGroups = [...DEFAULT_BUDGET_GROUPS];

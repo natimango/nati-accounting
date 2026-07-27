@@ -983,14 +983,14 @@ async function getDropCostOverview(req, res) {
     const byGroupResult = await client.query(
       `
       SELECT
-        COALESCE(b.category_group, 'OPERATING') AS category_group,
+        COALESCE(b.category_group, 'OPERATIONS') AS category_group,
         SUM(b.total_amount) AS committed,
         COALESCE(SUM(p.amount_paid), 0) AS paid
       FROM bills b
       LEFT JOIN payments p ON p.bill_id = b.bill_id
       WHERE b.drop_name = $1
         AND (b.status IS NULL OR b.status NOT IN ('deleted','void'))
-      GROUP BY COALESCE(b.category_group, 'OPERATING')
+      GROUP BY COALESCE(b.category_group, 'OPERATIONS')
       ORDER BY committed DESC
       `,
       [dropName]
@@ -1008,7 +1008,7 @@ async function getDropCostOverview(req, res) {
 
     const groupMap = {};
     byGroupResult.rows.forEach(r => {
-      const key = r.category_group || 'OPERATING';
+      const key = r.category_group || 'OPERATIONS';
       groupMap[key] = {
         category_group: key,
         committed: Number(r.committed || 0),
@@ -1021,7 +1021,7 @@ async function getDropCostOverview(req, res) {
     let totalBudget = 0;
     let totalActual = 0;
     budgetRows.rows.forEach(b => {
-      const key = b.category_group || 'OPERATING';
+      const key = b.category_group || 'OPERATIONS';
       const actual = groupMap[key] || { committed: 0 };
       const budgetAmount = Number(b.amount || 0);
       const committedActual = Number(actual.committed || 0);
