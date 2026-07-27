@@ -69,6 +69,7 @@ function renderPLSnapshot(d, start, end, ytd, fyStart) {
     if (!d.success) {
         setText('pl-net-sales', '—');
         setText('pl-gross-profit', '—');
+        setText('pl-cm1', '—');
         setText('pl-ebitda', '—');
         // Show YTD row even if month failed
         renderYTD(ytd, fyStart);
@@ -77,16 +78,20 @@ function renderPLSnapshot(d, start, end, ytd, fyStart) {
 
     const ns     = d.net_sales     || 0;
     const gp     = d.gross_profit  || 0;
+    const cm1    = d.cm1           || 0;
     const ebitda = d.ebitda        || 0;
 
     setHTML('pl-net-sales',    fmt(ns));
     setHTML('pl-gross-profit', fmt(gp));
+    setHTML('pl-cm1',          fmt(cm1));
     setHTML('pl-ebitda',       fmt(ebitda));
 
-    const gpPct = ns ? (gp / ns * 100).toFixed(1) : null;
-    const ebPct = ns ? (ebitda / ns * 100).toFixed(1) : null;
-    setText('pl-gp-pct',     gpPct ? gpPct + '% GM' : '');
-    setText('pl-ebitda-pct', ebPct ? ebPct + '% margin' : '');
+    const gpPct  = ns ? (gp / ns * 100).toFixed(1) : null;
+    const cm1Pct = ns ? (cm1 / ns * 100).toFixed(1) : null;
+    const ebPct  = ns ? (ebitda / ns * 100).toFixed(1) : null;
+    setText('pl-gp-pct',     gpPct  ? gpPct  + '% GM' : '');
+    setText('pl-cm1-pct',    cm1Pct ? cm1Pct + '% CM' : '');
+    setText('pl-ebitda-pct', ebPct  ? ebPct  + '% margin' : '');
 
     const badge = document.getElementById('pl-badge');
     if (badge) {
