@@ -253,6 +253,12 @@ async function loadDocuments() {
             allDocuments = data.documents;
             filteredDocuments = allDocuments;
             populateFilterDropdowns(allDocuments);
+            // Apply pending drop filter from URL param (set before data loaded)
+            if (window._pendingDropFilter) {
+                const el = document.getElementById('filter-drop');
+                if (el) el.value = window._pendingDropFilter;
+                window._pendingDropFilter = null;
+            }
             displayDocuments(filteredDocuments);
             await loadVerificationSummary();
             updateDocCount();
@@ -1831,6 +1837,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const qGroup  = urlParams.get('filter_group');
     const qStatus = urlParams.get('status');
+    const qDrop   = urlParams.get('drop');
     if (qGroup) {
         const el = document.getElementById('filter-group');
         if (el) el.value = qGroup;
@@ -1838,6 +1845,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (qStatus) {
         const el = document.getElementById('filter-status');
         if (el) el.value = qStatus;
+    }
+    if (qDrop) {
+        // filter-drop is populated after data loads; store and apply later
+        window._pendingDropFilter = qDrop;
     }
 
     if (window.sessionReady) {
