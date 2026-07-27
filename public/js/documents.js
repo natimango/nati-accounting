@@ -1197,14 +1197,14 @@ function populateFilterDropdowns(docs) {
     const catGroups = {};
     docs.forEach(doc => {
         const cat = getCategory(doc);
-        const grp = (getCategoryGroup(doc) || 'OPERATING').toUpperCase();
+        const grp = (getCategoryGroup(doc) || 'OPERATIONS').toUpperCase();
         if (cat && cat !== '—') {
             if (!catGroups[grp]) catGroups[grp] = new Set();
             catGroups[grp].add(cat);
         }
     });
-    const groupOrder = ['COGS', 'FULFILLMENT', 'MARKETING', 'OPERATING'];
-    const groupLabels = { COGS: 'COGS / Purchase', FULFILLMENT: 'Fulfilment', MARKETING: 'Marketing', OPERATING: 'Operations' };
+    const groupOrder = ['COGS', 'FULFILLMENT', 'MARKETING', 'OPERATIONS'];
+    const groupLabels = { COGS: 'COGS / Purchase', FULFILLMENT: 'Fulfilment', MARKETING: 'Marketing', OPERATIONS: 'Operations' };
     let catHTML = '<option value="">All categories</option>';
     groupOrder.forEach(grp => {
         const cats = catGroups[grp];
@@ -1271,7 +1271,7 @@ function filterDocuments() {
     }
 
     if (groupFilter) {
-        filtered = filtered.filter(doc => (getCategoryGroup(doc) || 'OPERATING').toUpperCase() === groupFilter);
+        filtered = filtered.filter(doc => (getCategoryGroup(doc) || 'OPERATIONS').toUpperCase() === groupFilter);
     }
 
     if (category) {
