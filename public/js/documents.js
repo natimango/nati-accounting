@@ -1191,41 +1191,105 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-function populateFilterDropdowns(docs) {
-    // Category — build from actual data, grouped by category_group
-    const catSel = document.getElementById('filter-category');
-    const catGroups = {};
-    docs.forEach(doc => {
-        const cat = getCategory(doc);
-        const grp = (getCategoryGroup(doc) || 'OPERATIONS').toUpperCase();
-        if (cat && cat !== '—') {
-            if (!catGroups[grp]) catGroups[grp] = new Set();
-            catGroups[grp].add(cat);
-        }
-    });
-    const groupOrder = ['COGS', 'FULFILLMENT', 'MARKETING', 'OPERATIONS'];
-    const groupLabels = { COGS: 'COGS / Purchase', FULFILLMENT: 'Fulfilment', MARKETING: 'Marketing', OPERATIONS: 'Operations' };
-    let catHTML = '<option value="">All categories</option>';
-    groupOrder.forEach(grp => {
-        const cats = catGroups[grp];
-        if (!cats || !cats.size) return;
-        catHTML += `<optgroup label="${groupLabels[grp] || grp}">`;
-        [...cats].sort().forEach(c => {
-            catHTML += `<option value="${c}">${c.replace(/_/g, ' ').replace(/\b\w/g, x => x.toUpperCase())}</option>`;
-        });
-        catHTML += '</optgroup>';
-    });
-    // Any ungrouped categories
-    const seenCats = new Set(Object.values(catGroups).flatMap(s => [...s]));
-    docs.forEach(doc => {
-        const cat = getCategory(doc);
-        if (cat && cat !== '—' && !seenCats.has(cat)) {
-            catHTML += `<option value="${cat}">${cat.replace(/_/g, ' ')}</option>`;
-        }
-    });
-    catSel.innerHTML = catHTML;
+// Canonical group → category mapping (mirrors categoryMap.js + upload.html)
+const CATEGORY_GROUPS = {
+    COGS: [
+        { value: 'fabric',          label: 'Fabric & Raw Materials' },
+        { value: 'manufacturing',   label: 'Manufacturing / Job Work' },
+        { value: 'embroidery',      label: 'Embroidery & Embellishment' },
+        { value: 'washing',         label: 'Washing & Finishing' },
+        { value: 'trims',           label: 'Trims & Accessories' },
+        { value: 'packaging',       label: 'Packaging' },
+        { value: 'quality',         label: 'Quality Inspection' },
+        { value: 'quality check',   label: 'Quality Inspection' },
+        { value: 'inbound_freight', label: 'Inbound Freight' },
+        { value: 'inbound freight', label: 'Inbound Freight' },
+    ],
+    FULFILLMENT: [
+        { value: 'shipping',         label: 'Shipping & Courier' },
+        { value: 'logistics',        label: 'Shipping & Courier' },
+        { value: 'warehousing',      label: 'Warehousing & Storage' },
+        { value: 'returns',          label: 'Returns & Reverse Logistics' },
+        { value: 'commission',       label: 'Marketplace Commission' },
+        { value: 'gateway',          label: 'Payment Gateway' },
+        { value: 'payment gateway',  label: 'Payment Gateway' },
+        { value: 'cod',              label: 'COD Charges' },
+    ],
+    MARKETING: [
+        { value: 'marketing',        label: 'Digital Ads (Meta / Google)' },
+        { value: 'ads',              label: 'Digital Ads (Meta / Google)' },
+        { value: 'influencer',       label: 'Influencer & Gifting' },
+        { value: 'content',          label: 'Content & Photography' },
+        { value: 'content creation', label: 'Content & Photography' },
+        { value: 'platform_fees',    label: 'Platform Fees / Shopify' },
+        { value: 'platform fees',    label: 'Platform Fees / Shopify' },
+        { value: 'pr',               label: 'PR & Events' },
+        { value: 'affiliate',        label: 'Affiliate' },
+    ],
+    OPERATIONS: [
+        { value: 'rent',             label: 'Rent & Workspace' },
+        { value: 'salary',           label: 'Salaries & Wages' },
+        { value: 'contractor',       label: 'Contractor / Freelancer' },
+        { value: 'software',         label: 'Software & Subscriptions' },
+        { value: 'travel',           label: 'Travel & Conveyance' },
+        { value: 'bank_charges',     label: 'Bank Charges' },
+        { value: 'bank charges',     label: 'Bank Charges' },
+        { value: 'legal',            label: 'Legal & Professional' },
+        { value: 'compliance',       label: 'GST Filing & Compliance' },
+        { value: 'gst',              label: 'GST Filing & Compliance' },
+        { value: 'insurance',        label: 'Insurance' },
+        { value: 'utilities',        label: 'Utilities & Electricity' },
+        { value: 'food_meals',       label: 'Food & Meals' },
+        { value: 'food',             label: 'Food & Meals' },
+        { value: 'misc',             label: 'Miscellaneous' },
+    ],
+};
 
-    // Drop — build from actual data
+const GROUP_LABELS = {
+    COGS:        'COGS / Purchase',
+    FULFILLMENT: 'Fulfilment',
+    MARKETING:   'Marketing',
+    OPERATIONS:  'Operations',
+};
+
+function populateCategoryDropdown(selectedGroup) {
+    const catSel = document.getElementById('filter-category');
+    if (!catSel) return;
+    const currentVal = catSel.value;
+
+    // Deduplicate by value within a group
+    const dedup = (cats) => {
+        const seen = new Set();
+        return cats.filter(c => { if (seen.has(c.value)) return false; seen.add(c.value); return true; });
+    };
+
+    if (selectedGroup && CATEGORY_GROUPS[selectedGroup]) {
+        // Show only categories for selected group
+        const cats = dedup(CATEGORY_GROUPS[selectedGroup]);
+        catSel.innerHTML = '<option value="">All categories</option>' +
+            cats.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+    } else {
+        // Show all groups with optgroups
+        let html = '<option value="">All categories</option>';
+        Object.keys(CATEGORY_GROUPS).forEach(grp => {
+            const cats = dedup(CATEGORY_GROUPS[grp]);
+            html += `<optgroup label="${GROUP_LABELS[grp]}">`;
+            html += cats.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+            html += '</optgroup>';
+        });
+        catSel.innerHTML = html;
+    }
+
+    // Restore previous selection if still valid
+    if (currentVal) catSel.value = currentVal;
+}
+
+function populateFilterDropdowns(docs) {
+    // Category dropdown — static canonical map, cascades from group filter
+    const groupSel = document.getElementById('filter-group');
+    populateCategoryDropdown(groupSel ? groupSel.value : '');
+
+    // Drop — built from actual document data
     const dropSel = document.getElementById('filter-drop');
     if (dropSel) {
         const drops = new Set();
@@ -1271,7 +1335,11 @@ function filterDocuments() {
     }
 
     if (groupFilter) {
-        filtered = filtered.filter(doc => (getCategoryGroup(doc) || 'OPERATIONS').toUpperCase() === groupFilter);
+        filtered = filtered.filter(doc => {
+            const grp = (getCategoryGroup(doc) || '').toUpperCase();
+            // normalise legacy 'OPERATING' to 'OPERATIONS'
+            return (grp === 'OPERATING' ? 'OPERATIONS' : grp) === groupFilter;
+        });
     }
 
     if (category) {
@@ -1346,6 +1414,7 @@ function clearFilters() {
     ['date-from','date-to','filter-category','filter-group','filter-section',
      'filter-drop','filter-payment','filter-pay-status','filter-status','search-box']
         .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    populateCategoryDropdown('');
     verificationFilter = 'all';
     renderVerificationFilters();
     filterDocuments();

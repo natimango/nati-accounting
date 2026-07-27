@@ -98,13 +98,13 @@ const DEFAULT_ENTRY = { key: 'misc', group: 'OPERATIONS', account_code: '8099' }
 
 function normalizeCategory(rawCategory) {
   if (!rawCategory) {
-    return { category: 'misc', category_group: 'OPERATING', account_code: '8099' };
+    return { category: 'misc', category_group: 'OPERATIONS', account_code: '8099' };
   }
   const key = rawCategory.toString().toLowerCase().trim();
   const entry = CATEGORY_MAP[key] || _fuzzyMatch(key);
   return {
     category:       entry.key,
-    category_group: GROUP_TO_CATEGORY_GROUP[entry.group] || 'OPERATING',
+    category_group: GROUP_TO_CATEGORY_GROUP[entry.group] || 'OPERATIONS',
     expense_group:  entry.group,
     account_code:   entry.account_code
   };

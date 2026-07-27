@@ -127,7 +127,7 @@
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-600 mb-1">Category Group</label>
-                            <select id="filter-group" onchange="filterDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
+                            <select id="filter-group" onchange="populateCategoryDropdown(this.value); filterDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
                                 <option value="">All groups</option>
                                 <option value="COGS">COGS / Purchase</option>
                                 <option value="FULFILLMENT">Fulfilment</option>
