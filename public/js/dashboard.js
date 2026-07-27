@@ -254,8 +254,8 @@ function renderWatchdog(data, alerts) {
     if (!container) return;
     const summary = data.summary || {};
     const checks = [
-        { key: 'duplicates',    label: 'Duplicate bills',      icon: 'fa-copy',           href: 'documents.html?status=duplicate',       items: (data.duplicates    || []).slice(0,2).map(d => d.vendor_name || 'Vendor') },
-        { key: 'stale_manual',  label: 'Stale reviews 48h+',   icon: 'fa-hourglass-half', href: 'documents.html?status=needs_review',    items: (data.stale_manual  || []).slice(0,2).map(d => d.file_name || 'Doc') },
+        { key: 'duplicates',    label: 'Duplicate bills',      icon: 'fa-copy',           href: 'documents.html',                        items: (data.duplicates    || []).slice(0,2).map(d => d.vendor_name || 'Vendor') },
+        { key: 'stale_manual',  label: 'Stale reviews 48h+',   icon: 'fa-hourglass-half', href: 'documents.html?status=manual_required', items: (data.stale_manual  || []).slice(0,2).map(d => d.file_name || 'Doc') },
         { key: 'aged_unpaid',   label: 'Unpaid > 30d',         icon: 'fa-calendar-xmark', href: 'payables.html',                         items: (data.aged_unpaid   || []).slice(0,2).map(b => (b.vendor_name || 'Vendor') + ' · ' + fmt(b.total_amount)) },
         { key: 'uncategorized', label: 'Uncategorised bills',   icon: 'fa-tag',            href: 'documents.html?filter_group=none',      items: (data.uncategorized || []).slice(0,2).map(b => (b.vendor_name || 'Vendor') + ' · ' + fmt(b.total_amount)) },
     ];
