@@ -602,8 +602,19 @@ function cap(str) {
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
-buildMonthChips();
-loadDrops();
+(async () => {
+    // Apply URL params before building chips so first load uses them
+    const params = new URLSearchParams(window.location.search);
+    const dropParam = params.get('drop');
+    const sectionParam = params.get('section');
+    if (sectionParam) document.getElementById('filterSection').value = sectionParam;
+    await loadDrops();
+    if (dropParam) {
+        const sel = document.getElementById('filterDrop');
+        if (sel) sel.value = dropParam;
+    }
+    buildMonthChips();
+})();
 </script>
 </body>
 </html>

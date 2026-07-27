@@ -73,6 +73,8 @@ function onDropChange() {
   currentDrop = name;
   const link = document.getElementById('view-bills-link');
   if (link) link.href = `documents.html?drop=${encodeURIComponent(name)}`;
+  const plLink = document.getElementById('view-pl-link');
+  if (plLink) { plLink.href = `reports.html?drop=${encodeURIComponent(name)}`; plLink.classList.remove('hidden'); }
   loadDrop(name);
 }
 
