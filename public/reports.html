@@ -100,9 +100,14 @@
                         <h2 class="text-base font-semibold">Period</h2>
                         <p class="text-xs text-slate-400 mt-0.5">Click a month or set a custom range</p>
                     </div>
-                    <button onclick="window.print()" class="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-50">
-                        <i class="fas fa-print text-slate-500"></i> Print / PDF
-                    </button>
+                    <div class="flex gap-2">
+                        <button onclick="exportCSV()" class="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-50">
+                            <i class="fas fa-file-csv text-slate-500"></i> CSV
+                        </button>
+                        <button onclick="window.print()" class="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-50">
+                            <i class="fas fa-print text-slate-500"></i> Print / PDF
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Month chips -->
@@ -307,6 +312,7 @@ async function loadReports(start, end, label) {
 
     try {
         const pl = await fetch(`/api/reports/profit-loss?${qs}`, { credentials: 'include' }).then(r => r.json());
+        lastPLData = pl;
         renderKPIs(pl);
         renderPL(pl);
         renderSectionGrid(pl);
@@ -594,6 +600,64 @@ function renderTrend(months) {
     }).join('');
 
     el.innerHTML = rows;
+}
+
+// ── CSV Export ────────────────────────────────────────────────────────────────
+let lastPLData = null;
+
+function exportCSV() {
+    if (!lastPLData || !lastPLData.success) {
+        alert('Load a P&L report first');
+        return;
+    }
+    const d = lastPLData;
+    const rows = [
+        ['NATI Collective — P&L Export', currentLabel],
+        [],
+        ['Line', 'Amount (₹)', '% of Net Sales'],
+        ['Gross Sales', d.gross_sales || 0, ''],
+        ['Less: Returns', -(d.returns || 0), ''],
+        ['Net Sales', d.net_sales || 0, '100%'],
+        [],
+        ['COGS', -(d.cogs?.total || 0), d.net_sales ? (-(d.cogs?.total||0)/d.net_sales*100).toFixed(1)+'%' : ''],
+        ['Gross Profit', d.gross_profit || 0, (d.gross_margin_pct || 0)+'%'],
+        [],
+        ['Fulfilment', -(d.fulfilment?.total || 0), ''],
+        ['CM1', d.cm1 || 0, (d.cm1_pct || 0)+'%'],
+        [],
+        ['Marketing', -(d.marketing?.total || 0), ''],
+        ['CM2', d.cm2 || 0, (d.cm2_pct || 0)+'%'],
+        [],
+        ['Operations (OpEx)', -(d.opex?.total || 0), ''],
+        ['EBITDA', d.ebitda || 0, (d.ebitda_pct || 0)+'%'],
+    ];
+
+    // Add bill detail lines
+    if ((d.cogs?.lines || []).length) {
+        rows.push([], ['--- COGS Detail ---']);
+        d.cogs.lines.forEach(l => rows.push([cap(l.category), -l.amount, '']));
+    }
+    if ((d.fulfilment?.lines || []).length) {
+        rows.push([], ['--- Fulfilment Detail ---']);
+        d.fulfilment.lines.forEach(l => rows.push([cap(l.category), -l.amount, '']));
+    }
+    if ((d.marketing?.lines || []).length) {
+        rows.push([], ['--- Marketing Detail ---']);
+        d.marketing.lines.forEach(l => rows.push([cap(l.category), -l.amount, '']));
+    }
+    if ((d.opex?.lines || []).length) {
+        rows.push([], ['--- Operations Detail ---']);
+        d.opex.lines.forEach(l => rows.push([cap(l.category), -l.amount, '']));
+    }
+
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nati-pl-${currentLabel.replace(/\s+/g,'-')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
