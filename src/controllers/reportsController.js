@@ -1057,15 +1057,14 @@ async function getPLTrend(req, res) {
     );
 
     const billAgg = await pool.query(
-      `SELECT DATE_TRUNC('month', COALESCE(bill_date, created_at::date)) AS month,
-              COALESCE(category_group, 'OPERATIONS') AS category_group,
-              SUM(total_amount) AS total
+      `SELECT DATE_TRUNC('month', ${BILL_DATE_SQL}) AS month,
+              COALESCE(b.category_group, 'OPERATIONS') AS category_group,
+              SUM(b.total_amount) AS total
        FROM bills b
        LEFT JOIN documents d ON b.document_id = d.document_id
-       WHERE COALESCE(bill_date, b.created_at::date) >= $1
-         AND COALESCE(bill_date, b.created_at::date) <= $2
-         AND COALESCE(b.total_amount, 0) > 0
-         AND COALESCE(b.status, 'pending') NOT IN ('deleted','void')
+       WHERE ${BILL_DATE_SQL} >= $1
+         AND ${BILL_DATE_SQL} <= $2
+         AND ${ACTIVE_BILL_FILTER}
        GROUP BY 1, 2 ORDER BY 1`,
       [ranges[0].start, ranges[ranges.length - 1].end]
     );
@@ -1088,17 +1087,26 @@ async function getPLTrend(req, res) {
       const key = r.start.slice(0, 7);
       const s = salesMap[key] || { net_sales: 0, net_units: 0 };
       const b = billMap[key] || { COGS: 0, FULFILLMENT: 0, MARKETING: 0, OPERATIONS: 0 };
-      const ns    = s.net_sales;
-      const gp    = ns - b.COGS;
-      const ebitda = gp - b.FULFILLMENT - b.MARKETING - b.OPERATIONS;
+      const ns      = s.net_sales;
+      const gp      = ns - b.COGS;
+      const cm1     = gp - b.FULFILLMENT;
+      const cm2     = cm1 - b.MARKETING;
+      const ebitda  = cm2 - b.OPERATIONS;
       return {
         label: r.label,
         month: key,
         net_sales: ns,
         net_units: s.net_units,
         cogs: b.COGS,
+        fulfillment: b.FULFILLMENT,
+        marketing: b.MARKETING,
+        operations: b.OPERATIONS,
         gross_profit: gp,
         gross_margin_pct: ns ? parseFloat((gp / ns * 100).toFixed(1)) : 0,
+        cm1: cm1,
+        cm1_pct: ns ? parseFloat((cm1 / ns * 100).toFixed(1)) : 0,
+        cm2: cm2,
+        cm2_pct: ns ? parseFloat((cm2 / ns * 100).toFixed(1)) : 0,
         ebitda: ebitda,
         ebitda_pct: ns ? parseFloat((ebitda / ns * 100).toFixed(1)) : 0,
       };
