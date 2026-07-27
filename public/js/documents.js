@@ -1190,9 +1190,11 @@ function sortDocuments() {
 function updateDocCount() {
     const total = allDocuments.length;
     const showing = filteredDocuments.length;
+    const totalSpend = filteredDocuments.reduce((s, d) => s + Number(d.bill_total_amount || d.total_amount || 0), 0);
     const docCountEl = document.getElementById('doc-count');
     if (docCountEl) {
-        docCountEl.textContent = showing < total ? `(${showing} of ${total})` : `(${total})`;
+        const spendStr = totalSpend > 0 ? ` · ₹${totalSpend.toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : '';
+        docCountEl.textContent = showing < total ? `(${showing} of ${total}${spendStr})` : `(${total}${spendStr})`;
     }
     const heroEl = document.getElementById('doc-count-hero');
     if (heroEl) {
