@@ -524,19 +524,19 @@ async function openBillModal(id) {
     const doc = filteredDocuments.find(d => d.document_id === id);
     if (!doc) return;
     selectedDocId = id;
-    const modal = document.getElementById(‘bill-modal’);
-    const body = document.getElementById(‘bill-modal-body’);
-    const titleEl = document.getElementById(‘bill-modal-title’);
-    const subEl = document.getElementById(‘bill-modal-sub’);
-    modal.classList.remove(‘hidden’);
-    modal.classList.add(‘flex’);
-    titleEl.textContent = ‘Loading…’;
-    subEl.textContent = ‘’;
+    const modal = document.getElementById('bill-modal');
+    const body = document.getElementById('bill-modal-body');
+    const titleEl = document.getElementById('bill-modal-title');
+    const subEl = document.getElementById('bill-modal-sub');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    titleEl.textContent = 'Loading…';
+    subEl.textContent = '';
     body.innerHTML = `<div class="p-8 text-sm text-slate-500 text-center"><i class="fas fa-spinner fa-spin mr-2"></i>Loading bill…</div>`;
 
     try {
         const detailResp = window.apiFetch
-            ? await window.apiFetch(`${API_URL}/documents/${id}`, { method: ‘GET’ })
+            ? await window.apiFetch(`${API_URL}/documents/${id}`, { method: 'GET' })
             : await authFetch(`${API_URL}/documents/${id}`).then(r => r.json());
         if (!detailResp || detailResp.success === false) {
             body.innerHTML = `<p class="text-red-600 text-sm p-4">Failed to load document.</p>`;
@@ -550,38 +550,38 @@ async function openBillModal(id) {
         const gemData = d.gemini_data || {};
 
         // ── Core fields ──────────────────────────────────────────────────
-        const vendor      = d.bill_vendor_name || d.vendor_name || gemData.vendor_name || ‘—‘;
-        const billNo      = d.bill_number || gemData.bill_number || ‘—‘;
+        const vendor      = d.bill_vendor_name || d.vendor_name || gemData.vendor_name || '—';
+        const billNo      = d.bill_number || gemData.bill_number || '—';
         const billDate    = formatDateDisplay(getDocDate(d));
         const subtotal    = Number(d.bill_subtotal || gemData.amounts?.subtotal || 0);
         const tax         = Number(d.bill_tax_amount || gemData.amounts?.tax || 0);
         const total       = Number(d.bill_total_amount || d.total_amount || gemData.amounts?.total || 0);
         const category    = getCategory(d);
-        const grp         = getCategoryGroup(d) || ‘’;
+        const grp         = getCategoryGroup(d) || '';
         const grpLabel    = GROUP_LABELS[grp.toUpperCase()] || grp;
-        const catLabel    = category && category !== ‘—‘
-            ? category.replace(/_/g, ‘ ‘).replace(/\b\w/g, x => x.toUpperCase())
-            : ‘—‘;
-        const drop        = d.bill_drop_name || d.drop_name || ‘—‘;
-        const section     = d.bill_section || d.section || ‘—‘;
-        const payMethod   = d.bill_payment_method || d.payment_method || ‘—‘;
-        const payStatus   = d.bill_payment_status || ‘—‘;
-        const notes       = d.notes || ‘’;
-        const fileName    = d.file_name || ‘’;
+        const catLabel    = category && category !== '—'
+            ? category.replace(/_/g, ' ').replace(/\b\w/g, x => x.toUpperCase())
+            : '—';
+        const drop        = d.bill_drop_name || d.drop_name || '—';
+        const section     = d.bill_section || d.section || '—';
+        const payMethod   = d.bill_payment_method || d.payment_method || '—';
+        const payStatus   = d.bill_payment_status || '—';
+        const notes       = d.notes || '';
+        const fileName    = d.file_name || '';
 
         // ── Payment status badge ─────────────────────────────────────────
         const payStatusBadge = () => {
-            const s = (payStatus || ‘’).toLowerCase();
-            if (s === ‘paid’)    return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700"><i class="fas fa-check-circle"></i> Paid</span>`;
-            if (s === ‘advance’) return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700"><i class="fas fa-clock"></i> Advance Paid</span>`;
-            if (s === ‘pending’) return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-700"><i class="fas fa-exclamation-circle"></i> Unpaid</span>`;
+            const s = (payStatus || '').toLowerCase();
+            if (s === 'paid')    return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700"><i class="fas fa-check-circle"></i> Paid</span>`;
+            if (s === 'advance') return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700"><i class="fas fa-clock"></i> Advance Paid</span>`;
+            if (s === 'pending') return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-700"><i class="fas fa-exclamation-circle"></i> Unpaid</span>`;
             return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">${payStatus}</span>`;
         };
 
         // ── AI extraction status ─────────────────────────────────────────
         const extractionStatus = () => {
-            if (d.status === ‘processed’) return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-emerald-50 text-emerald-700"><i class="fas fa-robot"></i> AI Extracted</span>`;
-            if (d.status === ‘processing’) return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-700"><i class="fas fa-spinner fa-spin"></i> Processing</span>`;
+            if (d.status === 'processed') return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-emerald-50 text-emerald-700"><i class="fas fa-robot"></i> AI Extracted</span>`;
+            if (d.status === 'processing') return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-700"><i class="fas fa-spinner fa-spin"></i> Processing</span>`;
             return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-slate-100 text-slate-500"><i class="fas fa-file"></i> Uploaded</span>`;
         };
 
@@ -601,24 +601,24 @@ async function openBillModal(id) {
                     <tbody class="divide-y divide-slate-100">
                         ${currentBillItems.map(item => `
                             <tr class="hover:bg-slate-50">
-                                <td class="px-4 py-2">${escapeHTML(item.description || ‘—‘)}</td>
-                                <td class="px-4 py-2 text-slate-500">${escapeHTML(item.sku_code || ‘—‘)}</td>
-                                <td class="px-4 py-2 text-right">${item.quantity || ‘—‘}</td>
-                                <td class="px-4 py-2 text-right">${item.unit_price ? ‘₹’ + Number(item.unit_price).toLocaleString(‘en-IN’) : ‘—‘}</td>
-                                <td class="px-4 py-2 text-right font-medium">₹${Number(item.amount || 0).toLocaleString(‘en-IN’)}</td>
-                            </tr>`).join(‘’)}
+                                <td class="px-4 py-2">${escapeHTML(item.description || '—')}</td>
+                                <td class="px-4 py-2 text-slate-500">${escapeHTML(item.sku_code || '—')}</td>
+                                <td class="px-4 py-2 text-right">${item.quantity || '—'}</td>
+                                <td class="px-4 py-2 text-right">${item.unit_price ? '₹' + Number(item.unit_price).toLocaleString('en-IN') : '—'}</td>
+                                <td class="px-4 py-2 text-right font-medium">₹${Number(item.amount || 0).toLocaleString('en-IN')}</td>
+                            </tr>`).join('')}
                     </tbody>
                 </table>
                </div>`
-            : ‘’;
+            : '';
 
         // ── Actions ──────────────────────────────────────────────────────
         const canPreview = canPreviewFile(d.file_type);
-        const needsMarkPaid = d.bill_id && payStatus && payStatus !== ‘paid’;
-        const notYetProcessed = d.status !== ‘processed’;
+        const needsMarkPaid = d.bill_id && payStatus && payStatus !== 'paid';
+        const notYetProcessed = d.status !== 'processed';
 
         titleEl.textContent = vendor;
-        subEl.textContent = `${billNo !== ‘—‘ ? ‘Bill #’ + billNo + ‘ · ‘ : ‘’}${billDate}`;
+        subEl.textContent = `${billNo !== '—' ? 'Bill #' + billNo + ' · ' : ''}${billDate}`;
 
         body.innerHTML = `
         <div class="space-y-5 p-1">
@@ -626,8 +626,8 @@ async function openBillModal(id) {
             <!-- Header strip: amount + status badges -->
             <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
                 <div>
-                    <p class="text-3xl font-bold text-slate-900">₹${total.toLocaleString(‘en-IN’, {maximumFractionDigits:0})}</p>
-                    <p class="text-xs text-slate-500 mt-1">${subtotal > 0 ? `Subtotal ₹${subtotal.toLocaleString(‘en-IN’)} + Tax ₹${tax.toLocaleString(‘en-IN’)}` : ‘Total amount’}</p>
+                    <p class="text-3xl font-bold text-slate-900">₹${total.toLocaleString('en-IN', {maximumFractionDigits:0})}</p>
+                    <p class="text-xs text-slate-500 mt-1">${subtotal > 0 ? `Subtotal ₹${subtotal.toLocaleString('en-IN')} + Tax ₹${tax.toLocaleString('en-IN')}` : 'Total amount'}</p>
                 </div>
                 <div class="flex flex-wrap gap-2 items-center">
                     ${payStatusBadge()}
@@ -655,7 +655,7 @@ async function openBillModal(id) {
                 </div>
                 <div class="flex justify-between border-b border-slate-50 pb-2">
                     <span class="text-slate-500">Category group</span>
-                    <span class="font-medium text-slate-900">${escapeHTML(grpLabel || ‘—‘)}</span>
+                    <span class="font-medium text-slate-900">${escapeHTML(grpLabel || '—')}</span>
                 </div>
                 <div class="flex justify-between border-b border-slate-50 pb-2">
                     <span class="text-slate-500">Category</span>
@@ -673,7 +673,7 @@ async function openBillModal(id) {
                 <div class="flex justify-between border-b border-slate-50 pb-2 sm:col-span-2">
                     <span class="text-slate-500">Notes</span>
                     <span class="font-medium text-slate-900 text-right max-w-xs">${escapeHTML(notes)}</span>
-                </div>` : ‘’}
+                </div>` : ''}
                 <div class="flex justify-between border-b border-slate-50 pb-2 sm:col-span-2">
                     <span class="text-slate-500">Source file</span>
                     <span class="text-slate-600 text-xs">${escapeHTML(fileName)}</span>
@@ -684,21 +684,21 @@ async function openBillModal(id) {
             ${lineItemsHtml ? `<div>
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Line Items</p>
                 ${lineItemsHtml}
-            </div>` : ‘’}
+            </div>` : ''}
 
             <!-- Actions -->
             <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
-                ${canPreview ? `<button onclick="actionPreview(${d.document_id}, ‘${(fileName).replace(/’/g,’’)}’, ‘${d.file_type}’)" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2"><i class="fas fa-eye"></i>View Document</button>` : ‘’}
+                ${canPreview ? `<button onclick="actionPreview(${d.document_id}, '${(fileName).replace(/'/g,'')}', '${d.file_type}')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2"><i class="fas fa-eye"></i>View Document</button>` : ''}
                 <button onclick="actionManual(${d.document_id})" class="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-900 flex items-center gap-2"><i class="fas fa-pen"></i>Edit Bill</button>
-                ${needsMarkPaid ? `<button onclick="actionMarkPaid(${d.bill_id}, ‘${(vendor).replace(/’/g,’’)}’, ${total})" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 flex items-center gap-2"><i class="fas fa-check"></i>Mark Paid</button>` : ‘’}
-                ${notYetProcessed && d.can_process !== false ? `<button onclick="actionProcessAI(${d.document_id})" class="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 flex items-center gap-2"><i class="fas fa-robot"></i>Extract with AI</button>` : ‘’}
+                ${needsMarkPaid ? `<button onclick="actionMarkPaid(${d.bill_id}, '${(vendor).replace(/'/g,'')}', ${total})" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 flex items-center gap-2"><i class="fas fa-check"></i>Mark Paid</button>` : ''}
+                ${notYetProcessed && d.can_process !== false ? `<button onclick="actionProcessAI(${d.document_id})" class="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 flex items-center gap-2"><i class="fas fa-robot"></i>Extract with AI</button>` : ''}
                 <button onclick="actionDownload(${d.document_id})" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 flex items-center gap-2"><i class="fas fa-download"></i>Download</button>
-                ${d.can_delete !== false ? `<button onclick="actionDelete(${d.document_id}, ${d.bill_id || ‘null’})" class="ml-auto px-4 py-2 bg-rose-50 text-rose-600 rounded-lg text-sm font-medium hover:bg-rose-100 flex items-center gap-2"><i class="fas fa-trash"></i>Delete</button>` : ‘’}
+                ${d.can_delete !== false ? `<button onclick="actionDelete(${d.document_id}, ${d.bill_id || 'null'})" class="ml-auto px-4 py-2 bg-rose-50 text-rose-600 rounded-lg text-sm font-medium hover:bg-rose-100 flex items-center gap-2"><i class="fas fa-trash"></i>Delete</button>` : ''}
             </div>
         </div>`;
 
     } catch (err) {
-        console.error(‘Load detail failed’, err);
+        console.error('Load detail failed', err);
         body.innerHTML = `<p class="text-sm text-red-600 p-4">Failed to load document.</p>`;
     }
 }
