@@ -881,7 +881,7 @@ async function getSalesEntries(req, res) {
 async function createSalesEntry(req, res) {
   try {
     const {
-      entry_date, channel, drop_id, drop_name,
+      entry_date, channel, drop_id, drop_name, section,
       gross_sales, returns_amount = 0,
       gross_units = 0, returned_units = 0,
       marketplace_commission = 0, payment_gateway_charges = 0,
@@ -899,16 +899,16 @@ async function createSalesEntry(req, res) {
     }
     const r = await pool.query(
       `INSERT INTO sales_entries
-         (entry_date, channel, drop_id, drop_name,
+         (entry_date, channel, drop_id, drop_name, section,
           gross_sales, returns_amount,
           gross_units, returned_units,
           marketplace_commission, payment_gateway_charges, shipping_collected,
           cgst_collected, sgst_collected, igst_collected,
           settlement_ref, settlement_date, notes, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
        RETURNING *`,
       [entry_date || new Date().toISOString().split('T')[0], ch, drop_id || null,
-       drop_name || null, gross_sales, returns_amount, gross_units, returned_units,
+       drop_name || null, section || null, gross_sales, returns_amount, gross_units, returned_units,
        marketplace_commission, payment_gateway_charges, shipping_collected,
        cgst_collected, sgst_collected, igst_collected,
        settlement_ref || null, settlement_date || null, notes || null,
