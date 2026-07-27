@@ -95,7 +95,7 @@
                     <!-- Quick month chips -->
                     <div class="flex flex-wrap gap-2 mb-4" id="monthChips"></div>
 
-                    <!-- Custom range -->
+                    <!-- Custom range + filters -->
                     <div class="flex flex-wrap items-center gap-3 text-sm">
                         <label class="text-slate-500">Custom range:</label>
                         <input type="date" id="customStart" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
@@ -106,6 +106,9 @@
                             <option value="Regulars">Regulars</option>
                             <option value="Artwear">Artwear</option>
                             <option value="Collectibles">Collectibles</option>
+                        </select>
+                        <select id="filterDrop" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                            <option value="">All drops</option>
                         </select>
                         <button onclick="applyCustomRange()" class="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">Apply</button>
                     </div>
@@ -199,6 +202,23 @@
 
     let currentStart = '', currentEnd = '';
 
+    async function loadDropList() {
+        try {
+            const r = await fetch('/api/meta/drops', { credentials: 'include' });
+            const data = await r.json();
+            const sel = document.getElementById('filterDrop');
+            (data.drops || []).forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.drop_name;
+                opt.textContent = d.drop_name;
+                sel.appendChild(opt);
+            });
+        } catch (e) { /* silent */ }
+    }
+
+    function getSection() { return document.getElementById('filterSection')?.value || ''; }
+    function getDrop()    { return document.getElementById('filterDrop')?.value    || ''; }
+
     // Build last 6 month chips
     function buildMonthChips() {
         const chips = document.getElementById('monthChips');
@@ -235,10 +255,6 @@
         loadReports(start, end, label);
     }
 
-    function getSection() {
-        return document.getElementById('filterSection')?.value || '';
-    }
-
     async function loadReports(start, end, label) {
         currentStart = start; currentEnd = end;
         document.getElementById('plPeriodSub').textContent = label;
@@ -249,9 +265,11 @@
 
         const opts = { credentials: 'include' };
         const section = getSection();
-        const secParam = section ? `&section=${encodeURIComponent(section)}` : '';
+        const drop    = getDrop();
+        const secParam  = section ? `&section=${encodeURIComponent(section)}`   : '';
+        const dropParam = drop    ? `&drop_name=${encodeURIComponent(drop)}` : '';
         const [pl, bs] = await Promise.all([
-            fetch(`/api/reports/profit-loss?start_date=${start}&end_date=${end}${secParam}`, opts).then(r => r.json()).catch(() => ({})),
+            fetch(`/api/reports/profit-loss?start_date=${start}&end_date=${end}${secParam}${dropParam}`, opts).then(r => r.json()).catch(() => ({})),
             fetch(`/api/reports/balance-sheet?as_of_date=${end}`, opts).then(r => r.json()).catch(() => ({}))
         ]);
 
@@ -373,21 +391,21 @@
     }
 
     function renderGST(d) {
-        // Output GST from sales_entries, Input GST from bills (coming from migration 029 columns)
-        const revenueRows = d.revenue?.accounts || [];
-        const totalGstOut = revenueRows.reduce((s, r) => s + (r.gst_collected || 0), 0);
-        // Input ITC not yet in API — show what we have + a note
+        const channels = d.revenue_by_channel || [];
+        const totalGstOut = d.gst_collected || channels.reduce((s, r) => s + (r.gst_collected || 0), 0);
         let rows = `
             <tr class="section-header"><td colspan="4">Output GST (Collected from customers)</td></tr>
             <tr class="group-header"><td>Account Code</td><td>Channel</td><td class="text-right">Net Sales</td><td class="text-right">GST Collected</td></tr>`;
-        revenueRows.forEach(r => {
-            rows += `<tr class="indent"><td>${r.account_code}</td><td>${r.account_name}</td><td class="text-right">${fmt(r.amount)}</td><td class="text-right">${fmt(r.gst_collected || 0)}</td></tr>`;
-        });
+        if (channels.length) {
+            channels.forEach(r => {
+                rows += `<tr class="indent"><td>${r.account_code || '—'}</td><td>${(r.channel || '').replace(/_/g,' ')}</td><td class="text-right">${fmt(r.net_sales)}</td><td class="text-right">${fmt(r.gst_collected || 0)}</td></tr>`;
+            });
+        } else {
+            rows += `<tr class="indent"><td colspan="3" class="text-slate-400">No sales entries for this period</td><td></td></tr>`;
+        }
         rows += `<tr class="subtotal-row"><td colspan="3">Total Output GST</td><td class="text-right">${fmt(totalGstOut)}</td></tr>`;
         rows += `<tr class="section-header"><td colspan="4">Input Tax Credit (ITC on bills)</td></tr>
-            <tr class="indent"><td colspan="3">CGST ITC (bills with cgst_amount)</td><td class="text-right text-slate-400">— add GST to bills</td></tr>
-            <tr class="indent"><td colspan="3">SGST ITC</td><td class="text-right text-slate-400">— add GST to bills</td></tr>
-            <tr class="indent"><td colspan="3">IGST ITC</td><td class="text-right text-slate-400">— add GST to bills</td></tr>
+            <tr class="indent"><td colspan="3">CGST / SGST / IGST ITC</td><td class="text-right text-slate-400">— add GST fields to bills</td></tr>
             <tr class="total-row"><td colspan="3"><b>Net GST Payable (Output − ITC)</b></td><td class="text-right">${fmt(totalGstOut)}</td></tr>`;
         document.getElementById('gstBody').innerHTML = rows;
     }
@@ -430,6 +448,7 @@
     }
 
     buildMonthChips();
+    loadDropList();
     </script>
 </body>
 </html>

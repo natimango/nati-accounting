@@ -86,9 +86,9 @@ async function getProfitLoss(req, res) {
 
     const billAgg = await pool.query(
       `SELECT
-         COALESCE(b.category_group, 'OPERATING') AS category_group,
-         COALESCE(b.category, 'misc')             AS category,
-         SUM(b.total_amount)                      AS total
+         COALESCE(b.category_group, 'OPERATIONS') AS category_group,
+         COALESCE(b.category, 'misc')              AS category,
+         SUM(b.total_amount)                       AS total
        FROM bills b
        LEFT JOIN documents d ON b.document_id = d.document_id
        WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
@@ -97,15 +97,11 @@ async function getProfitLoss(req, res) {
       billParams
     );
 
-    // Categorise bills into management P&L buckets
-    const FULFILMENT_CATS = new Set(['logistics', 'warehousing', 'returns', 'commission', 'payment gateway', 'cod']);
-    const MARKETING_CATS  = new Set(['marketing', 'influencer', 'content creation', 'platform fees', 'pr']);
-
     let cogsTotal = 0, fulfilmentTotal = 0, marketingTotal = 0, opexTotal = 0;
     const cogsLines = [], fulfilmentLines = [], marketingLines = [], opexLines = [];
 
     billAgg.rows.forEach(row => {
-      const grp = (row.category_group || 'OPERATING').toUpperCase();
+      const grp = (row.category_group || 'OPERATIONS').toUpperCase();
       const cat = (row.category || 'misc').toLowerCase();
       const amt = parseFloat(row.total || 0);
       const label = cat.replace(/_/g, ' ');
@@ -113,15 +109,15 @@ async function getProfitLoss(req, res) {
       if (grp === 'COGS') {
         cogsTotal += amt;
         cogsLines.push({ category: label, amount: amt });
-      } else if (FULFILMENT_CATS.has(cat)) {
+      } else if (grp === 'FULFILLMENT') {
         fulfilmentTotal += amt;
         fulfilmentLines.push({ category: label, amount: amt });
-      } else if (MARKETING_CATS.has(cat)) {
+      } else if (grp === 'MARKETING') {
         marketingTotal += amt;
         marketingLines.push({ category: label, amount: amt });
       } else {
         opexTotal += amt;
-        opexLines.push({ category: `${grp} — ${label}`, amount: amt });
+        opexLines.push({ category: label, amount: amt });
       }
     });
 
