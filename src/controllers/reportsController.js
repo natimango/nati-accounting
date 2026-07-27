@@ -88,7 +88,8 @@ async function getProfitLoss(req, res) {
       `SELECT
          COALESCE(b.category_group, 'OPERATIONS') AS category_group,
          COALESCE(b.category, 'misc')              AS category,
-         SUM(b.total_amount)                       AS total
+         SUM(b.total_amount)                       AS total,
+         COUNT(*)                                  AS bill_count
        FROM bills b
        LEFT JOIN documents d ON b.document_id = d.document_id
        WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
@@ -104,20 +105,21 @@ async function getProfitLoss(req, res) {
       const grp = (row.category_group || 'OPERATIONS').toUpperCase();
       const cat = (row.category || 'misc').toLowerCase();
       const amt = parseFloat(row.total || 0);
+      const cnt = parseInt(row.bill_count || 0);
       const label = cat.replace(/_/g, ' ');
 
       if (grp === 'COGS') {
         cogsTotal += amt;
-        cogsLines.push({ category: label, amount: amt });
+        cogsLines.push({ category: label, amount: amt, bill_count: cnt });
       } else if (grp === 'FULFILLMENT') {
         fulfilmentTotal += amt;
-        fulfilmentLines.push({ category: label, amount: amt });
+        fulfilmentLines.push({ category: label, amount: amt, bill_count: cnt });
       } else if (grp === 'MARKETING') {
         marketingTotal += amt;
-        marketingLines.push({ category: label, amount: amt });
+        marketingLines.push({ category: label, amount: amt, bill_count: cnt });
       } else {
         opexTotal += amt;
-        opexLines.push({ category: label, amount: amt });
+        opexLines.push({ category: label, amount: amt, bill_count: cnt });
       }
     });
 

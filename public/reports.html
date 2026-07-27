@@ -464,7 +464,7 @@ function renderPL(d) {
     // COGS
     h += `<tr class="sec-hdr"><td colspan="3">COGS &mdash; Manufacturing &amp; Materials</td></tr>`;
     if ((d.cogs?.lines || []).length) {
-        d.cogs.lines.forEach(l => h += row(cap(l.category), l.amount, true));
+        d.cogs.lines.forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : ''), l.amount, true));
     } else {
         h += `<tr class="item"><td class="muted" colspan="3">No COGS bills this period</td></tr>`;
     }
@@ -473,7 +473,7 @@ function renderPL(d) {
 
     // Fulfilment → CM1
     h += `<tr class="sec-hdr"><td colspan="3">Fulfilment &amp; Variable Selling</td></tr>`;
-    (d.fulfilment?.lines || []).forEach(l => h += row(cap(l.category), l.amount, true));
+    (d.fulfilment?.lines || []).forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : ''), l.amount, true));
     if (d.fulfilment?.marketplace_commission) h += row('Marketplace Commissions', d.fulfilment.marketplace_commission, true);
     if (d.fulfilment?.payment_gateway)        h += row('Payment Gateway Charges', d.fulfilment.payment_gateway, true);
     if (!(d.fulfilment?.lines || []).length && !d.fulfilment?.marketplace_commission) {
@@ -485,7 +485,7 @@ function renderPL(d) {
     // Marketing → CM2
     h += `<tr class="sec-hdr"><td colspan="3">Marketing &amp; CAC</td></tr>`;
     if ((d.marketing?.lines || []).length) {
-        d.marketing.lines.forEach(l => h += row(cap(l.category), l.amount, true));
+        d.marketing.lines.forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : ''), l.amount, true));
     } else {
         h += `<tr class="item"><td class="muted" colspan="3">No marketing bills this period</td></tr>`;
     }
@@ -495,7 +495,7 @@ function renderPL(d) {
     // OPEX → EBITDA
     h += `<tr class="sec-hdr"><td colspan="3">Operating Expenses</td></tr>`;
     if ((d.opex?.lines || []).length) {
-        d.opex.lines.forEach(l => h += row(cap(l.category), l.amount, true));
+        d.opex.lines.forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : ''), l.amount, true));
     } else {
         h += `<tr class="item"><td class="muted" colspan="3">No opex bills this period</td></tr>`;
     }
