@@ -1232,6 +1232,8 @@ function filterDocuments() {
 
     if (flagFilter === 'no-date') {
         filtered = filtered.filter(doc => !docHasBillDate(doc));
+    } else if (flagFilter === 'no-group') {
+        filtered = filtered.filter(doc => !getCategoryGroup(doc));
     } else if (flagFilter === 'no-drop') {
         filtered = filtered.filter(doc => !(doc.bill_drop_name || doc.drop_name));
     } else if (flagFilter === 'overdue') {
