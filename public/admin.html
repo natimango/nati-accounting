@@ -123,6 +123,76 @@
                 </div>
             </section>
 
+            <!-- Drop Management -->
+            <section class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-6 space-y-4">
+                <div class="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Drop management</p>
+                        <h2 class="text-2xl font-semibold text-slate-900">Drops &amp; collections</h2>
+                        <p class="text-sm text-slate-500 mt-1">Manage product drops. Archived drops are hidden from bills but all data is preserved.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="toggleShowArchived()" id="show-archived-btn" class="px-3 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 flex items-center gap-1.5">
+                            <i class="fas fa-archive"></i> Show archived
+                        </button>
+                        <button onclick="openNewDropModal()" class="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 flex items-center gap-1.5">
+                            <i class="fas fa-plus"></i> New drop
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-auto border border-slate-100 rounded-2xl">
+                    <table class="nati-table text-sm min-w-full">
+                        <thead>
+                            <tr>
+                                <th>Drop</th>
+                                <th>Season</th>
+                                <th>Launch date</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="drops-tbody">
+                            <tr><td colspan="5" class="px-4 py-6 text-center text-slate-500 text-sm">Loading drops…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- New/Edit Drop modal -->
+            <div id="drop-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+                <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 id="drop-modal-title" class="text-lg font-semibold text-slate-900">New drop</h3>
+                        <button onclick="closeDropModal()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Drop name *</label>
+                            <input type="text" id="dm-name" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" placeholder="FW25, SS26 Core, etc." autocomplete="off">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Season</label>
+                                <input type="text" id="dm-season" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" placeholder="FW25">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Launch date</label>
+                                <input type="date" id="dm-launch" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Description</label>
+                            <input type="text" id="dm-desc" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" placeholder="Optional description">
+                        </div>
+                    </div>
+                    <p id="dm-error" class="text-sm text-red-600 hidden"></p>
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button onclick="closeDropModal()" class="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50">Cancel</button>
+                        <button id="dm-submit" onclick="submitDropModal()" class="px-4 py-2 text-sm bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700">Create drop</button>
+                    </div>
+                </div>
+            </div>
+
             <section class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-6 space-y-4">
                 <div>
                     <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Create user</p>
