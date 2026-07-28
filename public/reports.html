@@ -638,7 +638,9 @@ function renderSpend(d, metrics) {
         vendors.forEach(v => {
             const amt = parseFloat(v.total || 0);
             const share = totalVendorSpend ? (amt / totalVendorSpend * 100).toFixed(0) : 0;
-            h += `<tr class="item"><td colspan="2">${v.vendor_name}</td><td class="tr">${fmt(amt)} <span class="muted">${share}%</span></td></tr>`;
+            const docsSearch = `documents.html?q=${encodeURIComponent(v.vendor_name)}` +
+                (currentStart ? `&from=${currentStart}&to=${currentEnd}` : '');
+            h += `<tr class="item"><td colspan="2"><a href="${docsSearch}" class="hover:underline text-indigo-700">${v.vendor_name}</a></td><td class="tr">${fmt(amt)} <span class="muted">${share}%</span></td></tr>`;
         });
     }
 

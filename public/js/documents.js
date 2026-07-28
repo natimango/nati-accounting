@@ -1983,6 +1983,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const el = document.getElementById('filter-flag');
         if (el) el.value = qFlag;
     }
+    const qSearch = urlParams.get('q');
+    if (qSearch) {
+        const el = document.getElementById('search-box');
+        if (el) el.value = qSearch;
+    }
 
     if (window.sessionReady) {
         window.sessionReady.then(() => loadDocuments()).catch(() => {});
