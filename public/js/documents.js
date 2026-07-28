@@ -1947,9 +1947,12 @@ function actionDownload(documentId) {
 document.addEventListener('DOMContentLoaded', () => {
     // Apply URL query params as initial filters
     const urlParams = new URLSearchParams(window.location.search);
-    const qGroup  = urlParams.get('filter_group');
-    const qStatus = urlParams.get('status');
-    const qDrop   = urlParams.get('drop');
+    const qGroup   = urlParams.get('filter_group');
+    const qStatus  = urlParams.get('status');
+    const qDrop    = urlParams.get('drop');
+    const qSection = urlParams.get('section');
+    const qFrom    = urlParams.get('from');
+    const qTo      = urlParams.get('to');
     if (qGroup) {
         const el = document.getElementById('filter-group');
         if (el) el.value = qGroup;
@@ -1959,8 +1962,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el) el.value = qStatus;
     }
     if (qDrop) {
-        // filter-drop is populated after data loads; store and apply later
         window._pendingDropFilter = qDrop;
+    }
+    if (qSection) {
+        const el = document.getElementById('filter-section');
+        if (el) el.value = qSection;
+    }
+    if (qFrom) {
+        const el = document.getElementById('date-from');
+        if (el) el.value = qFrom;
+    }
+    if (qTo) {
+        const el = document.getElementById('date-to');
+        if (el) el.value = qTo;
     }
 
     if (window.sessionReady) {

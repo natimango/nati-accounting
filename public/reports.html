@@ -365,9 +365,12 @@ function applyFilters() {
     loadReports(start, end, `${start} to ${end}`);
 }
 
+let currentStart = '', currentEnd = '';
 // ── Load ───────────────────────────────────────────────────────────────────────
 async function loadReports(start, end, label) {
     currentLabel = label;
+    currentStart = start;
+    currentEnd   = end;
     document.getElementById('plSub').textContent  = label;
     document.getElementById('plBadge').textContent = 'Loading…';
     document.getElementById('plBadge').className   = 'text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-400';
@@ -658,11 +661,16 @@ function renderSectionGrid(d) {
         const cm1Color = (s.cm1_pct || 0) >= 40 ? '#059669' : (s.cm1_pct || 0) >= 20 ? '#7c3aed' : '#d97706';
         const share    = ns ? (s.net_sales / ns * 100).toFixed(1) : 0;
         const hasCM1   = s.cm1 != null;
+        const docsLink = `documents.html?section=${encodeURIComponent(s.section)}` +
+            (currentStart ? `&from=${currentStart}&to=${currentEnd}` : '');
         return `
         <div class="border border-slate-200 rounded-xl p-5">
             <div class="flex items-center justify-between mb-3">
                 <span class="text-sm font-bold text-slate-900">${s.section}</span>
-                <span class="text-xs text-slate-400">${share}% of sales</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-slate-400">${share}% of sales</span>
+                    <a href="${docsLink}" class="text-xs text-indigo-500 hover:underline" title="View bills"><i class="fas fa-receipt"></i></a>
+                </div>
             </div>
             <div class="text-2xl font-bold text-slate-900 mb-1">${fmt(s.net_sales)}</div>
             <div class="text-xs text-slate-400 mb-3">${(s.net_units||0).toLocaleString('en-IN')} units</div>
