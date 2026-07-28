@@ -1978,6 +1978,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const el = document.getElementById('date-to');
         if (el) el.value = qTo;
     }
+    const qFlag = urlParams.get('flag');
+    if (qFlag) {
+        const el = document.getElementById('filter-flag');
+        if (el) el.value = qFlag;
+    }
 
     if (window.sessionReady) {
         window.sessionReady.then(() => loadDocuments()).catch(() => {});
