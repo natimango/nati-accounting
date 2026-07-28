@@ -569,18 +569,25 @@ function updateBulkBar() {
     }
 }
 
-async function applyBulkGroup() {
-    const group = document.getElementById('bulk-group')?.value;
-    if (!group) { showToast('Select a group first'); return; }
-    if (!bulkSelected.size) { showToast('No bills selected'); return; }
+async function applyBulkMeta() {
+    const group    = document.getElementById('bulk-group')?.value;
+    const dropName = document.getElementById('bulk-drop')?.value;
+    if (!group && !dropName) { showToast('Select a group or drop first'); return; }
+    if (!bulkSelected.size)  { showToast('No bills selected'); return; }
+    const body = { bill_ids: Array.from(bulkSelected) };
+    if (group)    body.department = group;
+    if (dropName) body.drop_name  = dropName;
     try {
         const r = await authFetch('/api/bills/bulk-meta', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bill_ids: Array.from(bulkSelected), department: group })
+            body: JSON.stringify(body)
         }).then(r => r.json());
         if (r.success) {
-            showToast(`Updated ${r.updated} bill${r.updated !== 1 ? 's' : ''} → ${group}`);
+            const parts = [];
+            if (group)    parts.push(group);
+            if (dropName) parts.push(dropName);
+            showToast(`Updated ${r.updated} bill${r.updated !== 1 ? 's' : ''} → ${parts.join(', ')}`);
             clearSelection();
             await loadDocuments();
         } else {
@@ -590,6 +597,8 @@ async function applyBulkGroup() {
         showToast('Error: ' + e.message);
     }
 }
+
+function applyBulkGroup() { return applyBulkMeta(); }
 
 
 async function openBillModal(id) {
@@ -1124,16 +1133,25 @@ function populateFilterDropdowns(docs) {
 
     // Drop — built from actual document data
     const dropSel = document.getElementById('filter-drop');
-    if (dropSel) {
+    const bulkDropSel = document.getElementById('bulk-drop');
+    if (dropSel || bulkDropSel) {
         const drops = new Set();
         docs.forEach(doc => {
             const d = doc.bill_drop_name || doc.drop_name;
             if (d && d !== 'Unassigned') drops.add(d);
         });
-        let dropHTML = '<option value="">All drops</option>';
-        [...drops].sort().forEach(d => { dropHTML += `<option value="${d}">${d}</option>`; });
-        if (drops.size) dropHTML += '<option value="Unassigned">Unassigned</option>';
-        dropSel.innerHTML = dropHTML;
+        const sortedDrops = [...drops].sort();
+        if (dropSel) {
+            let dropHTML = '<option value="">All drops</option>';
+            sortedDrops.forEach(d => { dropHTML += `<option value="${d}">${d}</option>`; });
+            if (drops.size) dropHTML += '<option value="Unassigned">Unassigned</option>';
+            dropSel.innerHTML = dropHTML;
+        }
+        if (bulkDropSel) {
+            let html = '<option value="">Set drop…</option>';
+            sortedDrops.forEach(d => { html += `<option value="${d}">${d}</option>`; });
+            bulkDropSel.innerHTML = html;
+        }
     }
 }
 

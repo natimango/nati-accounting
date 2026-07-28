@@ -268,7 +268,10 @@
                         <option value="MARKETING">Marketing</option>
                         <option value="OPERATIONS">Operations</option>
                     </select>
-                    <button onclick="applyBulkGroup()" class="px-3 py-1 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700">Apply</button>
+                    <select id="bulk-drop" class="px-2 py-1 border border-indigo-300 rounded-lg text-sm bg-white">
+                        <option value="">Set drop…</option>
+                    </select>
+                    <button onclick="applyBulkMeta()" class="px-3 py-1 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700">Apply</button>
                     <button onclick="clearSelection()" class="px-3 py-1 text-sm text-slate-500 hover:text-slate-700 ml-auto">Clear selection</button>
                 </div>
                 <div class="overflow-auto">
