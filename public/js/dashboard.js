@@ -234,10 +234,15 @@ function renderMiniTrend(data) {
     bars.innerHTML = months.map(m => {
         const pct = Math.round(m.net_sales / maxSales * 100);
         const isPos = m.ebitda >= 0;
-        return `<div class="flex flex-col items-center flex-1 gap-0.5" title="${m.label}: ${fmt(m.net_sales).replace(/&#8377;/,'₹')} sales">
-            <div style="height:${pct}%;min-height:2px;width:100%;background:${isPos ? '#6366f1' : '#e2e8f0'};border-radius:2px 2px 0 0"></div>
-            <span class="text-[9px] text-slate-400">${m.label.split(' ')[0]}</span>
-        </div>`;
+        // Build the start/end dates for this month chip from the label (e.g. "Jul 2025")
+        const parsed = new Date(m.month || m.label);
+        const start = m.month ? m.month + '-01' : '';
+        const end   = m.month ? new Date(parsed.getFullYear(), parsed.getMonth() + 1, 0).toISOString().split('T')[0] : '';
+        const link  = start ? `reports.html?start=${start}&end=${end}&label=${encodeURIComponent(m.label)}` : 'reports.html';
+        return `<a href="${link}" class="flex flex-col items-center flex-1 gap-0.5 group" title="${m.label}: ${fmt(m.net_sales).replace(/&#8377;/,'₹')} sales · click to open report">
+            <div style="height:${pct}%;min-height:2px;width:100%;background:${isPos ? '#6366f1' : '#e2e8f0'};border-radius:2px 2px 0 0" class="group-hover:opacity-70 transition-opacity"></div>
+            <span class="text-[9px] text-slate-400 group-hover:text-indigo-500">${m.label.split(' ')[0]}</span>
+        </a>`;
     }).join('');
     wrap.classList.remove('hidden');
 }

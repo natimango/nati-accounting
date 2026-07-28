@@ -165,9 +165,23 @@
                             <h3 class="font-semibold text-base">Profit &amp; Loss Statement</h3>
                             <p class="text-xs text-slate-400 mt-0.5" id="plSub">—</p>
                         </div>
+                        <div class="flex items-center gap-2">
+                        <button id="compare-btn" onclick="toggleCompare()" class="px-2.5 py-1 text-xs border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 flex items-center gap-1.5">
+                            <i class="fas fa-code-compare"></i> Compare
+                        </button>
                         <div id="plBadge" class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-400">—</div>
                     </div>
-                    <table class="rt">
+                    </div>
+                    <table class="rt" id="pl-table">
+                        <thead id="pl-thead" class="hidden">
+                            <tr class="grp-hdr">
+                                <td>Line Item</td>
+                                <td class="tr">Amount</td>
+                                <td class="tr">% Sales</td>
+                                <td class="tr" id="pl-prior-col-hdr" style="color:#6366f1">Prior Period</td>
+                                <td class="tr" id="pl-delta-col-hdr" style="color:#6366f1">Δ Change</td>
+                            </tr>
+                        </thead>
                         <tbody id="plBody">
                             <tr><td colspan="3" class="text-center py-10 text-slate-400">Select a period above</td></tr>
                         </tbody>
@@ -331,9 +345,14 @@ function buildMonthChips() {
         const start = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
         const last  = new Date(d.getFullYear(), d.getMonth() + 1, 0);
         const end   = `${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
-        const chip  = makeChip(label, start, end, i === 0);
+        const isActive = !window._overrideStart && i === 0;
+        const chip  = makeChip(label, start, end, isActive);
         wrap.appendChild(chip);
-        if (i === 0) loadReports(start, end, label);
+        if (isActive) loadReports(start, end, label);
+    }
+    if (window._overrideStart) {
+        loadReports(window._overrideStart, window._overrideEnd, window._overrideLabel);
+        window._overrideStart = null;
     }
 }
 
@@ -376,7 +395,8 @@ async function loadReports(start, end, label) {
             fetch(`/api/reports/spend-dimensions?start_date=${start}&end_date=${end}`, { credentials: 'include' }).then(r => r.json()).catch(() => null),
             fetch(`/api/metrics/summary?start_date=${start}&end_date=${end}`, { credentials: 'include' }).then(r => r.json()).catch(() => null),
         ]);
-        lastPLData = pl;
+        lastPLData   = pl;
+        lastPriorData = prior;
         renderKPIs(pl, prior);
         renderPL(pl);
         renderSectionGrid(pl);
@@ -434,77 +454,111 @@ function renderPL(d) {
     const cm2    = d.cm2           || 0;
     const ebitda = d.ebitda        || 0;
 
-    const pctOf = val => ns ? `<span class="muted">${(val/ns*100).toFixed(1)}%</span>` : '';
+    const prior  = compareMode ? lastPriorData : null;
+    const pns    = prior?.success ? (prior.net_sales || 0) : null;
+    const thead  = document.getElementById('pl-thead');
+    if (thead) {
+        thead.classList.toggle('hidden', !compareMode);
+        if (compareMode && prior?.success) {
+            const hdr = document.getElementById('pl-prior-col-hdr');
+            if (hdr) hdr.textContent = `Prior Period`;
+        }
+    }
 
-    function row(label, amt, indent) {
+    const pctOf = val => ns ? `<span class="muted">${(val/ns*100).toFixed(1)}%</span>` : '';
+    const extraCols = compareMode ? 2 : 0;
+    const colspan = 3 + extraCols;
+
+    function priorCols(priorAmt) {
+        if (!compareMode) return '';
+        if (pns == null || priorAmt == null) return '<td class="tr muted">—</td><td class="tr muted">—</td>';
+        const chg = priorAmt !== 0 ? ((priorAmt === 0 ? 0 : (Math.abs(priorAmt) - Math.abs(priorAmt)) / Math.abs(priorAmt) * 100)) : null;
+        // delta = current - prior
+        const delta = (typeof priorAmt === 'number') ? null : null; // placeholder; compute below
+        return `<td class="tr muted">${fmt(priorAmt)}</td><td class="tr muted">—</td>`;
+    }
+
+    function priorDelta(cur, priorAmt) {
+        if (!compareMode || pns == null || priorAmt == null) return '';
+        const d = cur - priorAmt;
+        const pct = priorAmt !== 0 ? (d / Math.abs(priorAmt) * 100).toFixed(0) : null;
+        const col = d >= 0 ? 'color:#059669' : 'color:#dc2626';
+        const sign = d >= 0 ? '+' : '';
+        return `<td class="tr muted">${fmt(priorAmt)}</td><td class="tr" style="${col};font-size:11px">${sign}${fmt(d)}${pct != null ? ` <span style="opacity:.7">${sign}${pct}%</span>` : ''}</td>`;
+    }
+
+    function row(label, amt, indent, priorAmt) {
         const cls = indent ? 'item' : '';
         const col = amt < 0 ? 'neg-val' : '';
         const display = amt < 0 ? `(${fmt(Math.abs(amt))})` : fmt(amt);
-        return `<tr class="${cls}"><td>${label}</td><td class="tr ${col}">${display}</td><td class="tr">${pctOf(Math.abs(amt))}</td></tr>`;
+        return `<tr class="${cls}"><td>${label}</td><td class="tr ${col}">${display}</td><td class="tr">${pctOf(Math.abs(amt))}</td>${priorDelta(amt, priorAmt)}</tr>`;
     }
-    function sub(label, amt) {
-        return `<tr class="sub"><td>${label}</td><td class="tr">${fmt(amt)}</td><td></td></tr>`;
+    function sub(label, amt, priorAmt) {
+        return `<tr class="sub"><td>${label}</td><td class="tr">${fmt(amt)}</td><td></td>${priorDelta(amt, priorAmt)}</tr>`;
     }
-    function stone(label, amt, pct, isNeg) {
+    function stone(label, amt, pct, isNeg, priorAmt) {
         const cls = 'milestone' + (isNeg ? ' neg' : '');
-        return `<tr class="${cls}"><td><b>${label}</b></td><td class="tr"><b>${fmt(amt)}</b></td><td class="tr" style="font-size:12px;font-weight:600">${pct !== undefined ? pct + '% margin' : ''}</td></tr>`;
+        return `<tr class="${cls}"><td><b>${label}</b></td><td class="tr"><b>${fmt(amt)}</b></td><td class="tr" style="font-size:12px;font-weight:600">${pct !== undefined ? pct + '% margin' : ''}</td>${priorDelta(amt, priorAmt)}</tr>`;
     }
 
     let h = '';
 
+    const colSpan = 3 + (compareMode ? 2 : 0);
+
     // Revenue
-    h += `<tr class="sec-hdr"><td colspan="3">Revenue</td></tr>`;
-    h += row('Gross Product Sales', d.gross_sales || 0, true);
-    if (d.returns) h += row('Less: Returns &amp; Cancellations', -(d.returns), true);
+    h += `<tr class="sec-hdr"><td colspan="${colSpan}">Revenue</td></tr>`;
+    h += row('Gross Product Sales', d.gross_sales || 0, true, prior?.gross_sales);
+    if (d.returns) h += row('Less: Returns &amp; Cancellations', -(d.returns), true, prior?.returns ? -(prior.returns) : null);
     (d.revenue_by_channel || []).forEach(r => {
-        h += `<tr class="item" style="opacity:.85"><td style="padding-left:48px">${r.channel.replace(/_/g,' ')} · Net</td><td class="tr">${fmt(r.net_sales)}</td><td class="tr muted">${r.units > 0 ? fmtN(r.units) + ' units' : ''}</td></tr>`;
+        const priorCh = (prior?.revenue_by_channel || []).find(p => p.channel === r.channel);
+        h += `<tr class="item" style="opacity:.85"><td style="padding-left:48px">${r.channel.replace(/_/g,' ')} · Net</td><td class="tr">${fmt(r.net_sales)}</td><td class="tr muted">${r.units > 0 ? fmtN(r.units) + ' units' : ''}</td>${priorDelta(r.net_sales, priorCh?.net_sales)}</tr>`;
     });
-    h += stone('Net Sales (excl. GST)', ns, '', false);
+    h += stone('Net Sales (excl. GST)', ns, '', false, prior?.net_sales);
 
     // COGS
-    h += `<tr class="sec-hdr"><td colspan="3">COGS &mdash; Manufacturing &amp; Materials</td></tr>`;
+    h += `<tr class="sec-hdr"><td colspan="${colSpan}">COGS &mdash; Manufacturing &amp; Materials</td></tr>`;
     if ((d.cogs?.lines || []).length) {
         d.cogs.lines.forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : ''), l.amount, true));
     } else {
-        h += `<tr class="item"><td class="muted" colspan="3">No COGS bills this period</td></tr>`;
+        h += `<tr class="item"><td class="muted" colspan="${colSpan}">No COGS bills this period</td></tr>`;
     }
-    h += sub('Total COGS', d.cogs?.total || 0);
-    h += stone('Gross Profit', gp, d.gross_margin_pct, gp < 0);
+    h += sub('Total COGS', d.cogs?.total || 0, prior?.cogs?.total);
+    h += stone('Gross Profit', gp, d.gross_margin_pct, gp < 0, prior?.gross_profit);
 
     // Fulfilment → CM1
-    h += `<tr class="sec-hdr"><td colspan="3">Fulfilment &amp; Variable Selling</td></tr>`;
+    h += `<tr class="sec-hdr"><td colspan="${colSpan}">Fulfilment &amp; Variable Selling</td></tr>`;
     (d.fulfilment?.lines || []).forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : ''), l.amount, true));
     if (d.fulfilment?.marketplace_commission) h += row('Marketplace Commissions', d.fulfilment.marketplace_commission, true);
     if (d.fulfilment?.payment_gateway)        h += row('Payment Gateway Charges', d.fulfilment.payment_gateway, true);
     if (!(d.fulfilment?.lines || []).length && !d.fulfilment?.marketplace_commission) {
-        h += `<tr class="item"><td class="muted" colspan="3">No fulfilment bills this period</td></tr>`;
+        h += `<tr class="item"><td class="muted" colspan="${colSpan}">No fulfilment bills this period</td></tr>`;
     }
-    h += sub('Total Fulfilment', d.fulfilment?.total || 0);
-    h += stone('Contribution Margin 1 (CM1)', cm1, d.cm1_pct, cm1 < 0);
+    h += sub('Total Fulfilment', d.fulfilment?.total || 0, prior?.fulfilment?.total);
+    h += stone('Contribution Margin 1 (CM1)', cm1, d.cm1_pct, cm1 < 0, prior?.cm1);
 
     // Marketing → CM2
-    h += `<tr class="sec-hdr"><td colspan="3">Marketing &amp; CAC</td></tr>`;
+    h += `<tr class="sec-hdr"><td colspan="${colSpan}">Marketing &amp; CAC</td></tr>`;
     if ((d.marketing?.lines || []).length) {
         d.marketing.lines.forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : ''), l.amount, true));
     } else {
-        h += `<tr class="item"><td class="muted" colspan="3">No marketing bills this period</td></tr>`;
+        h += `<tr class="item"><td class="muted" colspan="${colSpan}">No marketing bills this period</td></tr>`;
     }
-    h += sub('Total Marketing', d.marketing?.total || 0);
-    h += stone('Contribution Margin 2 (CM2)', cm2, d.cm2_pct, cm2 < 0);
+    h += sub('Total Marketing', d.marketing?.total || 0, prior?.marketing?.total);
+    h += stone('Contribution Margin 2 (CM2)', cm2, d.cm2_pct, cm2 < 0, prior?.cm2);
 
     // OPEX → EBITDA
-    h += `<tr class="sec-hdr"><td colspan="3">Operating Expenses</td></tr>`;
+    h += `<tr class="sec-hdr"><td colspan="${colSpan}">Operating Expenses</td></tr>`;
     if ((d.opex?.lines || []).length) {
         d.opex.lines.forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : ''), l.amount, true));
     } else {
-        h += `<tr class="item"><td class="muted" colspan="3">No opex bills this period</td></tr>`;
+        h += `<tr class="item"><td class="muted" colspan="${colSpan}">No opex bills this period</td></tr>`;
     }
-    h += sub('Total Operations', d.opex?.total || 0);
-    h += stone('EBITDA', ebitda, d.ebitda_pct, ebitda < 0);
+    h += sub('Total Operations', d.opex?.total || 0, prior?.opex?.total);
+    h += stone('EBITDA', ebitda, d.ebitda_pct, ebitda < 0, prior?.ebitda);
 
     // Section breakdown
     if (d.section_breakdown && d.section_breakdown.length) {
-        h += `<tr class="sec-hdr"><td colspan="3">Performance by Section</td></tr>`;
+        h += `<tr class="sec-hdr"><td colspan="${colSpan}">Performance by Section</td></tr>`;
         h += `<tr class="grp-hdr"><td>Section</td><td class="tr">Net Sales</td><td class="tr">Gross Margin</td></tr>`;
         d.section_breakdown.forEach(s => {
             h += `<tr class="item"><td>${s.section}</td><td class="tr">${fmt(s.net_sales)}</td><td class="tr">${s.gross_margin_pct.toFixed(1)}%</td></tr>`;
@@ -804,6 +858,21 @@ function renderTrend(months) {
         </div>`;
 }
 
+// ── Compare toggle ────────────────────────────────────────────────────────────
+let compareMode = false;
+let lastPriorData = null;
+
+function toggleCompare() {
+    compareMode = !compareMode;
+    const btn = document.getElementById('compare-btn');
+    if (btn) {
+        btn.classList.toggle('bg-indigo-50', compareMode);
+        btn.classList.toggle('border-indigo-300', compareMode);
+        btn.classList.toggle('text-indigo-700', compareMode);
+    }
+    if (lastPLData) renderPL(lastPLData);
+}
+
 // ── CSV Export ────────────────────────────────────────────────────────────────
 let lastPLData    = null;
 let lastTrendData = null;
@@ -890,13 +959,22 @@ function cap(str) {
 (async () => {
     // Apply URL params before building chips so first load uses them
     const params = new URLSearchParams(window.location.search);
-    const dropParam = params.get('drop');
+    const dropParam    = params.get('drop');
     const sectionParam = params.get('section');
+    const startParam   = params.get('start');
+    const endParam     = params.get('end');
+    const labelParam   = params.get('label');
     if (sectionParam) document.getElementById('filterSection').value = sectionParam;
     await loadDrops();
     if (dropParam) {
         const sel = document.getElementById('filterDrop');
         if (sel) sel.value = dropParam;
+    }
+    if (startParam && endParam) {
+        // Deep-linked period — skip auto-select of current month chip
+        window._overrideStart = startParam;
+        window._overrideEnd   = endParam;
+        window._overrideLabel = labelParam || `${startParam} to ${endParam}`;
     }
     buildMonthChips();
 })();
