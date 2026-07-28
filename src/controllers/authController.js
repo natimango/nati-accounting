@@ -159,11 +159,37 @@ async function deleteUser(req, res) {
   }
 }
 
+async function updateUser(req, res) {
+  try {
+    const { id } = req.params;
+    const userId = Number(id);
+    if (!userId) return res.status(400).json({ error: 'Invalid user id' });
+    const { role } = req.body;
+    const VALID_ROLES = ['uploader', 'manager', 'admin'];
+    if (!VALID_ROLES.includes(role)) {
+      return res.status(400).json({ error: `role must be one of: ${VALID_ROLES.join(', ')}` });
+    }
+    if (req.user.userId === userId) {
+      return res.status(400).json({ error: 'You cannot change your own role' });
+    }
+    const r = await pool.query(
+      'UPDATE users SET role = $1 WHERE user_id = $2 RETURNING user_id, email, role',
+      [role, userId]
+    );
+    if (!r.rowCount) return res.status(404).json({ error: 'User not found' });
+    res.json({ success: true, user: r.rows[0] });
+  } catch (err) {
+    console.error('Update user error:', err);
+    res.status(500).json({ error: 'Unable to update user' });
+  }
+}
+
 module.exports = {
   login,
   logout,
   me,
   listUsers,
   createUser,
-  deleteUser
+  deleteUser,
+  updateUser
 };

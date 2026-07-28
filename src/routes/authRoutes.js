@@ -6,7 +6,8 @@ const {
   me,
   listUsers,
   createUser,
-  deleteUser
+  deleteUser,
+  updateUser
 } = require('../controllers/authController');
 const { authenticate, authorize } = require('../middleware/auth');
 
@@ -15,6 +16,7 @@ router.post('/logout', authenticate, logout);
 router.get('/me', authenticate, me);
 router.get('/users', authenticate, authorize('admin'), listUsers);
 router.post('/users', authenticate, authorize('admin'), createUser);
+router.patch('/users/:id', authenticate, authorize('admin'), updateUser);
 router.delete('/users/:id', authenticate, authorize('admin'), deleteUser);
 
 module.exports = router;

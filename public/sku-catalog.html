@@ -461,6 +461,15 @@ async function saveMeta() {
 document.addEventListener('DOMContentLoaded', () => {
     const init = async () => {
         await loadDrops();
+        // Pre-select drop from URL param ?drop=<drop_name>
+        const urlDrop = new URLSearchParams(location.search).get('drop');
+        if (urlDrop) {
+            const sel = document.getElementById('drop-filter');
+            if (sel) {
+                const opt = Array.from(sel.options).find(o => o.textContent.trim() === urlDrop);
+                if (opt) sel.value = opt.value;
+            }
+        }
         await loadSkus();
     };
     if (window.sessionReady) {

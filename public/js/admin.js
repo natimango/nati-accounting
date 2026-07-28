@@ -221,13 +221,21 @@ async function loadUsers() {
       .map((user) => {
         const safeEmail = escapeHtml(user.email);
         const safeName = escapeHtml(user.name || user.email);
+        const roleOptions = ['uploader', 'manager', 'admin']
+          .map(r => `<option value="${r}" ${r === user.role ? 'selected' : ''}>${r.charAt(0).toUpperCase() + r.slice(1)}</option>`)
+          .join('');
         return `
           <tr>
             <td class="px-4 py-3">
               <p class="font-semibold">${safeName}</p>
               <p class="text-xs text-slate-500">${safeEmail}</p>
             </td>
-            <td class="px-4 py-3 text-sm font-semibold">${user.role.toUpperCase()}</td>
+            <td class="px-4 py-3">
+              <select class="px-2 py-1 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-400"
+                onchange="changeUserRole(${user.id}, this.value, this)">
+                ${roleOptions}
+              </select>
+            </td>
             <td class="px-4 py-3 text-sm text-slate-600">${formatDateTime(user.created_at)}</td>
             <td class="px-4 py-3 text-sm text-slate-600">${user.last_login ? formatDateTime(user.last_login) : '—'}</td>
             <td class="px-4 py-3 text-right">
@@ -308,6 +316,26 @@ function formatDateTime(value) {
     return value;
   }
 }
+
+window.changeUserRole = async function changeUserRole(userId, role, selectEl) {
+  const prev = selectEl.dataset.prev || selectEl.value;
+  selectEl.dataset.prev = selectEl.value;
+  try {
+    const res = await fetch(`${USERS_API}/${userId}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Failed to update role');
+    selectEl.dataset.prev = role;
+  } catch (err) {
+    console.error('Change role failed', err);
+    selectEl.value = prev;
+    alert(err.message || 'Unable to update role');
+  }
+};
 
 window.deleteUser = async function deleteUser(userId, email) {
   if (!userId) return;
