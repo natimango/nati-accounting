@@ -39,6 +39,6 @@ router.patch('/bills/:bill_id/meta', updateBillMeta);
 router.post('/payments/record-simple', recordSimplePayment);
 
 // Bulk metadata update (group/category/drop) across multiple bills
-router.patch('/bills/bulk-meta', authorize('admin'), bulkUpdateBillMeta);
+router.patch('/bills/bulk-meta', authorize('manager', 'admin'), bulkUpdateBillMeta);
 
 module.exports = router;

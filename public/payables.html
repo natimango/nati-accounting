@@ -82,14 +82,35 @@
 
                 <!-- All unpaid bills table -->
                 <section class="nati-card bg-white/90 border border-slate-200 rounded-2xl shadow">
-                    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
-                        <div>
-                            <h2 class="text-lg font-semibold text-slate-900">Unpaid Bills</h2>
-                            <p class="text-xs text-slate-500 mt-0.5">All bills with pending or partial payment status</p>
+                    <div class="px-6 py-4 border-b border-slate-100 space-y-3">
+                        <div class="flex items-center justify-between gap-4 flex-wrap">
+                            <div>
+                                <h2 class="text-lg font-semibold text-slate-900">Unpaid Bills</h2>
+                                <p class="text-xs text-slate-500 mt-0.5">All bills with pending or partial payment status</p>
+                            </div>
+                            <button onclick="loadPayables()" class="px-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700">
+                                <i class="fas fa-rotate-right mr-1"></i>Refresh
+                            </button>
                         </div>
-                        <button onclick="loadPayables()" class="px-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700">
-                            <i class="fas fa-rotate-right mr-1"></i>Refresh
-                        </button>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <div class="relative flex-1 min-w-[160px] max-w-xs">
+                                <i class="fas fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                                <input type="search" id="pay-search" placeholder="Search vendor…" oninput="filterPayables()" class="w-full pl-7 pr-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <select id="pay-group-filter" onchange="filterPayables()" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm bg-white">
+                                <option value="">All groups</option>
+                                <option value="COGS">COGS</option>
+                                <option value="FULFILLMENT">Fulfillment</option>
+                                <option value="MARKETING">Marketing</option>
+                                <option value="OPERATIONS">Operations</option>
+                            </select>
+                            <select id="pay-sort" onchange="filterPayables()" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm bg-white">
+                                <option value="due">Sort: Due date</option>
+                                <option value="amount-desc">Sort: Amount ↓</option>
+                                <option value="amount-asc">Sort: Amount ↑</option>
+                                <option value="vendor">Sort: Vendor</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
@@ -196,6 +217,36 @@ function statusBadge(s, dueDate) {
 
 let payablesData = [];
 
+function filterPayables() {
+    const search = (document.getElementById('pay-search')?.value || '').toLowerCase().trim();
+    const grp    = document.getElementById('pay-group-filter')?.value || '';
+    const sort   = document.getElementById('pay-sort')?.value || 'due';
+
+    let rows = payablesData.slice();
+    if (search) {
+        rows = rows.filter(d => {
+            const vendor = (d.bill_vendor_name || d.vendor_name || d.gemini_data?.vendor_name || '').toLowerCase();
+            return vendor.includes(search);
+        });
+    }
+    if (grp) {
+        rows = rows.filter(d => (d.bill_category_group || d.category_group || '').toUpperCase() === grp);
+    }
+    rows.sort((a, b) => {
+        if (sort === 'amount-desc') return Number(b.total_amount || 0) - Number(a.total_amount || 0);
+        if (sort === 'amount-asc')  return Number(a.total_amount || 0) - Number(b.total_amount || 0);
+        if (sort === 'vendor') {
+            const va = (a.bill_vendor_name || a.vendor_name || '').toLowerCase();
+            const vb = (b.bill_vendor_name || b.vendor_name || '').toLowerCase();
+            return va < vb ? -1 : va > vb ? 1 : 0;
+        }
+        const da = a.bill_payment_due_date ? new Date(a.bill_payment_due_date) : new Date('2099-01-01');
+        const db = b.bill_payment_due_date ? new Date(b.bill_payment_due_date) : new Date('2099-01-01');
+        return da - db;
+    });
+    renderPayablesTable(rows);
+}
+
 async function loadPayables() {
     try {
         const [dashRes, docsRes] = await Promise.all([
@@ -226,7 +277,7 @@ async function loadPayables() {
         document.getElementById('tile-week').textContent = fmt(dash.forecast?.next_7_days || 0);
         document.getElementById('tile-month').textContent = fmt(dash.forecast?.next_30_days || 0);
 
-        renderPayablesTable(allDocs);
+        filterPayables();
     } catch (e) {
         console.error(e);
         document.getElementById('payables-tbody').innerHTML =
@@ -242,13 +293,6 @@ function renderPayablesTable(rows) {
         return;
     }
     document.getElementById('payables-empty').classList.add('hidden');
-
-    // Sort: overdue first, then by due date
-    rows.sort((a, b) => {
-        const da = a.bill_payment_due_date ? new Date(a.bill_payment_due_date) : new Date('2099-01-01');
-        const db = b.bill_payment_due_date ? new Date(b.bill_payment_due_date) : new Date('2099-01-01');
-        return da - db;
-    });
 
     const GRP_CHIP = {
         COGS:        '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700">COGS</span>',
