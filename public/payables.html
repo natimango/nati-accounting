@@ -118,6 +118,7 @@
                                 <tr class="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
                                     <th class="px-4 py-3 text-left">Vendor</th>
                                     <th class="px-4 py-3 text-left">Category</th>
+                                    <th class="px-4 py-3 text-left">Drop</th>
                                     <th class="px-4 py-3 text-left">Bill Date</th>
                                     <th class="px-4 py-3 text-left">Due Date</th>
                                     <th class="px-4 py-3 text-left">Status</th>
@@ -127,7 +128,7 @@
                                 </tr>
                             </thead>
                             <tbody id="payables-tbody">
-                                <tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">Loading…</td></tr>
+                                <tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">Loading…</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -281,7 +282,7 @@ async function loadPayables() {
     } catch (e) {
         console.error(e);
         document.getElementById('payables-tbody').innerHTML =
-            `<tr><td colspan="8" class="px-4 py-8 text-center text-red-400">Failed to load payables</td></tr>`;
+            `<tr><td colspan="9" class="px-4 py-8 text-center text-red-400">Failed to load payables</td></tr>`;
     }
 }
 
@@ -309,6 +310,7 @@ function renderPayablesTable(rows) {
         const total = Number(d.total_amount || d.bill_total_amount || 0);
         const billId = d.bill_id;
         const dueDate = d.bill_payment_due_date;
+        const dropName = d.bill_drop_name || d.drop_name || '';
         const isOverdue = dueDate && new Date(dueDate) < new Date();
         const rowClass = isOverdue ? 'bg-red-50' : '';
 
@@ -317,6 +319,7 @@ function renderPayablesTable(rows) {
             <td class="px-4 py-3 text-slate-600">
                 <div class="flex items-center gap-1.5 flex-wrap">${grpChip}${category ? `<span class="capitalize text-xs">${category}</span>` : ''}</div>
             </td>
+            <td class="px-4 py-3 text-slate-500 text-xs">${dropName ? `<a href="drop.html?drop=${encodeURIComponent(dropName)}" class="text-indigo-600 hover:underline">${dropName}</a>` : '—'}</td>
             <td class="px-4 py-3 text-slate-500">${fmtDate(d.bill_date)}</td>
             <td class="px-4 py-3 ${isOverdue ? 'text-red-600 font-medium' : 'text-slate-500'}">${fmtDate(dueDate)}</td>
             <td class="px-4 py-3">${statusBadge(d.bill_payment_status, dueDate)}</td>
