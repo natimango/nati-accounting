@@ -20,6 +20,7 @@ const {
   ingestShipmentCost,
   getSalesEntries,
   createSalesEntry,
+  updateSalesEntry,
   deleteSalesEntry
 } = require('../controllers/reportsController');
 const { authorize } = require('../middleware/auth');
@@ -45,6 +46,7 @@ router.post('/ingest/marketing', authorize('admin'), ingestMarketingSpend);
 router.post('/ingest/shipment', authorize('admin'), ingestShipmentCost);
 router.get('/reports/sales', getSalesEntries);
 router.post('/reports/sales', authorize('manager', 'admin'), createSalesEntry);
+router.put('/reports/sales/:id', authorize('manager', 'admin'), updateSalesEntry);
 router.delete('/reports/sales/:id', authorize('admin'), deleteSalesEntry);
 
 module.exports = router;

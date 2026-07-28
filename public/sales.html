@@ -112,9 +112,14 @@
                         <option value="">All drops</option>
                     </select>
                     <button onclick="loadEntries()" class="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">Apply</button>
-                    <button onclick="openAddForm()" class="ml-auto px-4 py-1.5 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-700 flex items-center gap-2">
-                        <i class="fas fa-plus text-xs"></i> Add Entry
-                    </button>
+                    <div class="ml-auto flex items-center gap-2">
+                        <button onclick="exportCSV()" class="px-3 py-1.5 border border-slate-300 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-1.5">
+                            <i class="fas fa-download text-xs"></i> CSV
+                        </button>
+                        <button onclick="openAddForm()" class="px-4 py-1.5 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-700 flex items-center gap-2">
+                            <i class="fas fa-plus text-xs"></i> Add Entry
+                        </button>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="rt">
@@ -130,7 +135,7 @@
                                 <th class="tr">Units</th>
                                 <th class="tr">GST</th>
                                 <th>Settlement</th>
-                                <th></th>
+                                <th class="tr">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="entriesBody">
@@ -148,7 +153,7 @@
 <div id="add-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
-            <h3 class="font-semibold text-slate-900">Record Sales Entry</h3>
+            <h3 class="font-semibold text-slate-900" id="modal-title">Record Sales Entry</h3>
             <button onclick="closeAddForm()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
         </div>
         <div class="p-6 space-y-5">
@@ -270,7 +275,7 @@
         </div>
         <div class="px-6 py-4 border-t border-slate-100 flex gap-3 justify-end sticky bottom-0 bg-white">
             <button onclick="closeAddForm()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm hover:bg-slate-200">Cancel</button>
-            <button onclick="submitEntry()" class="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">
+            <button onclick="submitEntry()" id="modal-submit" class="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">
                 <i class="fas fa-check mr-1"></i>Save Entry
             </button>
         </div>
@@ -292,6 +297,8 @@ const CH_LABELS = {
 };
 
 let drops = [];
+let editingId = null;
+let lastEntries = [];
 
 async function init() {
     const today   = new Date().toISOString().split('T')[0];
@@ -327,6 +334,7 @@ async function loadEntries() {
     try {
         const data    = await fetch(url, { credentials: 'include' }).then(r => r.json());
         const entries = data.entries || [];
+        lastEntries = entries;
         renderKPIs(entries);
         renderChannelGrid(entries);
         renderTable(entries);
@@ -398,19 +406,56 @@ function renderTable(entries) {
             <td class="tr pos">${fmt(e.net_sales)}</td>
             <td class="tr text-slate-500">${fmtN(+e.gross_units - +e.returned_units)}</td>
             <td class="tr text-slate-500">${gst > 0 ? fmt(gst) : '—'}</td>
-            <td class="text-slate-400 text-xs" style="max-width:140px;overflow:hidden;text-overflow:ellipsis">${e.settlement_ref || '—'}</td>
-            <td><button onclick="deleteEntry(${e.entry_id})" class="text-slate-300 hover:text-red-500 px-1 py-0.5 rounded text-xs transition"><i class="fas fa-times"></i></button></td>
+            <td class="text-slate-400 text-xs" style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${e.settlement_ref || '—'}</td>
+            <td class="tr whitespace-nowrap">
+                <button onclick="editEntry(${e.entry_id})" class="text-slate-400 hover:text-indigo-600 px-1 py-0.5 rounded text-xs transition mr-1" title="Edit"><i class="fas fa-pencil"></i></button>
+                <button onclick="deleteEntry(${e.entry_id})" class="text-slate-300 hover:text-red-500 px-1 py-0.5 rounded text-xs transition" title="Delete"><i class="fas fa-times"></i></button>
+            </td>
         </tr>`;
     }).join('');
 }
 
 function openAddForm() {
+    editingId = null;
+    document.getElementById('modal-title').textContent = 'Record Sales Entry';
+    document.getElementById('modal-submit').innerHTML = '<i class="fas fa-check mr-1"></i>Save Entry';
+    resetForm();
     document.getElementById('add-modal').classList.remove('hidden');
 }
 
 function closeAddForm() {
     document.getElementById('add-modal').classList.add('hidden');
+    editingId = null;
     resetForm();
+}
+
+function editEntry(id) {
+    const e = lastEntries.find(x => x.entry_id === id);
+    if (!e) return;
+    editingId = id;
+    document.getElementById('modal-title').textContent = 'Edit Sales Entry';
+    document.getElementById('modal-submit').innerHTML = '<i class="fas fa-save mr-1"></i>Update Entry';
+    // Populate form
+    const set = (fieldId, val) => { const el = document.getElementById(fieldId); if (el) el.value = val ?? ''; };
+    set('fDate',          e.entry_date?.split('T')[0] || '');
+    set('fChannel',       e.channel || '');
+    // find drop by id in the list (drop_id may be stored)
+    set('fDropNew',       e.drop_id || '');
+    set('fSection',       e.section || '');
+    set('fGross',         e.gross_sales || '');
+    set('fReturns',       e.returns_amount || '');
+    set('fGrossUnits',    e.gross_units || '');
+    set('fReturnedUnits', e.returned_units || '');
+    set('fCommission',    e.marketplace_commission || '');
+    set('fGateway',       e.payment_gateway_charges || '');
+    set('fShipping',      e.shipping_collected || '');
+    set('fCgst',          e.cgst_collected || '');
+    set('fSgst',          e.sgst_collected || '');
+    set('fIgst',          e.igst_collected || '');
+    set('fSettlementRef', e.settlement_ref || '');
+    set('fSettlementDate',e.settlement_date?.split('T')[0] || '');
+    set('fNotes',         e.notes || '');
+    document.getElementById('add-modal').classList.remove('hidden');
 }
 
 async function submitEntry() {
@@ -439,17 +484,45 @@ async function submitEntry() {
     };
 
     try {
-        const r = await fetch('/api/reports/sales', {
-            method: 'POST',
+        const url    = editingId ? `/api/reports/sales/${editingId}` : '/api/reports/sales';
+        const method = editingId ? 'PUT' : 'POST';
+        const r = await fetch(url, {
+            method,
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify(body)
         }).then(r => r.json());
-        if (r.success) { showToast('Entry saved'); closeAddForm(); loadEntries(); }
+        if (r.success) { showToast(editingId ? 'Entry updated' : 'Entry saved'); closeAddForm(); loadEntries(); }
         else showToast('Error: ' + (r.error || 'unknown'));
     } catch (e) {
         showToast('Error: ' + e.message);
     }
+}
+
+function exportCSV() {
+    if (!lastEntries.length) { showToast('No entries to export'); return; }
+    const start = document.getElementById('fStart').value;
+    const end   = document.getElementById('fEnd').value;
+    const rows = [
+        ['NATI Collective — Sales Export', `${start} to ${end}`],
+        [],
+        ['Date','Channel','Drop','Section','Gross Sales','Returns','Net Sales','Gross Units','Returned Units','GST Collected','Settlement Ref','Settlement Date','Notes'],
+        ...lastEntries.map(e => {
+            const gst = +e.cgst_collected + +e.sgst_collected + +e.igst_collected;
+            return [
+                e.entry_date || '', e.channel || '', e.drop_name || '', e.section || '',
+                e.gross_sales || 0, e.returns_amount || 0, e.net_sales || 0,
+                e.gross_units || 0, e.returned_units || 0, gst,
+                e.settlement_ref || '', e.settlement_date || '', e.notes || ''
+            ];
+        })
+    ];
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `nati-sales-${start}-${end}.csv`; a.click();
+    URL.revokeObjectURL(url);
 }
 
 async function deleteEntry(id) {

@@ -608,8 +608,10 @@ function renderSectionGrid(d) {
     }
     const maxSales = Math.max(...sections.map(s => s.net_sales), 1);
     grid.innerHTML = sections.map(s => {
-        const gpColor = s.gross_margin_pct >= 50 ? 'color:#059669' : s.gross_margin_pct >= 30 ? 'color:#2563eb' : 'color:#d97706';
-        const share   = ns ? (s.net_sales / ns * 100).toFixed(1) : 0;
+        const gpColor  = s.gross_margin_pct >= 50 ? '#059669' : s.gross_margin_pct >= 30 ? '#2563eb' : '#d97706';
+        const cm1Color = (s.cm1_pct || 0) >= 40 ? '#059669' : (s.cm1_pct || 0) >= 20 ? '#7c3aed' : '#d97706';
+        const share    = ns ? (s.net_sales / ns * 100).toFixed(1) : 0;
+        const hasCM1   = s.cm1 != null;
         return `
         <div class="border border-slate-200 rounded-xl p-5">
             <div class="flex items-center justify-between mb-3">
@@ -621,10 +623,14 @@ function renderSectionGrid(d) {
             <div style="height:6px;border-radius:99px;background:#f1f5f9;overflow:hidden;margin-bottom:12px">
                 <div style="height:100%;border-radius:99px;background:#6366f1;width:${Math.round(s.net_sales/maxSales*100)}%"></div>
             </div>
-            <div class="flex justify-between text-xs">
+            <div class="flex justify-between text-xs mb-1.5">
                 <span class="text-slate-500">Gross Profit</span>
-                <span style="${gpColor}" class="font-semibold">${fmt(s.gross_profit)} &middot; ${s.gross_margin_pct.toFixed(1)}% GM</span>
+                <span style="color:${gpColor}" class="font-semibold">${fmt(s.gross_profit)} · ${s.gross_margin_pct}%</span>
             </div>
+            ${hasCM1 ? `<div class="flex justify-between text-xs">
+                <span class="text-slate-500">CM1 (after Fulfilment)</span>
+                <span style="color:${cm1Color}" class="font-semibold">${fmt(s.cm1)} · ${s.cm1_pct}%</span>
+            </div>` : ''}
         </div>`;
     }).join('');
 }

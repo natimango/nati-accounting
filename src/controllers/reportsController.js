@@ -168,27 +168,36 @@ async function getProfitLoss(req, res) {
         [startDate, endDate]
       );
       const secBills = await pool.query(
-        `SELECT section, SUM(total_amount) AS total
+        `SELECT section, category_group, SUM(total_amount) AS total
          FROM bills b LEFT JOIN documents d ON b.document_id = d.document_id
          WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
            AND ${ACTIVE_BILL_FILTER}
            AND b.section IS NOT NULL
            AND b.category_group IN ('COGS', 'FULFILLMENT')
-         GROUP BY section`,
+         GROUP BY section, category_group`,
         [startDate, endDate]
       );
       const secMap = {};
       secSales.rows.forEach(r => {
-        secMap[r.section] = { section: r.section, net_sales: parseFloat(r.net_sales || 0), net_units: parseInt(r.net_units || 0), cogs: 0 };
+        secMap[r.section] = { section: r.section, net_sales: parseFloat(r.net_sales || 0), net_units: parseInt(r.net_units || 0), cogs: 0, fulfillment: 0 };
       });
       secBills.rows.forEach(r => {
-        if (secMap[r.section]) secMap[r.section].cogs += parseFloat(r.total || 0);
+        if (!secMap[r.section]) return;
+        const grp = (r.category_group || '').toUpperCase();
+        if (grp === 'COGS') secMap[r.section].cogs += parseFloat(r.total || 0);
+        else if (grp === 'FULFILLMENT') secMap[r.section].fulfillment += parseFloat(r.total || 0);
       });
-      sectionBreakdown = Object.values(secMap).map(s => ({
-        ...s,
-        gross_profit: s.net_sales - s.cogs,
-        gross_margin_pct: s.net_sales ? ((s.net_sales - s.cogs) / s.net_sales * 100) : 0
-      }));
+      sectionBreakdown = Object.values(secMap).map(s => {
+        const gp  = s.net_sales - s.cogs;
+        const cm1 = gp - s.fulfillment;
+        return {
+          ...s,
+          gross_profit:      gp,
+          gross_margin_pct:  s.net_sales ? parseFloat((gp  / s.net_sales * 100).toFixed(1)) : 0,
+          cm1,
+          cm1_pct:           s.net_sales ? parseFloat((cm1 / s.net_sales * 100).toFixed(1)) : 0,
+        };
+      });
     }
 
     res.json({
@@ -956,6 +965,52 @@ async function deleteSalesEntry(req, res) {
   }
 }
 
+// PUT /api/reports/sales/:id
+async function updateSalesEntry(req, res) {
+  try {
+    const { id } = req.params;
+    const {
+      entry_date, channel, drop_id, section,
+      gross_sales, returns_amount = 0,
+      gross_units = 0, returned_units = 0,
+      marketplace_commission = 0, payment_gateway_charges = 0,
+      shipping_collected = 0,
+      cgst_collected = 0, sgst_collected = 0, igst_collected = 0,
+      settlement_ref, settlement_date, notes
+    } = req.body;
+    if (!channel || gross_sales == null) {
+      return res.status(400).json({ error: 'channel and gross_sales required' });
+    }
+    const VALID_CHANNELS = ['D2C_WEBSITE','MYNTRA','AJIO','NYKAA','INSTAGRAM','POPUP','OTHER'];
+    const ch = channel.toUpperCase();
+    if (!VALID_CHANNELS.includes(ch)) {
+      return res.status(400).json({ error: `channel must be one of: ${VALID_CHANNELS.join(', ')}` });
+    }
+    const r = await pool.query(
+      `UPDATE sales_entries SET
+         entry_date=$1, channel=$2, drop_id=$3, section=$4,
+         gross_sales=$5, returns_amount=$6,
+         gross_units=$7, returned_units=$8,
+         marketplace_commission=$9, payment_gateway_charges=$10, shipping_collected=$11,
+         cgst_collected=$12, sgst_collected=$13, igst_collected=$14,
+         settlement_ref=$15, settlement_date=$16, notes=$17
+       WHERE entry_id=$18
+       RETURNING *`,
+      [entry_date, ch, drop_id || null, section || null,
+       gross_sales, returns_amount, gross_units, returned_units,
+       marketplace_commission, payment_gateway_charges, shipping_collected,
+       cgst_collected, sgst_collected, igst_collected,
+       settlement_ref || null, settlement_date || null, notes || null,
+       id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Entry not found' });
+    res.json({ success: true, entry: r.rows[0] });
+  } catch (err) {
+    console.error('updateSalesEntry error', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 async function getGarmentProfitability(req, res) {
   try {
     const dropId = parseInt(req.query.drop_id, 10);
@@ -1144,5 +1199,6 @@ module.exports = {
   ingestShipmentCost,
   getSalesEntries,
   createSalesEntry,
+  updateSalesEntry,
   deleteSalesEntry
 };

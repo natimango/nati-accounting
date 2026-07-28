@@ -138,6 +138,8 @@ function renderYTD(ytd, fyStart) {
     const eb   = ytd.ebitda       || 0;
     const gpPct = ns ? (gp / ns * 100).toFixed(1) : '—';
     const ebPct = ns ? (eb / ns * 100).toFixed(1) : '—';
+    const cm1   = ytd.cm1    || 0;
+    const cm1Pct = ns ? (cm1 / ns * 100).toFixed(1) : '—';
     el.innerHTML = `
         <div class="flex items-center gap-1 text-[10px] text-slate-400 font-semibold uppercase tracking-wide mb-2">
             <i class="fas fa-calendar-alt"></i> FY to date (from ${fyLabel})
@@ -145,6 +147,7 @@ function renderYTD(ytd, fyStart) {
         <div class="flex gap-4 flex-wrap">
             <div><span class="text-xs text-slate-500">Net Sales</span><br><span class="text-sm font-bold text-slate-800">${fmt(ns)}</span></div>
             <div><span class="text-xs text-slate-500">Gross Profit</span><br><span class="text-sm font-bold text-blue-600">${fmt(gp)}</span> <span class="text-xs text-slate-400">${gpPct}%</span></div>
+            <div><span class="text-xs text-slate-500">CM1</span><br><span class="text-sm font-bold text-violet-600">${fmt(cm1)}</span> <span class="text-xs text-slate-400">${cm1Pct}%</span></div>
             <div><span class="text-xs text-slate-500">EBITDA</span><br><span class="text-sm font-bold ${eb >= 0 ? 'text-emerald-600' : 'text-red-500'}">${fmt(eb)}</span> <span class="text-xs text-slate-400">${ebPct}%</span></div>
         </div>`;
     el.classList.remove('hidden');
