@@ -494,8 +494,13 @@ function renderTable(documents) {
         const docStatus = getStatusBadge(doc.status);
         const isOverdue = payStatus === 'pending' && doc.bill_payment_due_date && new Date(doc.bill_payment_due_date) < new Date();
         const rowCls = isOverdue ? 'bg-red-50' : 'hover:bg-slate-50';
+        const rowBillId = doc.bill_id || doc.document_id;
+        const isChecked = bulkSelected.has(rowBillId);
         return `
             <tr class="${rowCls} cursor-pointer border-t border-slate-100" onclick="openBillModal(${doc.document_id})">
+                <td class="px-3 py-2 text-center" onclick="event.stopPropagation()">
+                    <input type="checkbox" class="row-cb rounded border-slate-300 accent-indigo-600" ${isChecked ? 'checked' : ''} onchange="toggleRowSelect(${rowBillId}, this.checked)">
+                </td>
                 <td class="px-3 py-2 text-xs text-slate-500">${fileNumber}</td>
                 <td class="px-3 py-2 text-sm font-medium text-slate-900">${vendor}</td>
                 <td class="px-3 py-2 text-xs text-slate-600">
@@ -521,6 +526,69 @@ function selectDocument(id) {
     selectedDocId = id;
     const doc = filteredDocuments.find(d => d.document_id === id);
     renderDetail(doc);
+}
+
+// ── Bulk selection ────────────────────────────────────────────────────────────
+const bulkSelected = new Set();
+
+function toggleRowSelect(billId, checked) {
+    if (checked) bulkSelected.add(billId);
+    else bulkSelected.delete(billId);
+    updateBulkBar();
+}
+
+function toggleSelectAll(checked) {
+    bulkSelected.clear();
+    if (checked) {
+        filteredDocuments.forEach(d => {
+            const id = d.bill_id || d.document_id;
+            if (id) bulkSelected.add(id);
+        });
+    }
+    document.querySelectorAll('.row-cb').forEach(cb => { cb.checked = checked; });
+    updateBulkBar();
+}
+
+function clearSelection() {
+    bulkSelected.clear();
+    document.querySelectorAll('.row-cb').forEach(cb => { cb.checked = false; });
+    const allCb = document.getElementById('select-all-cb');
+    if (allCb) allCb.checked = false;
+    updateBulkBar();
+}
+
+function updateBulkBar() {
+    const bar = document.getElementById('bulk-bar');
+    const countEl = document.getElementById('bulk-count');
+    if (!bar) return;
+    if (bulkSelected.size > 0) {
+        bar.classList.remove('hidden');
+        countEl.textContent = `${bulkSelected.size} selected`;
+    } else {
+        bar.classList.add('hidden');
+    }
+}
+
+async function applyBulkGroup() {
+    const group = document.getElementById('bulk-group')?.value;
+    if (!group) { showToast('Select a group first'); return; }
+    if (!bulkSelected.size) { showToast('No bills selected'); return; }
+    try {
+        const r = await authFetch('/api/bills/bulk-meta', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bill_ids: Array.from(bulkSelected), department: group })
+        }).then(r => r.json());
+        if (r.success) {
+            showToast(`Updated ${r.updated} bill${r.updated !== 1 ? 's' : ''} → ${group}`);
+            clearSelection();
+            await loadDocuments();
+        } else {
+            showToast('Error: ' + (r.error || 'unknown'));
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message);
+    }
 }
 
 

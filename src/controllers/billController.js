@@ -1041,6 +1041,37 @@ async function updateBillMeta(req, res) {
   }
 }
 
+// PATCH /api/bills/bulk-meta — apply department/category to multiple bill_ids at once
+async function bulkUpdateBillMeta(req, res) {
+  try {
+    const { bill_ids, department, category, drop_name } = req.body || {};
+    if (!Array.isArray(bill_ids) || !bill_ids.length) {
+      return res.status(400).json({ error: 'bill_ids array required' });
+    }
+    const VALID_GROUPS = ['COGS', 'FULFILLMENT', 'MARKETING', 'OPERATIONS'];
+    const newGroup = department && VALID_GROUPS.includes(department.toUpperCase()) ? department.toUpperCase() : null;
+
+    const ids = bill_ids.map(Number).filter(Boolean);
+    const setClauses = [];
+    const params = [];
+    let idx = 1;
+    if (newGroup)   { setClauses.push(`category_group=$${idx++}`); params.push(newGroup); setClauses.push(`department=$${idx++}`); params.push(newGroup); }
+    if (category)   { setClauses.push(`category=$${idx++}`); params.push(category); }
+    if (drop_name)  { setClauses.push(`drop_name=$${idx++}`); params.push(drop_name); }
+    if (!setClauses.length) return res.status(400).json({ error: 'Nothing to update' });
+
+    params.push(ids);
+    await pool.query(
+      `UPDATE bills SET ${setClauses.join(', ')} WHERE bill_id = ANY($${idx})`,
+      params
+    );
+    res.json({ success: true, updated: ids.length });
+  } catch (error) {
+    console.error('bulkUpdateBillMeta error:', error);
+    res.status(500).json({ error: error.message });
+  }
+}
+
 module.exports = {
   processBillWithAI,
   processBillManual,
@@ -1048,5 +1079,6 @@ module.exports = {
   recordPayment,
   deleteBill,
   updateBillMeta,
+  bulkUpdateBillMeta,
   recordSimplePayment
 };

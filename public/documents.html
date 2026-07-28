@@ -248,10 +248,24 @@
                         <span id="doc-count" class="text-xs text-slate-500">(0)</span>
                     </div>
                 </div>
+                <!-- Bulk action bar — shown when rows are selected -->
+                <div id="bulk-bar" class="hidden px-5 py-3 bg-indigo-50 border-b border-indigo-100 flex flex-wrap items-center gap-3">
+                    <span id="bulk-count" class="text-sm font-semibold text-indigo-700">0 selected</span>
+                    <select id="bulk-group" class="px-2 py-1 border border-indigo-300 rounded-lg text-sm bg-white">
+                        <option value="">Set group…</option>
+                        <option value="COGS">COGS</option>
+                        <option value="FULFILLMENT">Fulfillment</option>
+                        <option value="MARKETING">Marketing</option>
+                        <option value="OPERATIONS">Operations</option>
+                    </select>
+                    <button onclick="applyBulkGroup()" class="px-3 py-1 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700">Apply</button>
+                    <button onclick="clearSelection()" class="px-3 py-1 text-sm text-slate-500 hover:text-slate-700 ml-auto">Clear selection</button>
+                </div>
                 <div class="overflow-auto">
                     <table class="nati-table min-w-full text-sm">
                         <thead class="bg-slate-50 text-slate-600">
                             <tr>
+                                <th class="px-3 py-2 text-left w-8"><input type="checkbox" id="select-all-cb" onchange="toggleSelectAll(this.checked)" class="rounded border-slate-300 accent-indigo-600"></th>
                                 <th class="px-4 py-2 text-left">#</th>
                                 <th class="px-4 py-2 text-left">Vendor</th>
                                 <th class="px-4 py-2 text-left">Category</th>
