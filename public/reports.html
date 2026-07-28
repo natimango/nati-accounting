@@ -728,10 +728,17 @@ function renderDropSpend(d) {
                 return `<span style="background:${c.bg};color:${c.text};padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;margin-right:4px">${c.label} ${fmt(amt)}</span>`;
             }).join('');
         const barPct = totalAllDrops ? Math.round(data.total / totalAllDrops * 100) : 0;
+        const dropLink = `drop.html?drop=${encodeURIComponent(drop)}`;
+        const docsLink = `documents.html?drop=${encodeURIComponent(drop)}` +
+            (currentStart ? `&from=${currentStart}&to=${currentEnd}` : '');
         return `
         <div class="mb-4 pb-4 border-b border-slate-100 last:border-0">
             <div class="flex items-center justify-between mb-1">
-                <span class="text-sm font-semibold text-slate-800">${drop}</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-semibold text-slate-800">${drop}</span>
+                    <a href="${dropLink}" class="text-xs text-indigo-400 hover:text-indigo-600" title="Drop P&L"><i class="fas fa-layer-group"></i></a>
+                    <a href="${docsLink}" class="text-xs text-slate-400 hover:text-slate-600" title="View bills"><i class="fas fa-receipt"></i></a>
+                </div>
                 <span class="text-sm font-bold text-slate-900">${fmt(data.total)} <span class="text-xs font-normal text-slate-400">${share}%</span></span>
             </div>
             <div class="h-1.5 bg-slate-100 rounded mb-2 overflow-hidden">
