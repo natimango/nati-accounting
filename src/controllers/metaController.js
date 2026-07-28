@@ -31,15 +31,41 @@ async function listDepartments(req, res) {
 
 async function listDrops(req, res) {
   try {
+    const showAll = req.query.all === '1';
     const result = await pool.query(
-      `SELECT drop_id, drop_name
+      `SELECT drop_id, drop_name, description, launch_date, season, is_active, created_at
        FROM drops
-       WHERE is_active
+       ${showAll ? '' : 'WHERE is_active'}
        ORDER BY drop_name`
     );
     res.json({ success: true, drops: result.rows });
   } catch (error) {
     console.error('Drops list error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function updateDrop(req, res) {
+  try {
+    const { drop_id } = req.params;
+    const { drop_name, description, launch_date, season, is_active } = req.body;
+    const sets = [], vals = [];
+    let i = 1;
+    if (drop_name  !== undefined) { sets.push(`drop_name=$${i++}`);    vals.push(drop_name); }
+    if (description!== undefined) { sets.push(`description=$${i++}`);  vals.push(description); }
+    if (launch_date!== undefined) { sets.push(`launch_date=$${i++}`);  vals.push(launch_date || null); }
+    if (season     !== undefined) { sets.push(`season=$${i++}`);       vals.push(season); }
+    if (is_active  !== undefined) { sets.push(`is_active=$${i++}`);    vals.push(is_active); }
+    if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
+    vals.push(drop_id);
+    const r = await pool.query(
+      `UPDATE drops SET ${sets.join(', ')} WHERE drop_id=$${i} RETURNING *`,
+      vals
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Drop not found' });
+    res.json({ success: true, drop: r.rows[0] });
+  } catch (error) {
+    console.error('updateDrop error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -68,5 +94,6 @@ module.exports = {
   listCoaAccounts,
   listDepartments,
   listDrops,
-  createDrop
+  createDrop,
+  updateDrop
 };

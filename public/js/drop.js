@@ -77,6 +77,8 @@ function onDropChange() {
   if (link) link.href = `documents.html?drop=${encodeURIComponent(name)}`;
   const plLink = document.getElementById('view-pl-link');
   if (plLink) { plLink.href = `reports.html?drop=${encodeURIComponent(name)}`; plLink.classList.remove('hidden'); }
+  const archBtn = document.getElementById('archive-drop-btn');
+  if (archBtn) archBtn.classList.remove('hidden');
   loadDrop(name);
 }
 
@@ -386,6 +388,31 @@ async function createDrop() {
   } catch (err) {
     errEl.textContent = err.message || 'Failed to create drop.';
     errEl.classList.remove('hidden');
+  }
+}
+
+async function archiveCurrentDrop() {
+  if (!currentDrop) return;
+  if (!confirm(`Archive "${currentDrop}"? It will be hidden from drop lists but all data is preserved.`)) return;
+  try {
+    const sel = document.getElementById('drop-select');
+    const opt = sel ? Array.from(sel.options).find(o => o.value === currentDrop) : null;
+    const dropId = opt?.dataset?.dropId;
+    if (!dropId) { alert('Cannot find drop ID — try refreshing the page.'); return; }
+    const r = await authFetch(`/api/meta/drops/${dropId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: false })
+    });
+    const data = await r.json();
+    if (data.success) {
+      showEmptyState();
+      await loadDropList();
+    } else {
+      alert('Error: ' + (data.error || 'unknown'));
+    }
+  } catch (e) {
+    alert('Error: ' + e.message);
   }
 }
 
