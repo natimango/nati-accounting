@@ -47,6 +47,7 @@ async function loadDropList() {
     drops.forEach(d => {
       const opt = document.createElement('option');
       opt.value = d.drop_name;
+      opt.dataset.dropId = d.drop_id;
       opt.textContent = d.drop_name;
       sel.appendChild(opt);
     });
@@ -85,6 +86,8 @@ function showEmptyState() {
   document.getElementById('budget-section').classList.add('hidden');
   document.getElementById('category-section').classList.add('hidden');
   document.getElementById('vendors-section').classList.add('hidden');
+  const plSec = document.getElementById('drop-pl-section');
+  if (plSec) plSec.classList.add('hidden');
 }
 
 function showDropContent() {
@@ -96,6 +99,50 @@ function showDropContent() {
 }
 
 // ---- Load drop data ----
+
+async function loadDropPL(dropName) {
+  const sec = document.getElementById('drop-pl-section');
+  if (!sec) return;
+  try {
+    // Get drop_id from the select option
+    const sel = document.getElementById('drop-select');
+    const opt = sel ? Array.from(sel.options).find(o => o.value === dropName) : null;
+    const dropId = opt?.dataset?.dropId;
+
+    // Update P&L link
+    const plLink = document.getElementById('drop-pl-link');
+    if (plLink) plLink.href = `reports.html?drop=${encodeURIComponent(dropName)}`;
+
+    const url = dropId
+      ? `/api/reports/sales?drop_id=${encodeURIComponent(dropId)}`
+      : `/api/reports/sales`;
+    const r = await authFetch(url);
+    const d = await r.json();
+    const entries = d.entries || [];
+    const netSales   = entries.reduce((s, e) => s + parseFloat(e.net_sales || 0), 0);
+    const units      = entries.reduce((s, e) => s + (parseInt(e.gross_units||0) - parseInt(e.returned_units||0)), 0);
+
+    // Get COGS from the cost overview (totals.committed is already loaded — use cached data)
+    // We'll show it from the cost data if available
+    const committed  = parseFloat(document.getElementById('total-committed')?.textContent?.replace(/[₹,]/g,'') || 0);
+
+    const gp     = netSales - committed;
+    const gpPct  = netSales ? (gp / netSales * 100).toFixed(1) : '—';
+    const fmt    = n => '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+
+    document.getElementById('dpl-sales').textContent  = netSales > 0 ? fmt(netSales) : '—';
+    document.getElementById('dpl-cogs').textContent   = committed > 0 ? fmt(committed) : '—';
+    document.getElementById('dpl-gp').textContent     = (netSales > 0 || committed > 0) ? fmt(gp) : '—';
+    document.getElementById('dpl-gp-pct').textContent = netSales > 0 ? gpPct + '% GM' : '';
+    document.getElementById('dpl-units').textContent  = units > 0 ? units.toLocaleString('en-IN') : '—';
+    if (netSales > 0 || committed > 0) sec.classList.remove('hidden');
+    else sec.classList.add('hidden');
+  } catch (e) {
+    console.error('loadDropPL error', e);
+    const sec = document.getElementById('drop-pl-section');
+    if (sec) sec.classList.add('hidden');
+  }
+}
 
 async function loadDrop(dropName) {
   if (!dropName) return;
@@ -131,6 +178,8 @@ async function loadDrop(dropName) {
     renderBudgetInputs(data.budgetSummary || []);
     renderBudgetSummary(data.budgetSummary || [], budgetTotals);
     setBudgetMessage('');
+    // Load P&L after main data so committed cost is already in the DOM
+    loadDropPL(dropName);
   } catch (err) {
     console.error('Drop load error', err);
     showDropContent();

@@ -119,6 +119,36 @@
                     </div>
                 </section>
 
+                <!-- P&L mini panel -->
+                <section id="drop-pl-section" class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-5 hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <p class="text-xs uppercase tracking-wide text-slate-500">Drop P&amp;L</p>
+                            <h3 class="text-base font-semibold text-slate-900">Sales vs Costs</h3>
+                        </div>
+                        <a id="drop-pl-link" href="reports.html" class="text-xs text-indigo-600 hover:underline">Full report →</a>
+                    </div>
+                    <div id="drop-pl-content" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div class="rounded-xl bg-slate-50 p-3 text-center">
+                            <p class="text-[11px] text-slate-400 uppercase tracking-wide">Net Sales</p>
+                            <p id="dpl-sales" class="text-xl font-bold text-slate-800 mt-1">—</p>
+                        </div>
+                        <div class="rounded-xl bg-orange-50 p-3 text-center">
+                            <p class="text-[11px] text-orange-500 uppercase tracking-wide">Total COGS</p>
+                            <p id="dpl-cogs" class="text-xl font-bold text-orange-700 mt-1">—</p>
+                        </div>
+                        <div class="rounded-xl bg-blue-50 p-3 text-center">
+                            <p class="text-[11px] text-blue-500 uppercase tracking-wide">Gross Profit</p>
+                            <p id="dpl-gp" class="text-xl font-bold text-blue-700 mt-1">—</p>
+                            <p id="dpl-gp-pct" class="text-xs text-blue-400 mt-0.5"></p>
+                        </div>
+                        <div class="rounded-xl bg-indigo-50 p-3 text-center">
+                            <p class="text-[11px] text-indigo-500 uppercase tracking-wide">Units Sold</p>
+                            <p id="dpl-units" class="text-xl font-bold text-indigo-700 mt-1">—</p>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- Budget vs actual -->
                 <section id="budget-section" class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-5 space-y-4 hidden">
                     <div class="flex items-center justify-between flex-wrap gap-3">
