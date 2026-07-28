@@ -469,15 +469,6 @@ function renderPL(d) {
     const extraCols = compareMode ? 2 : 0;
     const colspan = 3 + extraCols;
 
-    function priorCols(priorAmt) {
-        if (!compareMode) return '';
-        if (pns == null || priorAmt == null) return '<td class="tr muted">—</td><td class="tr muted">—</td>';
-        const chg = priorAmt !== 0 ? ((priorAmt === 0 ? 0 : (Math.abs(priorAmt) - Math.abs(priorAmt)) / Math.abs(priorAmt) * 100)) : null;
-        // delta = current - prior
-        const delta = (typeof priorAmt === 'number') ? null : null; // placeholder; compute below
-        return `<td class="tr muted">${fmt(priorAmt)}</td><td class="tr muted">—</td>`;
-    }
-
     function priorDelta(cur, priorAmt) {
         if (!compareMode || pns == null || priorAmt == null) return '';
         const d = cur - priorAmt;

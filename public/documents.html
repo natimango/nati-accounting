@@ -207,6 +207,16 @@
                                 <option value="name-desc">Vendor Z→A</option>
                             </select>
                         </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Quick flag</label>
+                            <select id="filter-flag" onchange="filterDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
+                                <option value="">All bills</option>
+                                <option value="no-date">⚠ Missing bill date</option>
+                                <option value="no-drop">⚠ No drop assigned</option>
+                                <option value="overdue">🔴 Overdue payment</option>
+                                <option value="high-value">💰 High value (>₹10k)</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </section>

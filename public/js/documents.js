@@ -1138,6 +1138,7 @@ function filterDocuments() {
     const paymentFilter    = document.getElementById('filter-payment').value;
     const payStatusFilter  = document.getElementById('filter-pay-status')?.value || '';
     const statusFilter     = document.getElementById('filter-status').value;
+    const flagFilter       = document.getElementById('filter-flag')?.value || '';
 
     let filtered = allDocuments;
 
@@ -1201,6 +1202,21 @@ function filterDocuments() {
 
     filtered = filtered.filter(doc => docMatchesVerificationFilter(doc));
 
+    if (flagFilter === 'no-date') {
+        filtered = filtered.filter(doc => !docHasBillDate(doc));
+    } else if (flagFilter === 'no-drop') {
+        filtered = filtered.filter(doc => !(doc.bill_drop_name || doc.drop_name));
+    } else if (flagFilter === 'overdue') {
+        const now = new Date();
+        filtered = filtered.filter(doc => {
+            const due = doc.bill_payment_due_date;
+            const payStatus = doc.bill_payment_status || doc.payment_status || '';
+            return due && new Date(due) < now && payStatus !== 'paid';
+        });
+    } else if (flagFilter === 'high-value') {
+        filtered = filtered.filter(doc => Number(doc.total_amount || doc.bill_total_amount || 0) >= 10000);
+    }
+
     filteredDocuments = filtered;
     displayDocuments(filteredDocuments);
     updateDocCount();
@@ -1236,7 +1252,7 @@ function setDateFilter(period) {
 
 function clearFilters() {
     ['date-from','date-to','filter-category','filter-group','filter-section',
-     'filter-drop','filter-payment','filter-pay-status','filter-status','search-box']
+     'filter-drop','filter-payment','filter-pay-status','filter-status','search-box','filter-flag']
         .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     populateCategoryDropdown('');
     verificationFilter = 'all';
