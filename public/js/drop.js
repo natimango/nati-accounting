@@ -240,13 +240,18 @@ function renderSkuTable(rows) {
   const body = document.getElementById('sku-body');
   if (!body) return;
   body.innerHTML = rows.length
-    ? rows.map(s => `
-        <tr>
-          <td class="px-4 py-2">${s.sku_code}</td>
-          <td class="px-4 py-2 text-right">${formatCurrency(s.spend)}</td>
-        </tr>
-      `).join('')
-    : `<tr><td colspan="2" class="px-4 py-3 text-center text-slate-500 text-sm">No SKU-tagged items</td></tr>`;
+    ? rows.map(s => {
+        const amt = parseFloat(s.spend || s.total_amount || 0);
+        const qty = parseInt(s.total_qty || 0);
+        return `<tr>
+          <td class="px-4 py-2 font-mono text-xs">
+            <a href="sku-catalog.html" class="text-indigo-600 hover:underline">${s.sku_code}</a>
+          </td>
+          <td class="px-4 py-2 text-right text-xs text-slate-500">${qty > 0 ? qty + ' units' : '—'}</td>
+          <td class="px-4 py-2 text-right">${formatCurrency(amt)}</td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="3" class="px-4 py-3 text-center text-slate-500 text-sm">No SKU-tagged items</td></tr>`;
 }
 
 function renderBudgetInputs(summary) {
