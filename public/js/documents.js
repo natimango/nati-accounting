@@ -1072,6 +1072,16 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         closePreview();
         closeAIModal();
+        closeBillModal();
+    }
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+    if (e.key.toLowerCase() === 'u') location.href = 'upload.html';
+    if (e.key.toLowerCase() === 'r') location.href = 'reports.html';
+    if (e.key.toLowerCase() === 'p') location.href = 'payables.html';
+    if (e.key === '/') {
+        e.preventDefault();
+        const sb = document.getElementById('search-box');
+        if (sb) { sb.focus(); sb.select(); }
     }
 });
 
