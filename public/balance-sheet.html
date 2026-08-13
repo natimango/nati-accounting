@@ -285,7 +285,10 @@
                         <div class="mb-3 border border-slate-100 rounded-xl overflow-hidden">
                             <div class="px-4 py-2 bg-slate-50 flex items-center justify-between text-xs">
                                 <span class="font-medium text-slate-700">${date} — ${je.description || je.reference_type || 'Journal Entry'}</span>
-                                <span class="text-slate-400">#${je.journal_id} · ${je.status || ''}</span>
+                                <span class="flex items-center gap-2 text-slate-400">
+                                    #${je.journal_id} · ${je.status || ''}
+                                    ${je.reference_type === 'BILL' && je.reference_id ? `<a href="documents.html?bill=${je.reference_id}" class="text-indigo-500 hover:text-indigo-700 ml-1" title="View source bill"><i class="fas fa-receipt"></i></a>` : ''}
+                                </span>
                             </div>
                             <table class="w-full text-sm">
                                 <thead><tr class="text-[10px] text-slate-400 uppercase">

@@ -2237,21 +2237,29 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el) el.value = qSearch;
     }
 
-    const qDoc = urlParams.get('doc');
+    const qDoc  = urlParams.get('doc');
+    const qBill = urlParams.get('bill');
+
+    const afterLoad = () => {
+        if (qDoc) {
+            const docId = parseInt(qDoc, 10);
+            if (docId) setTimeout(() => openManualModal(docId), 300);
+        } else if (qBill) {
+            // Find document by bill_id and open its detail panel
+            const billId = parseInt(qBill, 10);
+            if (billId) {
+                setTimeout(() => {
+                    const match = allDocuments.find(d => d.bill_id === billId);
+                    if (match) selectDocument(match.document_id);
+                }, 300);
+            }
+        }
+    };
+
     if (window.sessionReady) {
-        window.sessionReady.then(() => loadDocuments().then(() => {
-            if (qDoc) {
-                const docId = parseInt(qDoc, 10);
-                if (docId) setTimeout(() => openManualModal(docId), 300);
-            }
-        })).catch(() => {});
+        window.sessionReady.then(() => loadDocuments().then(afterLoad)).catch(() => {});
     } else {
-        loadDocuments().then(() => {
-            if (qDoc) {
-                const docId = parseInt(qDoc, 10);
-                if (docId) setTimeout(() => openManualModal(docId), 300);
-            }
-        });
+        loadDocuments().then(afterLoad);
     }
     if (bus && bus.subscribe) {
         bus.subscribe(bus.EVENTS.DATA_CHANGED, () => loadDocuments());
