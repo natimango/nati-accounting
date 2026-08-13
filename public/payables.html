@@ -527,7 +527,12 @@ function showToast(msg, type) {
     setTimeout(() => t.remove(), 3500);
 }
 
-document.addEventListener('DOMContentLoaded', loadPayables);
+document.addEventListener('DOMContentLoaded', () => {
+    const p = new URLSearchParams(window.location.search);
+    const filter = p.get('filter');
+    if (filter === 'overdue' || filter === 'week' || filter === 'month') setPayFilter(filter);
+    loadPayables();
+});
 </script>
 </body>
 </html>
