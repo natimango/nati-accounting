@@ -318,29 +318,37 @@ function renderSectionBreakdown(rows) {
 function renderCategoryTable(rows) {
   const body = document.getElementById('cat-body');
   if (!body) return;
+  const drop = document.getElementById('drop-select')?.value || '';
   body.innerHTML = rows.length
-    ? rows.map(r => `
-        <tr>
-          <td class="px-4 py-2">${r.category}</td>
+    ? rows.map(r => {
+        const href = drop
+          ? `documents.html?drop=${encodeURIComponent(drop)}&q=${encodeURIComponent(r.category)}`
+          : `documents.html?q=${encodeURIComponent(r.category)}`;
+        return `<tr class="hover:bg-slate-50">
+          <td class="px-4 py-2"><a href="${href}" class="text-indigo-700 hover:underline">${r.category}</a></td>
           <td class="px-4 py-2 text-right">${formatCurrency(r.committed)}</td>
           <td class="px-4 py-2 text-right">${formatCurrency(r.paid)}</td>
           <td class="px-4 py-2 text-right ${Number(r.outstanding) > 0 ? 'text-amber-600 font-medium' : ''}">${formatCurrency(r.outstanding)}</td>
-        </tr>
-      `).join('')
+        </tr>`;
+      }).join('')
     : `<tr><td colspan="4" class="px-4 py-3 text-center text-slate-500 text-sm">No bills tagged to this drop yet.</td></tr>`;
 }
 
 function renderVendorTable(rows) {
   const body = document.getElementById('vendor-body');
   if (!body) return;
+  const drop = document.getElementById('drop-select')?.value || '';
   body.innerHTML = rows.length
-    ? rows.map(v => `
-        <tr>
-          <td class="px-4 py-2">${v.vendor_name || '—'}</td>
+    ? rows.map(v => {
+        const href = drop
+          ? `documents.html?drop=${encodeURIComponent(drop)}&q=${encodeURIComponent(v.vendor_name || '')}`
+          : `documents.html?q=${encodeURIComponent(v.vendor_name || '')}`;
+        return `<tr class="hover:bg-slate-50">
+          <td class="px-4 py-2"><a href="${href}" class="text-indigo-700 hover:underline">${v.vendor_name || '—'}</a></td>
           <td class="px-4 py-2 text-right">${formatCurrency(v.committed)}</td>
           <td class="px-4 py-2 text-right">${formatCurrency(v.paid)}</td>
-        </tr>
-      `).join('')
+        </tr>`;
+      }).join('')
     : `<tr><td colspan="3" class="px-4 py-3 text-center text-slate-500 text-sm">No vendor data</td></tr>`;
 }
 
@@ -353,7 +361,7 @@ function renderSkuTable(rows) {
         const qty = parseInt(s.total_qty || 0);
         return `<tr>
           <td class="px-4 py-2 font-mono text-xs">
-            <a href="garment-economics.html" class="text-indigo-600 hover:underline" title="View garment economics">${s.sku_code}</a>
+            <a href="garment-economics.html?sku=${encodeURIComponent(s.sku_code)}" class="text-indigo-600 hover:underline" title="View garment economics">${s.sku_code}</a>
           </td>
           <td class="px-4 py-2 text-right text-xs text-slate-500">${qty > 0 ? qty + ' units' : '—'}</td>
           <td class="px-4 py-2 text-right">${formatCurrency(amt)}</td>

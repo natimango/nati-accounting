@@ -321,18 +321,18 @@ async function loadQualitySummary() {
         el.innerHTML = allGood
             ? `<div class="text-xs text-emerald-600 font-medium"><i class="fas fa-circle-check mr-1"></i>All items posted — no gaps</div>`
             : `<div class="space-y-2">
-                ${docsUnposted > 0 ? `<a href="documents.html" class="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-amber-50 hover:bg-amber-100 transition">
+                ${docsUnposted > 0 ? `<a href="documents.html?flag=unposted-postable" class="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-amber-50 hover:bg-amber-100 transition">
                     <span class="text-amber-700"><i class="fas fa-inbox mr-1"></i>${docsUnposted} doc${docsUnposted!==1?'s':''} with unposted items</span>
                     <span class="font-semibold text-amber-700">${fmt(unpostedAmt)}</span>
                 </a>` : ''}
-                ${missingCoa > 0 ? `<div class="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-rose-50">
+                ${missingCoa > 0 ? `<a href="documents.html?flag=missing-dims" class="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-rose-50 hover:bg-rose-100 transition">
                     <span class="text-rose-600"><i class="fas fa-tag mr-1"></i>Missing COA account</span>
                     <span class="font-semibold text-rose-600">${fmt(missingCoa)}</span>
-                </div>` : ''}
-                ${missingDrop > 0 ? `<div class="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-rose-50">
+                </a>` : ''}
+                ${missingDrop > 0 ? `<a href="documents.html?flag=no-drop" class="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-rose-50 hover:bg-rose-100 transition">
                     <span class="text-rose-600"><i class="fas fa-layer-group mr-1"></i>Missing drop assignment</span>
                     <span class="font-semibold text-rose-600">${fmt(missingDrop)}</span>
-                </div>` : ''}
+                </a>` : ''}
               </div>`;
     } catch (_) {
         el.innerHTML = `<div class="text-xs text-slate-400">Quality data unavailable</div>`;
