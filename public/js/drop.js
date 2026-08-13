@@ -151,7 +151,15 @@ async function loadDropPL(dropName) {
     const gpPct  = netSales ? (gp / netSales * 100).toFixed(1) : '—';
     const fmt    = n => '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 
-    document.getElementById('dpl-sales').textContent  = netSales > 0 ? fmt(netSales) : '—';
+    const salesEl = document.getElementById('dpl-sales');
+    if (salesEl) {
+      salesEl.textContent = netSales > 0 ? fmt(netSales) : '—';
+      if (dropId && netSales > 0) {
+        salesEl.style.cursor = 'pointer';
+        salesEl.title = 'Click to view sales entries';
+        salesEl.onclick = () => { location.href = `sales.html?drop_id=${encodeURIComponent(dropId)}`; };
+      }
+    }
     document.getElementById('dpl-cogs').textContent   = committed > 0 ? fmt(committed) : '—';
     document.getElementById('dpl-gp').textContent     = (netSales > 0 || committed > 0) ? fmt(gp) : '—';
     document.getElementById('dpl-gp-pct').textContent = netSales > 0 ? gpPct + '% GM' : '';
@@ -268,7 +276,7 @@ function renderSkuTable(rows) {
         const qty = parseInt(s.total_qty || 0);
         return `<tr>
           <td class="px-4 py-2 font-mono text-xs">
-            <a href="sku-catalog.html" class="text-indigo-600 hover:underline">${s.sku_code}</a>
+            <a href="garment-economics.html" class="text-indigo-600 hover:underline" title="View garment economics">${s.sku_code}</a>
           </td>
           <td class="px-4 py-2 text-right text-xs text-slate-500">${qty > 0 ? qty + ' units' : '—'}</td>
           <td class="px-4 py-2 text-right">${formatCurrency(amt)}</td>

@@ -321,6 +321,14 @@ async function init() {
         });
     } catch (_) {}
 
+    // Apply URL params
+    const urlParams = new URLSearchParams(location.search);
+    const qDropId = urlParams.get('drop_id');
+    if (qDropId) {
+        const sel = document.getElementById('fDrop');
+        if (sel) sel.value = qDropId;
+    }
+
     loadEntries();
 }
 
@@ -399,7 +407,7 @@ function renderTable(entries) {
         return `<tr>
             <td class="text-slate-500">${e.entry_date || '—'}</td>
             <td><span class="ch-badge ch-${e.channel}">${CH_LABELS[e.channel] || e.channel}</span></td>
-            <td class="text-slate-600">${drop}</td>
+            <td class="text-slate-600">${drop !== '—' ? `<a href="drop.html?drop=${encodeURIComponent(drop)}" class="text-indigo-600 hover:underline text-xs">${drop}</a>` : '—'}</td>
             <td class="text-slate-600">${section}</td>
             <td class="tr font-medium">${fmt(e.gross_sales)}</td>
             <td class="tr ${isRet ? 'neg' : 'text-slate-300'}">${isRet ? fmt(e.returns_amount) : '—'}</td>
