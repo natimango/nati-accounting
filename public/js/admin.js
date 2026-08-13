@@ -180,7 +180,10 @@ document.addEventListener('keydown', e => {
 
 async function loadHealth() {
   try {
-    const wd = await fetch('/api/brain/watchdog', { credentials: 'include' }).then(r => r.json());
+    const [wd, inv] = await Promise.all([
+      fetch('/api/brain/watchdog', { credentials: 'include' }).then(r => r.json()),
+      fetch('/api/brain/invariants/check', { credentials: 'include' }).then(r => r.json()).catch(() => ({}))
+    ]);
     const summary = wd.summary || {};
     const setH = (id, val, warn) => {
       const el = document.getElementById(id);
@@ -192,6 +195,13 @@ async function loadHealth() {
     setH('h-pending',       summary.stale_manual   ?? (wd.stale_manual || []).length,   true);
     setH('h-overdue',       summary.aged_unpaid    ?? (wd.aged_unpaid || []).length,     true);
     setH('h-duplicates',    summary.duplicates     ?? (wd.duplicates || []).length,      true);
+    if (inv.invariants) {
+      const i = inv.invariants;
+      setH('inv-missing-dims',     i.posted_missing_dims,              true);
+      setH('inv-unposted',         i.unposted_postable_items,          false);
+      setH('inv-verified-unposted', i.verified_documents_with_unposted, true);
+      setH('inv-duplicates',       i.duplicate_file_hash_count,        true);
+    }
   } catch (_) {}
 }
 

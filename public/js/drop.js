@@ -90,6 +90,8 @@ function showEmptyState() {
   document.getElementById('vendors-section').classList.add('hidden');
   const plSec = document.getElementById('drop-pl-section');
   if (plSec) plSec.classList.add('hidden');
+  const grSec = document.getElementById('guardrails-section');
+  if (grSec) grSec.classList.add('hidden');
 }
 
 function showDropContent() {
@@ -98,6 +100,23 @@ function showDropContent() {
   document.getElementById('budget-section').classList.remove('hidden');
   document.getElementById('category-section').classList.remove('hidden');
   document.getElementById('vendors-section').classList.remove('hidden');
+}
+
+async function loadGuardrails(dropId) {
+  const sec = document.getElementById('guardrails-section');
+  if (!sec || !dropId) return;
+  try {
+    const r = await authFetch(`/api/brain/guardrails/drop/${dropId}`);
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d.success) return;
+    const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    document.getElementById('gr-go-live').textContent   = fmt(d.go_live?.total_go_live_cost);
+    document.getElementById('gr-break-even').textContent = d.break_even_units != null ? d.break_even_units + ' units' : '—';
+    document.getElementById('gr-cm').textContent         = fmt(d.contribution?.blended_contribution_margin);
+    document.getElementById('gr-mktg').textContent       = fmt(d.allowed_marketing_budget);
+    sec.classList.remove('hidden');
+  } catch (_) {}
 }
 
 // ---- Load drop data ----
@@ -180,8 +199,12 @@ async function loadDrop(dropName) {
     renderBudgetInputs(data.budgetSummary || []);
     renderBudgetSummary(data.budgetSummary || [], budgetTotals);
     setBudgetMessage('');
-    // Load P&L after main data so committed cost is already in the DOM
+    // Load P&L and guardrails after main data is ready
     loadDropPL(dropName);
+    const sel = document.getElementById('drop-select');
+    const opt = sel ? Array.from(sel.options).find(o => o.value === dropName) : null;
+    const dropId = opt?.dataset?.dropId;
+    if (dropId) loadGuardrails(dropId);
   } catch (err) {
     console.error('Drop load error', err);
     showDropContent();
