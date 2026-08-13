@@ -478,6 +478,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const init = async () => {
         await loadDrops();
         await load();
+        const qSku = new URLSearchParams(location.search).get('sku');
+        if (qSku && currentData?.per_sku) {
+            const match = currentData.per_sku.find(s => s.sku_code === qSku);
+            if (match) setTimeout(() => openPanel(match.sku_id), 200);
+        }
     };
     if (window.sessionReady) {
         window.sessionReady.then(init).catch(() => {});
