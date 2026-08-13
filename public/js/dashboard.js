@@ -195,7 +195,7 @@ function renderRecentDocs(data) {
         const [statusLabel, statusCls] = STATUS_MAP[doc.status] || ['—', 'bg-slate-100 text-slate-500'];
         const icon = doc.file_type?.includes('pdf') ? 'fa-file-pdf text-red-400' : 'fa-file-image text-blue-400';
         return `
-        <div class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition cursor-pointer" onclick="location.href='documents.html'">
+        <div class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition cursor-pointer" onclick="location.href='documents.html?doc=${doc.document_id}'">
             <i class="fas ${icon} text-lg w-5 shrink-0"></i>
             <div class="flex-1 min-w-0">
                 <p class="font-medium text-slate-800 text-sm truncate">${vendor}</p>

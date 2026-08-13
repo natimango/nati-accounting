@@ -157,6 +157,7 @@
                 <button class="tab-btn" onclick="showTab('drops')"><i class="fas fa-layer-group mr-1.5"></i>By Drop</button>
                 <button class="tab-btn" onclick="showTab('variance')"><i class="fas fa-bullseye mr-1.5"></i>Budget vs Actual</button>
                 <button class="tab-btn" onclick="showTab('cm')"><i class="fas fa-percent mr-1.5"></i>Contribution Margin</button>
+                <button class="tab-btn" onclick="showTab('ue')"><i class="fas fa-dollar-sign mr-1.5"></i>Unit Economics</button>
             </div>
 
             <!-- ── P&L ── -->
@@ -312,6 +313,27 @@
                 </div>
             </section>
 
+            <!-- ── Unit Economics ── -->
+            <section id="tab-ue" class="print-area hidden">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h3 class="font-semibold text-base">Unit Economics & Max CAC</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">CM after returns, gateway fees & shipping per SKU. Max CAC = what you can afford to spend acquiring one customer.</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <select id="ueDropFilter" class="px-2 py-1 border border-slate-300 rounded-lg text-xs" onchange="ueLoaded=false; loadUE()">
+                                <option value="">All Drops</option>
+                            </select>
+                            <button onclick="ueLoaded=false; loadUE()" class="text-xs text-indigo-600 hover:underline"><i class="fas fa-rotate mr-1"></i>Refresh</button>
+                        </div>
+                    </div>
+                    <div id="ueContent" class="p-5">
+                        <div class="text-center py-8 text-slate-400">Open this tab to load unit economics</div>
+                    </div>
+                </div>
+            </section>
+
         </div>
     </main>
 </div>
@@ -332,7 +354,7 @@ async function loadDrops() {
     try {
         const r = await fetch('/api/meta/drops', { credentials: 'include' });
         const d = await r.json();
-        ['filterDrop', 'cmDropFilter'].forEach(selId => {
+        ['filterDrop', 'cmDropFilter', 'ueDropFilter'].forEach(selId => {
             const sel = document.getElementById(selId);
             if (!sel) return;
             (d.drops || []).forEach(drop => {
@@ -795,13 +817,14 @@ function renderDropSpend(d) {
 }
 
 // ── Tab switcher ──────────────────────────────────────────────────────────────
-const TABS = ['pl','section','gst','spend','trend','drops','variance','cm'];
+const TABS = ['pl','section','gst','spend','trend','drops','variance','cm','ue'];
 function showTab(name) {
     TABS.forEach(t => { document.getElementById('tab-' + t).classList.toggle('hidden', t !== name); });
     document.querySelectorAll('.tab-btn').forEach((b, i) => { b.classList.toggle('active', TABS[i] === name); });
     if (name === 'trend' && !trendLoaded) loadTrend();
     if (name === 'variance' && !varianceLoaded) loadVariance();
     if (name === 'cm' && !cmLoaded) loadCM();
+    if (name === 'ue' && !ueLoaded) loadUE();
 }
 
 // ── Trend chart ───────────────────────────────────────────────────────────────
@@ -1142,6 +1165,98 @@ function renderCM(skus) {
             <tbody>${rows}</tbody>
         </table>
         </div>`;
+}
+
+// ── Unit Economics ─────────────────────────────────────────────────────────────
+let ueLoaded = false;
+
+async function loadUE() {
+    const el = document.getElementById('ueContent');
+    el.innerHTML = '<div class="text-center py-8 text-slate-400">Loading…</div>';
+    const dropId = document.getElementById('ueDropFilter').value;
+    try {
+        const params = dropId ? `?dropId=${dropId}` : '';
+        const d = await fetch(`/api/reports/unit-economics${params}`, { credentials: 'include' }).then(r => r.json());
+        renderUE(d.data || {});
+        ueLoaded = true;
+    } catch (e) {
+        el.innerHTML = `<div class="text-center py-6 text-red-400">${e.message}</div>`;
+    }
+}
+
+function renderUE(data) {
+    const el = document.getElementById('ueContent');
+    const skus = data.per_sku || [];
+    if (!skus.length) {
+        el.innerHTML = '<div class="text-center py-8 text-slate-400">No SKUs with data. Add SKUs and cost layers in the <a href="sku-catalog.html" class="text-indigo-500 hover:underline">SKU Catalog</a>.</div>';
+        return;
+    }
+    const blendedCm = data.blended_cm || 0;
+    const blendedMaxCac = data.blended_max_cac || 0;
+    const blendedPrice = data.blended_price || 0;
+    const buffer = ((data.target_net_margin_buffer || 0) * 100).toFixed(0);
+    const flagCount = skus.filter(s => s.flags && Object.values(s.flags).some(Boolean)).length;
+
+    const summaryHtml = `
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            <div class="bg-slate-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-slate-400 uppercase tracking-wide">SKUs analysed</p>
+                <p class="text-xl font-bold text-slate-800 mt-1">${skus.length}</p>
+            </div>
+            <div class="bg-emerald-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-emerald-600 uppercase tracking-wide">Blended CM / unit</p>
+                <p class="text-xl font-bold text-emerald-700 mt-1">${fmt(blendedCm)}</p>
+            </div>
+            <div class="bg-indigo-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-indigo-600 uppercase tracking-wide">Max CAC (blended)</p>
+                <p class="text-xl font-bold text-indigo-700 mt-1">${fmt(blendedMaxCac)}</p>
+                <p class="text-[10px] text-indigo-400 mt-0.5">${buffer}% margin buffer</p>
+            </div>
+            <div class="bg-${flagCount > 0 ? 'amber' : 'slate'}-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-${flagCount > 0 ? 'amber' : 'slate'}-500 uppercase tracking-wide">Data gaps</p>
+                <p class="text-xl font-bold text-${flagCount > 0 ? 'amber' : 'slate'}-700 mt-1">${flagCount}</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">SKUs with warnings</p>
+            </div>
+        </div>`;
+
+    const rows = skus.map(s => {
+        const cmColor = s.cm_after_returns > 0 ? 'text-emerald-600' : 'text-rose-600';
+        const cacColor = s.max_cac > 0 ? 'text-indigo-600' : 'text-rose-600';
+        const flags = s.flags || {};
+        const flagHtml = [
+            flags.missing_price && '<span class="px-1 py-0.5 rounded text-[9px] bg-red-100 text-red-600">No price</span>',
+            flags.missing_cost && '<span class="px-1 py-0.5 rounded text-[9px] bg-red-100 text-red-600">No cost</span>',
+            flags.missing_assumptions && '<span class="px-1 py-0.5 rounded text-[9px] bg-amber-100 text-amber-600">No assumptions</span>',
+            flags.negative_cm && '<span class="px-1 py-0.5 rounded text-[9px] bg-rose-100 text-rose-700 font-semibold">Neg CM</span>',
+        ].filter(Boolean).join(' ');
+        return `<tr class="border-t border-slate-100 hover:bg-slate-50">
+            <td class="px-4 py-2.5 font-mono text-xs font-semibold text-slate-700">${s.sku_code}</td>
+            <td class="px-4 py-2.5 text-sm text-slate-600">${s.sku_name}</td>
+            <td class="px-4 py-2.5 text-sm text-right">${fmt(s.price)}</td>
+            <td class="px-4 py-2.5 text-sm text-right text-slate-500">${s.landed_cost > 0 ? fmt(s.landed_cost) : '<span class="text-amber-500 text-xs">—</span>'}</td>
+            <td class="px-4 py-2.5 text-sm text-right text-slate-400">${s.shipping_subsidy_avg > 0 ? fmt(s.shipping_subsidy_avg) : '—'}</td>
+            <td class="px-4 py-2.5 text-sm text-right font-semibold ${cmColor}">${fmt(s.cm_after_returns)}</td>
+            <td class="px-4 py-2.5 text-sm text-right font-bold ${cacColor}">${s.max_cac > 0 ? fmt(s.max_cac) : '—'}</td>
+            <td class="px-4 py-2.5 text-xs">${flagHtml || '<span class="text-emerald-500">✓</span>'}</td>
+        </tr>`;
+    }).join('');
+
+    el.innerHTML = summaryHtml + `
+        <div class="overflow-auto">
+        <table class="w-full text-sm">
+            <thead><tr class="text-[11px] text-slate-400 uppercase tracking-wide bg-slate-50">
+                <th class="px-4 py-2 text-left">SKU</th>
+                <th class="px-4 py-2 text-left">Name</th>
+                <th class="px-4 py-2 text-right">Price</th>
+                <th class="px-4 py-2 text-right">Landed Cost</th>
+                <th class="px-4 py-2 text-right">Shipping</th>
+                <th class="px-4 py-2 text-right">CM/unit</th>
+                <th class="px-4 py-2 text-right">Max CAC</th>
+                <th class="px-4 py-2 text-left">Flags</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table></div>
+        <p class="text-xs text-slate-400 mt-3">Max CAC = CM after returns − margin buffer (${buffer}% of price). Use this as your per-acquisition marketing budget ceiling.</p>`;
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────────────

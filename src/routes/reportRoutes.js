@@ -21,7 +21,8 @@ const {
   getSalesEntries,
   createSalesEntry,
   updateSalesEntry,
-  deleteSalesEntry
+  deleteSalesEntry,
+  getJournalEntries
 } = require('../controllers/reportsController');
 const { authorize } = require('../middleware/auth');
 
@@ -48,5 +49,6 @@ router.get('/reports/sales', getSalesEntries);
 router.post('/reports/sales', authorize('manager', 'admin'), createSalesEntry);
 router.put('/reports/sales/:id', authorize('manager', 'admin'), updateSalesEntry);
 router.delete('/reports/sales/:id', authorize('admin'), deleteSalesEntry);
+router.get('/reports/journal-entries', getJournalEntries);
 
 module.exports = router;
