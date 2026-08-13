@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accounts &amp; Trial Balance — NATI Accounting</title>
+    <link rel="stylesheet" href="css/tailwind.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/theme.css">
+    <style>
+        .tab-btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; cursor: pointer; transition: all .15s; }
+        .tab-btn:hover { background: #f1f5f9; }
+        .tab-btn.active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+
+        .rt { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .rt td, .rt th { padding: 8px 14px; border-bottom: 1px solid #f1f5f9; }
+        .rt th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; background: #f8fafc; border-bottom: 2px solid #e2e8f0; }
+        .rt tr.type-hdr td { background: #1e293b; color: #e2e8f0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; padding: 6px 14px; }
+        .rt tr:hover td { background: #f8fafc; }
+        .rt .tr { text-align: right; }
+        .rt .mono { font-family: monospace; font-size: 12px; color: #64748b; }
+        .rt .pos { color: #059669; }
+        .rt .neg { color: #dc2626; }
+
+        .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 99px; letter-spacing: .04em; }
+        .badge-asset { background: #dbeafe; color: #1d4ed8; }
+        .badge-liability { background: #fee2e2; color: #dc2626; }
+        .badge-equity { background: #d1fae5; color: #059669; }
+        .badge-revenue { background: #e0e7ff; color: #4338ca; }
+        .badge-expense { background: #fef3c7; color: #b45309; }
+
+        .summary-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; }
+        .summary-card .label { font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+        .summary-card .value { font-size: 22px; font-weight: 700; color: #1e293b; margin-top: 4px; }
+        .summary-card.balanced .value { color: #059669; }
+        .summary-card.unbalanced .value { color: #dc2626; }
+    </style>
+</head>
+<body class="nati-page bg-gradient-to-br from-slate-50 via-slate-100 to-white text-slate-900">
+<div class="min-h-screen flex flex-col">
+    <header class="nati-hero bg-gradient-to-r from-indigo-700 via-blue-700 to-slate-900 text-white shadow">
+        <div class="nati-shell">
+            <div class="py-5 flex flex-wrap items-center gap-4 justify-between">
+                <div class="flex items-center gap-3">
+                    <a href="index.html" class="block">
+                        <img src="logo.jpg" alt="NATI logo" class="h-14 w-14 rounded-xl border border-white/40 bg-white object-cover shadow">
+                    </a>
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.2em] text-white/70">Accounting</p>
+                        <h1 class="text-2xl font-semibold">Chart of Accounts &amp; Trial Balance</h1>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="nati-nav-wrapper">
+                        <button class="nati-nav-toggle" onclick="toggleNav('nav-accounts')"><i class="fas fa-bars"></i><span>Menu</span></button>
+                        <nav class="nati-nav" id="nav-accounts">
+                            <a href="index.html" class="nati-nav-link"><i class="fas fa-gauge"></i><span>Dashboard</span></a>
+                            <a href="documents.html" class="nati-nav-link"><i class="fas fa-folder-open"></i><span>Documents</span></a>
+                            <a href="upload.html" class="nati-nav-link"><i class="fas fa-upload"></i><span>Upload</span></a>
+                            <a href="drop.html" class="nati-nav-link"><i class="fas fa-layer-group"></i><span>Drop</span></a>
+                            <a href="reports.html" class="nati-nav-link"><i class="fas fa-chart-line"></i><span>Reports</span></a>
+                            <a href="balance-sheet.html" class="nati-nav-link"><i class="fas fa-scale-balanced"></i><span>Balance Sheet</span></a>
+                            <a href="accounts.html" class="nati-nav-link is-active"><i class="fas fa-book"></i><span>Accounts</span></a>
+                            <a href="sales.html" class="nati-nav-link"><i class="fas fa-store"></i><span>Sales</span></a>
+                            <a href="payables.html" class="nati-nav-link"><i class="fas fa-file-invoice-dollar"></i><span>Payables</span></a>
+                            <a href="admin.html" class="nati-nav-link hidden" id="nav-admin"><i class="fas fa-user-shield"></i><span>Admin</span></a>
+                        </nav>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div id="user-pill" class="hidden sm:flex items-center gap-2 px-3 py-2 rounded-2xl border border-white/30 bg-white/10 backdrop-blur">
+                            <div>
+                                <p id="user-name" class="text-sm font-semibold leading-tight">—</p>
+                                <p id="user-role" class="text-[11px] tracking-[0.2em] text-white/70 uppercase">—</p>
+                            </div>
+                        </div>
+                        <button id="logout-btn" class="hidden px-3 py-2 bg-white/15 hover:bg-white/25 text-sm font-semibold rounded-2xl flex items-center gap-2 transition">
+                            <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 nati-shell py-8">
+
+        <!-- Tab bar -->
+        <div class="flex gap-2 mb-6 flex-wrap">
+            <button class="tab-btn active" onclick="showTab('coa')">Chart of Accounts</button>
+            <button class="tab-btn" onclick="showTab('tb')">Trial Balance</button>
+        </div>
+
+        <!-- ── Chart of Accounts tab ── -->
+        <div id="tab-coa">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                    <div>
+                        <h2 class="font-semibold text-slate-900 text-base">Chart of Accounts</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">All active ledger accounts in the system</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input id="coa-search" type="text" placeholder="Search accounts…" oninput="filterCOA()"
+                            class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 w-52">
+                        <select id="coa-type-filter" onchange="filterCOA()"
+                            class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                            <option value="">All types</option>
+                            <option value="ASSET">Assets</option>
+                            <option value="LIABILITY">Liabilities</option>
+                            <option value="EQUITY">Equity</option>
+                            <option value="REVENUE">Revenue</option>
+                            <option value="EXPENSE">Expenses</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="coa-loading" class="text-center py-12 text-slate-400">Loading accounts…</div>
+                <div id="coa-container" class="hidden overflow-x-auto">
+                    <table class="rt">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Account Name</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody id="coa-tbody"></tbody>
+                    </table>
+                </div>
+                <div id="coa-empty" class="hidden text-center py-10 text-slate-400 text-sm">No accounts match your filter.</div>
+            </div>
+        </div>
+
+        <!-- ── Trial Balance tab ── -->
+        <div id="tab-tb" class="hidden">
+            <!-- Controls -->
+            <div class="flex flex-wrap items-center gap-3 mb-5">
+                <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
+                    <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">As of</label>
+                    <input type="date" id="tb-date" class="text-sm border-none outline-none bg-transparent font-medium text-slate-900">
+                </div>
+                <button onclick="loadTrialBalance()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition">
+                    <i class="fas fa-sync-alt"></i> Load
+                </button>
+                <button onclick="exportTB()" class="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold flex items-center gap-2 transition">
+                    <i class="fas fa-download"></i> Export CSV
+                </button>
+            </div>
+
+            <!-- Summary cards -->
+            <div id="tb-summary" class="grid grid-cols-3 gap-4 mb-6 hidden">
+                <div class="summary-card">
+                    <div class="label">Total Debits</div>
+                    <div class="value" id="tb-total-debit">—</div>
+                </div>
+                <div class="summary-card">
+                    <div class="label">Total Credits</div>
+                    <div class="value" id="tb-total-credit">—</div>
+                </div>
+                <div class="summary-card" id="tb-balance-card">
+                    <div class="label">Difference</div>
+                    <div class="value" id="tb-difference">—</div>
+                    <div class="text-xs text-slate-500 mt-1" id="tb-balance-label">—</div>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div id="tb-loading" class="text-center py-12 text-slate-400">Select a date and click Load</div>
+                <div id="tb-container" class="hidden overflow-x-auto">
+                    <table class="rt">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Account Name</th>
+                                <th>Type</th>
+                                <th class="tr">Debit</th>
+                                <th class="tr">Credit</th>
+                                <th class="tr">Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tb-tbody"></tbody>
+                        <tfoot>
+                            <tr class="font-bold bg-slate-50 border-t-2 border-slate-200">
+                                <td colspan="3" class="px-4 py-3 text-slate-700">Totals</td>
+                                <td class="px-4 py-3 text-right" id="tb-foot-debit">—</td>
+                                <td class="px-4 py-3 text-right" id="tb-foot-credit">—</td>
+                                <td class="px-4 py-3 text-right" id="tb-foot-balance">—</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <div id="tb-empty" class="hidden text-center py-10 text-slate-400 text-sm">No accounts with activity found for this date.</div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+    const API = '/api';
+
+    function authFetch(url, opts = {}) {
+        return fetch(url, Object.assign({ credentials: 'include' }, opts));
+    }
+
+    function fmt(n) {
+        return '₹' + Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function typeBadge(t) {
+        const map = {
+            ASSET: 'badge-asset', LIABILITY: 'badge-liability', EQUITY: 'badge-equity',
+            REVENUE: 'badge-revenue', EXPENSE: 'badge-expense'
+        };
+        return `<span class="badge ${map[t] || ''}">${t}</span>`;
+    }
+
+    // ── Tab switcher ──────────────────────────────────────────────────────────
+    function showTab(name) {
+        ['coa', 'tb'].forEach(t => {
+            document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
+        });
+        document.querySelectorAll('.tab-btn').forEach((b, i) => {
+            b.classList.toggle('active', ['coa', 'tb'][i] === name);
+        });
+    }
+
+    // ── Chart of Accounts ─────────────────────────────────────────────────────
+    let _allAccounts = [];
+
+    async function loadCOA() {
+        try {
+            const d = await authFetch(`${API}/reports/chart-of-accounts`).then(r => r.json());
+            _allAccounts = d.accounts || [];
+            filterCOA();
+            document.getElementById('coa-loading').classList.add('hidden');
+        } catch (e) {
+            document.getElementById('coa-loading').textContent = 'Failed to load accounts: ' + e.message;
+        }
+    }
+
+    function filterCOA() {
+        const q     = (document.getElementById('coa-search').value || '').toLowerCase();
+        const type  = document.getElementById('coa-type-filter').value;
+        const rows  = _allAccounts.filter(a => {
+            const matchType = !type || a.account_type === type;
+            const matchQ    = !q || a.account_code.toLowerCase().includes(q) || a.account_name.toLowerCase().includes(q) || (a.description || '').toLowerCase().includes(q);
+            return matchType && matchQ;
+        });
+
+        const tbody = document.getElementById('coa-tbody');
+        if (!rows.length) {
+            tbody.innerHTML = '';
+            document.getElementById('coa-container').classList.add('hidden');
+            document.getElementById('coa-empty').classList.remove('hidden');
+            return;
+        }
+
+        document.getElementById('coa-empty').classList.add('hidden');
+        document.getElementById('coa-container').classList.remove('hidden');
+
+        // Group by type for header rows
+        const types = ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE'];
+        const typeLabel = { ASSET: 'Assets', LIABILITY: 'Liabilities', EQUITY: 'Equity', REVENUE: 'Revenue', EXPENSE: 'Expenses' };
+        let html = '';
+        types.forEach(t => {
+            const group = rows.filter(a => a.account_type === t);
+            if (!group.length) return;
+            html += `<tr class="type-hdr"><td colspan="4">${typeLabel[t]} (${group.length})</td></tr>`;
+            group.forEach(a => {
+                html += `<tr>
+                    <td class="mono">${a.account_code}</td>
+                    <td class="font-medium text-slate-800">${a.account_name}</td>
+                    <td>${typeBadge(a.account_type)}</td>
+                    <td class="text-slate-500 text-xs">${a.description || '—'}</td>
+                </tr>`;
+            });
+        });
+        tbody.innerHTML = html;
+    }
+
+    // ── Trial Balance ─────────────────────────────────────────────────────────
+    let _tbData = [];
+
+    async function loadTrialBalance() {
+        const date = document.getElementById('tb-date').value;
+        if (!date) { alert('Please select a date'); return; }
+
+        document.getElementById('tb-loading').textContent = 'Loading…';
+        document.getElementById('tb-loading').classList.remove('hidden');
+        document.getElementById('tb-container').classList.add('hidden');
+        document.getElementById('tb-empty').classList.add('hidden');
+        document.getElementById('tb-summary').classList.add('hidden');
+
+        try {
+            const d = await authFetch(`${API}/reports/trial-balance?as_of_date=${date}`).then(r => r.json());
+            _tbData = d.accounts || [];
+
+            if (!_tbData.length) {
+                document.getElementById('tb-loading').classList.add('hidden');
+                document.getElementById('tb-empty').classList.remove('hidden');
+                return;
+            }
+
+            // Summary
+            const totals = d.totals || {};
+            document.getElementById('tb-total-debit').textContent  = fmt(totals.total_debits);
+            document.getElementById('tb-total-credit').textContent = fmt(totals.total_credits);
+            const diff = totals.difference || 0;
+            document.getElementById('tb-difference').textContent   = fmt(Math.abs(diff));
+            const card = document.getElementById('tb-balance-card');
+            const lbl  = document.getElementById('tb-balance-label');
+            if (Math.abs(diff) < 0.01) {
+                card.className = 'summary-card balanced';
+                lbl.textContent = '✓ Books are balanced';
+            } else {
+                card.className = 'summary-card unbalanced';
+                lbl.textContent = diff > 0 ? 'Debits exceed credits' : 'Credits exceed debits';
+            }
+            document.getElementById('tb-summary').classList.remove('hidden');
+
+            // Table
+            const types = ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE'];
+            const typeLabel = { ASSET: 'Assets', LIABILITY: 'Liabilities', EQUITY: 'Equity', REVENUE: 'Revenue', EXPENSE: 'Expenses' };
+            let html = '';
+            let totalD = 0, totalC = 0, totalBal = 0;
+
+            types.forEach(t => {
+                const group = _tbData.filter(a => a.account_type === t);
+                if (!group.length) return;
+                html += `<tr class="type-hdr"><td colspan="6">${typeLabel[t]}</td></tr>`;
+                group.forEach(a => {
+                    const debit  = parseFloat(a.total_debit || 0);
+                    const credit = parseFloat(a.total_credit || 0);
+                    const bal    = parseFloat(a.balance || 0);
+                    totalD   += debit;
+                    totalC   += credit;
+                    totalBal += bal;
+                    const balClass = bal > 0 ? 'pos' : bal < 0 ? 'neg' : '';
+                    html += `<tr>
+                        <td class="mono">${a.account_code}</td>
+                        <td class="font-medium text-slate-800">${a.account_name}</td>
+                        <td>${typeBadge(a.account_type)}</td>
+                        <td class="tr text-slate-700">${fmt(debit)}</td>
+                        <td class="tr text-slate-700">${fmt(credit)}</td>
+                        <td class="tr font-semibold ${balClass}">${fmt(bal)}</td>
+                    </tr>`;
+                });
+            });
+
+            document.getElementById('tb-tbody').innerHTML = html;
+            document.getElementById('tb-foot-debit').textContent   = fmt(totalD);
+            document.getElementById('tb-foot-credit').textContent  = fmt(totalC);
+            document.getElementById('tb-foot-balance').textContent = fmt(totalBal);
+
+            document.getElementById('tb-loading').classList.add('hidden');
+            document.getElementById('tb-container').classList.remove('hidden');
+
+        } catch (e) {
+            document.getElementById('tb-loading').textContent = 'Error: ' + e.message;
+        }
+    }
+
+    function exportTB() {
+        if (!_tbData.length) { alert('Load trial balance first'); return; }
+        const rows = [['Code', 'Account Name', 'Type', 'Debit', 'Credit', 'Balance']];
+        _tbData.forEach(a => {
+            rows.push([
+                a.account_code, a.account_name, a.account_type,
+                parseFloat(a.total_debit || 0).toFixed(2),
+                parseFloat(a.total_credit || 0).toFixed(2),
+                parseFloat(a.balance || 0).toFixed(2)
+            ]);
+        });
+        const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+        const a = document.createElement('a');
+        a.href = 'data:text/csv,' + encodeURIComponent(csv);
+        a.download = `trial-balance-${document.getElementById('tb-date').value}.csv`;
+        a.click();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('tb-date').value = new Date().toISOString().split('T')[0];
+        loadCOA();
+    });
+</script>
+
+<script src="js/session.js" defer></script>
+<script src="js/nav.js" defer></script>
+</body>
+</html>
