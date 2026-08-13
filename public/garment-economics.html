@@ -209,6 +209,12 @@
                     <button onclick="saveSellThrough()" class="ml-4 mt-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold">Save Sell-Through</button>
                     <span id="st-msg" class="ml-2 text-xs"></span>
                 </div>
+
+                <!-- Actual COGS from bill items -->
+                <div class="border-t border-slate-100 px-4 py-3">
+                    <h4 class="text-sm font-semibold mb-2 text-slate-700">Actual COGS (from bill line items)</h4>
+                    <div id="cogs-breakdown" class="text-xs text-slate-400 italic">Loading…</div>
+                </div>
             </section>
 
         </div>
@@ -363,7 +369,28 @@ function openPanel(skuId) {
     const sizes = ['XS','S','M','L','XL','XXL'];
     sizeDiv.innerHTML = '<div class="text-xs text-slate-400 py-2">Loading…</div>';
     document.getElementById('st-msg').textContent = '';
+    document.getElementById('cogs-breakdown').textContent = 'Loading…';
     document.getElementById('assumptions-panel').scrollIntoView({ behavior: 'smooth' });
+
+    // Load actual COGS from bill_items
+    authFetch(`${API}/metrics/cogs/${encodeURIComponent(sku.sku_code)}`).then(r => r.json()).then(data => {
+        const el = document.getElementById('cogs-breakdown');
+        if (!el) return;
+        const s = data.summary;
+        if (!s || !s.total_amount) {
+            el.innerHTML = '<span class="text-slate-400">No bill line items found for this SKU.</span>';
+            return;
+        }
+        el.innerHTML = `<div class="flex flex-wrap gap-4">
+            <div><span class="text-slate-500">Total COGS: </span><span class="font-semibold text-slate-800">${fmt(s.total_amount)}</span></div>
+            ${s.total_qty ? `<div><span class="text-slate-500">Qty: </span><span class="font-semibold text-slate-800">${Number(s.total_qty).toLocaleString()}</span></div>` : ''}
+            ${s.total_qty && s.total_amount ? `<div><span class="text-slate-500">Avg/unit: </span><span class="font-semibold text-indigo-700">${fmt(Number(s.total_amount) / Number(s.total_qty))}</span></div>` : ''}
+        </div>
+        <p class="text-slate-400 mt-1">From bill line items linked to SKU <span class="font-mono">${sku.sku_code}</span> (YTD).</p>`;
+    }).catch(() => {
+        const el = document.getElementById('cogs-breakdown');
+        if (el) el.textContent = 'Could not load COGS data.';
+    });
 
     authFetch(`${API}/brain/max-cac/sizes?sku_id=${skuId}`).then(r => r.json()).then(data => {
         const existingSizes = (data.data?.sizes || []);
