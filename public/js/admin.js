@@ -27,6 +27,7 @@ function initAdminPage() {
   loadUsers();
   loadHealth();
   loadDrops();
+  loadAlerts();
 }
 
 // ─── Drop management ────────────────────────────────────────────────────────
@@ -203,6 +204,53 @@ async function loadHealth() {
       setH('inv-duplicates',       i.duplicate_file_hash_count,        true);
     }
   } catch (_) {}
+}
+
+// ─── Budget Alerts ───────────────────────────────────────────────────────────
+
+async function loadAlerts() {
+  const container = document.getElementById('alerts-list');
+  if (!container) return;
+  try {
+    const data = await fetch('/api/brain/alerts', { credentials: 'include' }).then(r => r.json());
+    const alerts = data.alerts || [];
+    if (!alerts.length) {
+      container.innerHTML = '<p class="text-sm text-emerald-600"><i class="fas fa-circle-check mr-1"></i>No active alerts — all budgets within thresholds.</p>';
+      return;
+    }
+    container.innerHTML = alerts.map(a => {
+      const isCrit = a.severity === 'critical';
+      const bg = isCrit ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-700';
+      const icon = isCrit ? 'fa-triangle-exclamation' : 'fa-circle-exclamation';
+      const ts = a.created_at ? new Date(a.created_at).toLocaleDateString() : '';
+      return `<div class="flex items-start gap-3 px-4 py-3 border rounded-xl ${bg}">
+        <i class="fas ${icon} mt-0.5 shrink-0"></i>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold">${escapeHtml((a.alert_type || '').replace(/_/g,' '))}</p>
+          <p class="text-xs mt-0.5">${escapeHtml(a.message || '')}</p>
+          ${ts ? `<p class="text-[10px] opacity-60 mt-1">${ts}</p>` : ''}
+        </div>
+        <span class="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${isCrit ? 'bg-red-100' : 'bg-amber-100'}">${a.severity || ''}</span>
+      </div>`;
+    }).join('');
+  } catch (_) {
+    const container = document.getElementById('alerts-list');
+    if (container) container.innerHTML = '<p class="text-sm text-slate-400">Could not load alerts.</p>';
+  }
+}
+
+async function runBudgetAlerts() {
+  try {
+    const r = await fetch('/api/brain/alerts/run', { method: 'POST', credentials: 'include' });
+    const d = await r.json();
+    if (d.success) {
+      await loadAlerts();
+    } else {
+      alert('Failed to run alerts: ' + (d.error || 'unknown'));
+    }
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
 }
 
 function escapeHtml(str = '') {
