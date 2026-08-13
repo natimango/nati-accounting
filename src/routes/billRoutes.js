@@ -9,7 +9,8 @@ const {
   recordSimplePayment,
   deleteBill,
   updateBillMeta,
-  bulkUpdateBillMeta
+  bulkUpdateBillMeta,
+  listPayments
 } = require('../controllers/billController');
 const { authorize } = require('../middleware/auth');
 
@@ -40,5 +41,8 @@ router.post('/payments/record-simple', recordSimplePayment);
 
 // Bulk metadata update (group/category/drop) across multiple bills
 router.patch('/bills/bulk-meta', authorize('manager', 'admin'), bulkUpdateBillMeta);
+
+// Payment ledger — all recorded payments with vendor/bill context
+router.get('/payments/ledger', listPayments);
 
 module.exports = router;

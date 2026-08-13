@@ -1072,6 +1072,73 @@ async function bulkUpdateBillMeta(req, res) {
   }
 }
 
+// GET /payments/ledger — list all payment records with bill + vendor info
+async function listPayments(req, res) {
+  try {
+    const { start_date, end_date, payment_method, vendor_name, limit = 200 } = req.query;
+    const startDate = start_date || new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+    const endDate   = end_date   || new Date().toISOString().split('T')[0];
+
+    const params = [startDate, endDate];
+    const conditions = ['p.payment_date BETWEEN $1 AND $2'];
+
+    if (payment_method) { params.push(payment_method); conditions.push(`p.payment_method = $${params.length}`); }
+    if (vendor_name)    { params.push(`%${vendor_name}%`); conditions.push(`COALESCE(b.vendor_name,'') ILIKE $${params.length}`); }
+
+    params.push(Math.min(parseInt(limit, 10) || 200, 500));
+    const where = conditions.join(' AND ');
+
+    const result = await pool.query(`
+      SELECT
+        p.payment_id,
+        p.payment_date,
+        p.amount_paid,
+        p.payment_method,
+        p.reference_number,
+        p.notes,
+        p.recorded_by,
+        p.created_at,
+        b.bill_id,
+        b.vendor_name,
+        COALESCE(b.category_group, 'OPERATIONS') AS category_group,
+        b.total_amount AS bill_total,
+        d.document_id
+      FROM payments p
+      LEFT JOIN bills b ON p.bill_id = b.bill_id
+      LEFT JOIN documents d ON b.document_id = d.document_id
+      WHERE ${where}
+      ORDER BY p.payment_date DESC, p.payment_id DESC
+      LIMIT $${params.length}
+    `, params);
+
+    const total = result.rows.reduce((s, r) => s + parseFloat(r.amount_paid || 0), 0);
+
+    res.json({
+      success: true,
+      period: { start_date: startDate, end_date: endDate },
+      total_paid: total,
+      count: result.rows.length,
+      payments: result.rows.map(r => ({
+        payment_id:     r.payment_id,
+        payment_date:   r.payment_date ? r.payment_date.toISOString().split('T')[0] : null,
+        amount_paid:    parseFloat(r.amount_paid || 0),
+        payment_method: r.payment_method,
+        reference_number: r.reference_number,
+        notes:          r.notes,
+        vendor_name:    r.vendor_name,
+        category_group: r.category_group,
+        bill_id:        r.bill_id,
+        bill_total:     parseFloat(r.bill_total || 0),
+        document_id:    r.document_id,
+        created_at:     r.created_at,
+      })),
+    });
+  } catch (err) {
+    console.error('listPayments error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 module.exports = {
   processBillWithAI,
   processBillManual,
@@ -1080,5 +1147,6 @@ module.exports = {
   deleteBill,
   updateBillMeta,
   bulkUpdateBillMeta,
-  recordSimplePayment
+  recordSimplePayment,
+  listPayments
 };

@@ -110,8 +110,14 @@
                     </div>
                 </section>
 
+                <!-- Tab toggle -->
+                <div class="flex gap-2">
+                    <button id="tab-unpaid-btn" onclick="switchTab('unpaid')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 text-white border border-indigo-600">Unpaid Bills</button>
+                    <button id="tab-history-btn" onclick="switchTab('history')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">Payment History</button>
+                </div>
+
                 <!-- All unpaid bills table -->
-                <section class="nati-card bg-white/90 border border-slate-200 rounded-2xl shadow">
+                <section id="section-unpaid" class="nati-card bg-white/90 border border-slate-200 rounded-2xl shadow">
                     <div class="px-6 py-4 border-b border-slate-100 space-y-3">
                         <div class="flex items-center justify-between gap-4 flex-wrap">
                             <div>
@@ -165,6 +171,51 @@
                     <div id="payables-empty" class="hidden px-6 py-12 text-center text-slate-400">
                         <i class="fas fa-check-circle text-4xl text-green-400 mb-3"></i>
                         <p class="font-medium text-slate-600">All clear — no outstanding bills</p>
+                    </div>
+                </section>
+
+                <!-- Payment History section -->
+                <section id="section-history" class="hidden nati-card bg-white/90 border border-slate-200 rounded-2xl shadow">
+                    <div class="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center gap-3 justify-between">
+                        <div>
+                            <h2 class="text-lg font-semibold text-slate-900">Payment History</h2>
+                            <p class="text-xs text-slate-500 mt-0.5">All recorded payments with vendor and category breakdown</p>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <input type="date" id="hist-start" class="px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500">
+                            <span class="text-slate-400 text-xs">to</span>
+                            <input type="date" id="hist-end" class="px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500">
+                            <select id="hist-method" class="px-2 py-1.5 border border-slate-300 rounded-lg text-xs bg-white">
+                                <option value="">All methods</option>
+                                <option value="CASH">Cash</option>
+                                <option value="UPI">UPI</option>
+                                <option value="BANK_TRANSFER">Bank Transfer</option>
+                                <option value="CHEQUE">Cheque</option>
+                            </select>
+                            <button onclick="loadHistory()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs hover:bg-indigo-700 flex items-center gap-1"><i class="fas fa-sync"></i> Load</button>
+                            <button onclick="exportHistoryCSV()" class="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs hover:bg-slate-50 flex items-center gap-1"><i class="fas fa-download"></i> CSV</button>
+                        </div>
+                    </div>
+                    <div id="hist-summary" class="px-6 py-3 border-b border-slate-100 hidden flex items-center gap-6 text-sm"></div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
+                                    <th class="px-4 py-3 text-left">Date</th>
+                                    <th class="px-4 py-3 text-left">Vendor</th>
+                                    <th class="px-4 py-3 text-left">Category</th>
+                                    <th class="px-4 py-3 text-left">Method</th>
+                                    <th class="px-4 py-3 text-left">Reference</th>
+                                    <th class="px-4 py-3 text-right">Amount Paid</th>
+                                    <th class="px-4 py-3 text-right">Bill Total</th>
+                                    <th class="px-4 py-3 text-center">Doc</th>
+                                </tr>
+                            </thead>
+                            <tbody id="hist-tbody">
+                                <tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">Select a date range and click Load</td></tr>
+                            </tbody>
+                            <tfoot id="hist-tfoot" class="bg-slate-50 border-t-2 border-slate-200 text-sm font-semibold"></tfoot>
+                        </table>
                     </div>
                 </section>
 
@@ -520,6 +571,113 @@ async function submitInstallment() {
     } finally {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check mr-1"></i>Record Payment'; }
     }
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────────
+let _histData = null;
+
+function switchTab(tab) {
+    const isHistory = tab === 'history';
+    document.getElementById('section-unpaid').classList.toggle('hidden', isHistory);
+    document.getElementById('section-history').classList.toggle('hidden', !isHistory);
+    document.getElementById('tab-unpaid-btn').className  = isHistory
+        ? 'px-4 py-2 rounded-lg text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+        : 'px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 text-white border border-indigo-600';
+    document.getElementById('tab-history-btn').className = !isHistory
+        ? 'px-4 py-2 rounded-lg text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+        : 'px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 text-white border border-indigo-600';
+    if (isHistory && !_histData) loadHistory();
+}
+
+const GRP_CHIP = {
+    COGS:        '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700">COGS</span>',
+    FULFILLMENT: '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">Fulfil.</span>',
+    MARKETING:   '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-violet-100 text-violet-700">Mktg</span>',
+    OPERATIONS:  '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">Ops</span>',
+};
+
+const METHOD_CHIP = {
+    CASH:         '<span class="px-1.5 py-0.5 rounded text-xs bg-emerald-100 text-emerald-700">Cash</span>',
+    UPI:          '<span class="px-1.5 py-0.5 rounded text-xs bg-blue-100 text-blue-700">UPI</span>',
+    BANK_TRANSFER:'<span class="px-1.5 py-0.5 rounded text-xs bg-indigo-100 text-indigo-700">Bank</span>',
+    CHEQUE:       '<span class="px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-700">Cheque</span>',
+};
+
+async function loadHistory() {
+    const tbody = document.getElementById('hist-tbody');
+    tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-slate-400"><i class="fas fa-circle-notch animate-spin mr-2"></i>Loading…</td></tr>';
+    document.getElementById('hist-tfoot').innerHTML = '';
+    document.getElementById('hist-summary').classList.add('hidden');
+
+    const n = new Date();
+    const fyYear = n.getMonth() >= 3 ? n.getFullYear() : n.getFullYear() - 1;
+    const startEl = document.getElementById('hist-start');
+    const endEl   = document.getElementById('hist-end');
+    if (!startEl.value) startEl.value = `${fyYear}-04-01`;
+    if (!endEl.value)   endEl.value   = n.toISOString().split('T')[0];
+
+    const params = new URLSearchParams({
+        start_date: startEl.value,
+        end_date:   endEl.value,
+    });
+    const method = document.getElementById('hist-method').value;
+    if (method) params.set('payment_method', method);
+
+    try {
+        const d = await authFetch(`${API}/payments/ledger?${params}`).then(r => r.json());
+        if (!d.success) throw new Error(d.error || 'Failed');
+        _histData = d;
+
+        const payments = d.payments || [];
+        if (!payments.length) {
+            tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">No payments in this period</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = payments.map(p => {
+            const grpChip = GRP_CHIP[(p.category_group||'').toUpperCase()] || '';
+            const methodChip = METHOD_CHIP[p.payment_method] || `<span class="text-xs text-slate-400">${p.payment_method||'—'}</span>`;
+            const docLink = p.document_id ? `<a href="documents.html?doc=${p.document_id}" class="text-indigo-500 hover:text-indigo-700"><i class="fas fa-receipt"></i></a>` : '—';
+            return `<tr class="border-t border-slate-100 hover:bg-slate-50 transition">
+                <td class="px-4 py-2.5 text-sm text-slate-700">${fmtDate(p.payment_date)}</td>
+                <td class="px-4 py-2.5 font-medium text-slate-800">${p.vendor_name || '—'}</td>
+                <td class="px-4 py-2.5">${grpChip}</td>
+                <td class="px-4 py-2.5">${methodChip}</td>
+                <td class="px-4 py-2.5 text-xs text-slate-500">${p.reference_number || p.notes || '—'}</td>
+                <td class="px-4 py-2.5 text-right font-semibold text-emerald-700">${fmt(p.amount_paid)}</td>
+                <td class="px-4 py-2.5 text-right text-slate-500">${p.bill_total ? fmt(p.bill_total) : '—'}</td>
+                <td class="px-4 py-2.5 text-center">${docLink}</td>
+            </tr>`;
+        }).join('');
+
+        document.getElementById('hist-tfoot').innerHTML = `<tr>
+            <td class="px-4 py-3" colspan="5">Total (${payments.length} payments)</td>
+            <td class="px-4 py-3 text-right text-emerald-700">${fmt(d.total_paid)}</td>
+            <td colspan="2"></td>
+        </tr>`;
+
+        const summEl = document.getElementById('hist-summary');
+        summEl.innerHTML = `<span class="text-slate-500">${payments.length} payments totalling</span>
+            <span class="font-bold text-emerald-700">${fmt(d.total_paid)}</span>
+            <span class="text-slate-400 text-xs">from ${startEl.value} to ${endEl.value}</span>`;
+        summEl.classList.remove('hidden');
+
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-red-400">${err.message}</td></tr>`;
+    }
+}
+
+function exportHistoryCSV() {
+    if (!_histData?.payments?.length) { alert('Load payment history first'); return; }
+    const rows = [['Date','Vendor','Category','Method','Reference','Amount Paid','Bill Total']];
+    _histData.payments.forEach(p => {
+        rows.push([p.payment_date, p.vendor_name, p.category_group, p.payment_method, p.reference_number||p.notes||'', p.amount_paid, p.bill_total||'']);
+    });
+    const csv = rows.map(r => r.map(v => `"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = 'payment-history.csv';
+    a.click();
 }
 
 function showToast(msg, type) {
