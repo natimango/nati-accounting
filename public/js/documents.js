@@ -1481,6 +1481,18 @@ function filterDocuments() {
         });
     } else if (flagFilter === 'high-value') {
         filtered = filtered.filter(doc => Number(doc.total_amount || doc.bill_total_amount || 0) >= 10000);
+    } else if (flagFilter === 'missing-dims') {
+        // Bills with posted line items that have missing COA, dept, or drop
+        filtered = filtered.filter(doc => {
+            const items = doc.line_items || [];
+            return items.some(i => i.posting_status === 'posted' && (!i.coa_account_id || !i.department_id || !i.drop_id));
+        });
+    } else if (flagFilter === 'unposted-postable') {
+        // Bills with line items that are postable but not yet posted
+        filtered = filtered.filter(doc => {
+            const items = doc.line_items || [];
+            return items.some(i => i.is_postable && i.posting_status !== 'posted');
+        });
     }
 
     filteredDocuments = filtered;
