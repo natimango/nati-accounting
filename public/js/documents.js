@@ -827,6 +827,52 @@ async function openBillModal(id) {
                 </div>
             </div>
 
+            <!-- Quick Edit (only for bills) -->
+            ${d.bill_id ? `<div>
+                <button onclick="toggleQuickEdit()" class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-indigo-600 transition-colors">
+                    <i id="qe-chevron" class="fas fa-chevron-right text-[10px]"></i> Quick Edit
+                </button>
+                <div id="quick-edit-panel" class="hidden mt-3 space-y-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Drop</label>
+                            <input id="qe-drop" type="text" list="qe-drop-list" value="${escapeHTML(drop !== '—' ? drop : '')}" placeholder="e.g. Drop 4"
+                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                            <datalist id="qe-drop-list"></datalist>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Category group</label>
+                            <select id="qe-dept" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                                <option value="">— keep current —</option>
+                                <option value="COGS" ${grp === 'COGS' ? 'selected' : ''}>COGS / Purchase</option>
+                                <option value="FULFILLMENT" ${grp === 'FULFILLMENT' ? 'selected' : ''}>Fulfilment</option>
+                                <option value="MARKETING" ${grp === 'MARKETING' ? 'selected' : ''}>Marketing</option>
+                                <option value="OPERATIONS" ${grp === 'OPERATIONS' ? 'selected' : ''}>Operations</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Category</label>
+                            <input id="qe-cat" type="text" value="${escapeHTML(category !== '—' ? category : '')}" placeholder="e.g. fabric"
+                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Channel</label>
+                            <input id="qe-channel" type="text" value="${escapeHTML(d.channel || d.bill_channel || '')}" placeholder="e.g. instagram"
+                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs text-slate-500 mb-1">Notes</label>
+                            <input id="qe-notes" type="text" value="${escapeHTML(notes)}" placeholder="Internal notes…"
+                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="submitQuickEdit(${d.bill_id})" class="px-4 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">Save changes</button>
+                        <span id="qe-status" class="text-xs text-emerald-600"></span>
+                    </div>
+                </div>
+            </div>` : ''}
+
             <!-- Tags (only for bills) -->
             ${d.bill_id ? `<div>
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-2">
@@ -856,6 +902,8 @@ async function openBillModal(id) {
 
         // Load tags and populate asynchronously
         if (d.bill_id) _loadBillTags(d.bill_id);
+        // Populate drop datalist for quick-edit
+        if (d.bill_id) _populateQeDropList();
 
     } catch (err) {
         console.error('Load detail failed', err);
@@ -897,6 +945,69 @@ async function _loadBillTags(billId) {
             </div>`).join('');
     } catch (e) {
         console.error('_loadBillTags', e);
+    }
+}
+
+// ── Quick-edit bill meta ─────────────────────────────────────────────────────
+function toggleQuickEdit() {
+    const panel = document.getElementById('quick-edit-panel');
+    const chevron = document.getElementById('qe-chevron');
+    if (!panel) return;
+    const open = panel.classList.toggle('hidden');
+    if (chevron) chevron.className = open ? 'fas fa-chevron-right text-[10px]' : 'fas fa-chevron-down text-[10px]';
+}
+
+async function _populateQeDropList() {
+    await _ensureMeta();
+    const dl = document.getElementById('qe-drop-list');
+    if (!dl || !_metaDrops) return;
+    dl.innerHTML = _metaDrops.map(d => `<option value="${escapeHTML(d.drop_name)}">`).join('');
+}
+
+async function submitQuickEdit(billId) {
+    const drop    = (document.getElementById('qe-drop')?.value || '').trim();
+    const dept    = (document.getElementById('qe-dept')?.value || '').trim();
+    const cat     = (document.getElementById('qe-cat')?.value || '').trim();
+    const channel = (document.getElementById('qe-channel')?.value || '').trim();
+    const notes   = (document.getElementById('qe-notes')?.value || '').trim();
+    const status  = document.getElementById('qe-status');
+
+    const payload = {};
+    if (drop)    payload.drop_name   = drop;
+    if (dept)    payload.department  = dept;
+    if (cat)     payload.category    = cat;
+    if (channel) payload.channel     = channel;
+    if (notes)   payload.notes       = notes;
+
+    if (!Object.keys(payload).length) {
+        if (status) { status.textContent = 'Nothing to save'; setTimeout(() => { status.textContent = ''; }, 2000); }
+        return;
+    }
+
+    try {
+        const r = await authFetch(`/api/bills/${billId}/meta`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const data = await r.json();
+        if (r.ok && data.success) {
+            if (status) { status.textContent = 'Saved ✓'; setTimeout(() => { status.textContent = ''; }, 2000); }
+            // Refresh local document data
+            const doc = allDocuments.find(d => d.bill_id === billId);
+            if (doc) {
+                if (drop)    { doc.drop_name = drop; doc.bill_drop_name = drop; }
+                if (dept)    { doc.department = dept; doc.category_group = dept.toUpperCase(); }
+                if (cat)     { doc.category = cat; doc.document_category = cat; }
+                if (channel) { doc.channel = channel; }
+                if (notes)   { doc.notes = notes; }
+            }
+        } else {
+            if (status) { status.textContent = data.error || 'Error saving'; status.className = 'text-xs text-rose-600'; }
+        }
+    } catch (e) {
+        console.error('submitQuickEdit', e);
+        if (status) { status.textContent = 'Network error'; status.className = 'text-xs text-rose-600'; }
     }
 }
 
