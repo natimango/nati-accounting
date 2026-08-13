@@ -111,8 +111,9 @@
                 </section>
 
                 <!-- Tab toggle -->
-                <div class="flex gap-2">
-                    <button id="tab-unpaid-btn" onclick="switchTab('unpaid')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 text-white border border-indigo-600">Unpaid Bills</button>
+                <div class="flex gap-2 flex-wrap">
+                    <button id="tab-unpaid-btn"  onclick="switchTab('unpaid')"  class="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 text-white border border-indigo-600">Unpaid Bills</button>
+                    <button id="tab-aging-btn"   onclick="switchTab('aging')"   class="px-4 py-2 rounded-lg text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">Aging Report</button>
                     <button id="tab-history-btn" onclick="switchTab('history')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">Payment History</button>
                 </div>
 
@@ -171,6 +172,20 @@
                     <div id="payables-empty" class="hidden px-6 py-12 text-center text-slate-400">
                         <i class="fas fa-check-circle text-4xl text-green-400 mb-3"></i>
                         <p class="font-medium text-slate-600">All clear — no outstanding bills</p>
+                    </div>
+                </section>
+
+                <!-- Aging Report section -->
+                <section id="section-aging" class="hidden nati-card bg-white/90 border border-slate-200 rounded-2xl shadow">
+                    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h2 class="text-lg font-semibold text-slate-900">AP Aging Report</h2>
+                            <p class="text-xs text-slate-500 mt-0.5">Unpaid bills grouped by how overdue they are</p>
+                        </div>
+                        <button onclick="buildAging()" class="px-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 flex items-center gap-1"><i class="fas fa-rotate-right mr-1"></i>Refresh</button>
+                    </div>
+                    <div id="aging-content" class="p-5">
+                        <div class="text-center py-8 text-slate-400">Computing…</div>
                     </div>
                 </section>
 
@@ -574,19 +589,120 @@ async function submitInstallment() {
 }
 
 // ── Tab switching ──────────────────────────────────────────────────────────────
-let _histData = null;
+let _histData  = null;
+let _agingBuilt = false;
+
+const INACTIVE_TAB  = 'px-4 py-2 rounded-lg text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50';
+const ACTIVE_TAB    = 'px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 text-white border border-indigo-600';
 
 function switchTab(tab) {
-    const isHistory = tab === 'history';
-    document.getElementById('section-unpaid').classList.toggle('hidden', isHistory);
-    document.getElementById('section-history').classList.toggle('hidden', !isHistory);
-    document.getElementById('tab-unpaid-btn').className  = isHistory
-        ? 'px-4 py-2 rounded-lg text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-        : 'px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 text-white border border-indigo-600';
-    document.getElementById('tab-history-btn').className = !isHistory
-        ? 'px-4 py-2 rounded-lg text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-        : 'px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 text-white border border-indigo-600';
-    if (isHistory && !_histData) loadHistory();
+    ['unpaid','aging','history'].forEach(t => {
+        document.getElementById('section-'+t).classList.toggle('hidden', t !== tab);
+        document.getElementById('tab-'+t+'-btn').className = t === tab ? ACTIVE_TAB : INACTIVE_TAB;
+    });
+    if (tab === 'history' && !_histData) loadHistory();
+    if (tab === 'aging'   && !_agingBuilt) buildAging();
+}
+
+function buildAging() {
+    _agingBuilt = true;
+    const el = document.getElementById('aging-content');
+    if (!payablesData.length) {
+        el.innerHTML = '<div class="text-center py-8 text-slate-400">No unpaid bills to age</div>';
+        return;
+    }
+    const now = new Date();
+    const bands = [
+        { label: 'Current',    color: 'emerald', min: -Infinity, max: 0 },
+        { label: '1–30 days',  color: 'amber',   min: 0,  max: 30  },
+        { label: '31–60 days', color: 'orange',  min: 30, max: 60  },
+        { label: '61–90 days', color: 'red',     min: 60, max: 90  },
+        { label: '91+ days',   color: 'rose',    min: 90, max: Infinity },
+    ];
+
+    // Compute age for each bill
+    const withAge = payablesData.map(d => {
+        const due = d.bill_payment_due_date ? new Date(d.bill_payment_due_date) : null;
+        const ageDays = due ? Math.floor((now - due) / 86400000) : null;
+        const total = Number(d.total_amount || d.bill_total_amount || 0);
+        return { ...d, ageDays, total };
+    });
+
+    const grouped = bands.map(b => {
+        const items = withAge.filter(d => {
+            if (d.ageDays === null) return b.min === -Infinity;
+            return d.ageDays > b.min && d.ageDays <= b.max;
+        });
+        const total = items.reduce((s, d) => s + d.total, 0);
+        return { ...b, items, total, count: items.length };
+    });
+
+    const grandTotal = grouped.reduce((s, g) => s + g.total, 0);
+
+    const colorMap = {
+        emerald: { bg:'bg-emerald-50', border:'border-emerald-200', text:'text-emerald-700', bar:'bg-emerald-400' },
+        amber:   { bg:'bg-amber-50',   border:'border-amber-200',   text:'text-amber-700',   bar:'bg-amber-400'   },
+        orange:  { bg:'bg-orange-50',  border:'border-orange-200',  text:'text-orange-700',  bar:'bg-orange-400'  },
+        red:     { bg:'bg-red-50',     border:'border-red-200',     text:'text-red-700',     bar:'bg-red-400'     },
+        rose:    { bg:'bg-rose-50',    border:'border-rose-200',    text:'text-rose-700',    bar:'bg-rose-500'    },
+    };
+
+    const tileHtml = grouped.map(g => {
+        const c = colorMap[g.color];
+        const pct = grandTotal > 0 ? Math.round(g.total / grandTotal * 100) : 0;
+        return `<div class="${c.bg} border ${c.border} rounded-xl p-4">
+            <p class="text-xs font-semibold ${c.text} uppercase tracking-wide">${g.label}</p>
+            <p class="text-xl font-bold text-slate-800 mt-1">${fmt(g.total)}</p>
+            <div class="flex items-center justify-between mt-2">
+                <span class="text-xs text-slate-500">${g.count} bill${g.count!==1?'s':''}</span>
+                <span class="text-xs ${c.text} font-semibold">${pct}%</span>
+            </div>
+            <div class="mt-2 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                <div class="${c.bar} h-full rounded-full" style="width:${pct}%"></div>
+            </div>
+        </div>`;
+    }).join('');
+
+    const vendorAging = {};
+    withAge.forEach(d => {
+        const v = d.bill_vendor_name || d.vendor_name || 'Unknown';
+        if (!vendorAging[v]) vendorAging[v] = { bands: [0,0,0,0,0], total: 0 };
+        const idx = bands.findIndex(b => {
+            if (d.ageDays === null) return b.min === -Infinity;
+            return d.ageDays > b.min && d.ageDays <= b.max;
+        });
+        if (idx >= 0) vendorAging[v].bands[idx] += d.total;
+        vendorAging[v].total += d.total;
+    });
+
+    const vendorRows = Object.entries(vendorAging)
+        .sort((a, b) => b[1].total - a[1].total)
+        .slice(0, 20)
+        .map(([vendor, v]) => `<tr class="border-t border-slate-100 hover:bg-slate-50 text-sm">
+            <td class="px-4 py-2.5 font-medium text-slate-800">${vendor}</td>
+            ${v.bands.map((amt, i) => `<td class="px-4 py-2.5 text-right ${amt > 0 ? colorMap[bands[i].color].text : 'text-slate-300'}">${amt > 0 ? fmt(amt) : '—'}</td>`).join('')}
+            <td class="px-4 py-2.5 text-right font-semibold text-slate-800">${fmt(v.total)}</td>
+        </tr>`).join('');
+
+    el.innerHTML = `
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">${tileHtml}</div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead><tr class="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
+                    <th class="px-4 py-3 text-left">Vendor</th>
+                    ${bands.map(b => `<th class="px-4 py-3 text-right">${b.label}</th>`).join('')}
+                    <th class="px-4 py-3 text-right">Total</th>
+                </tr></thead>
+                <tbody>${vendorRows}</tbody>
+                <tfoot class="bg-slate-50 font-semibold border-t-2 border-slate-200">
+                    <tr>
+                        <td class="px-4 py-3">Total</td>
+                        ${grouped.map(g => `<td class="px-4 py-3 text-right">${g.total ? fmt(g.total) : '—'}</td>`).join('')}
+                        <td class="px-4 py-3 text-right">${fmt(grandTotal)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>`;
 }
 
 const GRP_CHIP = {
