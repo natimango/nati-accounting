@@ -123,7 +123,32 @@ async function loadGuardrails(dropId) {
     document.getElementById('gr-cm').textContent         = fmt(d.contribution?.blended_contribution_margin);
     document.getElementById('gr-mktg').textContent       = fmt(d.allowed_marketing_budget);
     sec.classList.remove('hidden');
+
+    // Load CAC tiers async
+    _loadCacTiers(dropId);
   } catch (_) {}
+}
+
+async function _loadCacTiers(dropId) {
+  const el = document.getElementById('gr-cac-tiers');
+  if (!el) return;
+  try {
+    const data = await authFetch(`/api/brain/max-cac/tiers?dropId=${dropId}`).then(r => r.json());
+    const tiers = data.data?.tiers || [];
+    if (!tiers.length) { el.textContent = 'No SKU data for this drop'; return; }
+    const TIER_LABEL = { budget: 'Budget (≤₹1.5k)', core: 'Core (₹1.5k–3k)', premium: 'Premium (>₹3k)' };
+    const TIER_COLOR = { budget: 'bg-slate-50 text-slate-700', core: 'bg-indigo-50 text-indigo-700', premium: 'bg-violet-50 text-violet-700' };
+    el.innerHTML = `<div class="grid grid-cols-3 gap-2">
+      ${tiers.map(t => `
+        <div class="rounded-lg p-2 text-center ${TIER_COLOR[t.tier] || 'bg-slate-50 text-slate-700'}">
+          <p class="text-[10px] font-medium uppercase tracking-wide">${TIER_LABEL[t.tier] || t.tier}</p>
+          <p class="font-bold mt-0.5">₹${Number(t.max_cac).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+          <p class="text-[10px] opacity-60">max CAC · ${t.sku_count} SKU${t.sku_count !== 1 ? 's' : ''}</p>
+        </div>`).join('')}
+    </div>`;
+  } catch (e) {
+    el.textContent = 'Could not load CAC tiers';
+  }
 }
 
 async function toggleGoLiveBreakdown() {

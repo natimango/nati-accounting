@@ -368,8 +368,12 @@ function openPanel(skuId) {
     authFetch(`${API}/brain/max-cac/sizes?sku_id=${skuId}`).then(r => r.json()).then(data => {
         const existingSizes = (data.data?.sizes || []);
         const sizeMap = new Map(existingSizes.map(s => [s.size, s]));
+        const baseCac = data.data?.base_max_cac;
         sizeDiv.innerHTML = sizes.map(sz => {
             const ex = sizeMap.get(sz) || {};
+            const cacDisplay = ex.max_cac != null
+                ? `<span class="ml-auto text-xs text-indigo-600 font-medium" title="Max CAC for this size">≤₹${Number(ex.max_cac).toLocaleString('en-IN',{maximumFractionDigits:0})}</span>`
+                : (baseCac ? `<span class="ml-auto text-xs text-slate-400">≤₹${Number(baseCac).toLocaleString('en-IN',{maximumFractionDigits:0})}</span>` : '');
             return `<div class="flex items-center gap-2">
                 <span class="w-10 text-slate-600 font-medium">${sz}</span>
                 <input placeholder="Available" type="number" data-size="${sz}" data-field="avail" value="${ex.units_available || ''}" class="size-avail w-24 px-2 py-1 border border-slate-300 rounded-lg text-xs">
@@ -377,6 +381,7 @@ function openPanel(skuId) {
                 <label class="flex items-center gap-1 text-xs text-slate-500">
                     <input type="checkbox" data-size="${sz}" class="size-bottleneck" ${ex.bottleneck_flag ? 'checked' : ''}> Bottleneck
                 </label>
+                ${cacDisplay}
             </div>`;
         }).join('');
     }).catch(() => {
