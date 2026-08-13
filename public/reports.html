@@ -697,7 +697,9 @@ function renderSpend(d, metrics) {
 
         h += `<tr class="sec-hdr"><td colspan="3">${label}</td></tr>`;
         allLines.forEach(l => {
-            h += `<tr class="item"><td>${label}</td><td>${cap(l.category)}</td><td class="tr">${fmt(l.amount)}</td></tr>`;
+            const dateQs = currentStart ? `&from=${currentStart}&to=${currentEnd}` : '';
+            const catHref = `documents.html?filter_group=${encodeURIComponent(label)}&q=${encodeURIComponent(l.category)}${dateQs}`;
+            h += `<tr class="item"><td>${label}</td><td>${cap(l.category)} <a href="${catHref}" class="ml-1 text-indigo-400 hover:text-indigo-700 text-xs" title="View bills"><i class="fas fa-receipt"></i></a></td><td class="tr">${fmt(l.amount)}</td></tr>`;
         });
         h += `<tr class="sub"><td colspan="2">${label} Total</td><td class="tr">${fmt(grp?.total || 0)}</td></tr>`;
     });
