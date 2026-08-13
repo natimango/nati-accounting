@@ -355,10 +355,29 @@ function openPanel(skuId) {
     setField('a-cm-buffer',    '');
     document.getElementById('assump-msg').textContent = sku.missing_assumptions ? 'No assumptions saved yet — fill in and save.' : '';
 
-    // Sell-through sizes
+    // Sell-through sizes — load existing data from API
     const sizeDiv = document.getElementById('size-rows');
     const sizes = ['XS','S','M','L','XL','XXL'];
-    sizeDiv.innerHTML = sizes.map(sz => `
+    sizeDiv.innerHTML = '<div class="text-xs text-slate-400 py-2">Loading…</div>';
+    document.getElementById('st-msg').textContent = '';
+    document.getElementById('assumptions-panel').scrollIntoView({ behavior: 'smooth' });
+
+    authFetch(`${API}/brain/max-cac/sizes?sku_id=${skuId}`).then(r => r.json()).then(data => {
+        const existingSizes = (data.data?.sizes || []);
+        const sizeMap = new Map(existingSizes.map(s => [s.size, s]));
+        sizeDiv.innerHTML = sizes.map(sz => {
+            const ex = sizeMap.get(sz) || {};
+            return `<div class="flex items-center gap-2">
+                <span class="w-10 text-slate-600 font-medium">${sz}</span>
+                <input placeholder="Available" type="number" data-size="${sz}" data-field="avail" value="${ex.units_available || ''}" class="size-avail w-24 px-2 py-1 border border-slate-300 rounded-lg text-xs">
+                <input placeholder="Sold" type="number" data-size="${sz}" data-field="sold" value="${ex.units_sold || ''}" class="size-sold w-24 px-2 py-1 border border-slate-300 rounded-lg text-xs">
+                <label class="flex items-center gap-1 text-xs text-slate-500">
+                    <input type="checkbox" data-size="${sz}" class="size-bottleneck" ${ex.bottleneck_flag ? 'checked' : ''}> Bottleneck
+                </label>
+            </div>`;
+        }).join('');
+    }).catch(() => {
+        sizeDiv.innerHTML = sizes.map(sz => `
         <div class="flex items-center gap-2">
             <span class="w-10 text-slate-600 font-medium">${sz}</span>
             <input placeholder="Available" type="number" data-size="${sz}" data-field="avail" class="size-avail w-24 px-2 py-1 border border-slate-300 rounded-lg text-xs">
@@ -367,8 +386,7 @@ function openPanel(skuId) {
                 <input type="checkbox" data-size="${sz}" class="size-bottleneck"> Bottleneck
             </label>
         </div>`).join('');
-    document.getElementById('st-msg').textContent = '';
-    document.getElementById('assumptions-panel').scrollIntoView({ behavior: 'smooth' });
+    });
 }
 
 function closePanel() {
