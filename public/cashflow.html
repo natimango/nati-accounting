@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cash Flow — NATI Accounting</title>
+    <link rel="stylesheet" href="css/tailwind.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/theme.css">
+</head>
+<body class="nati-page bg-gradient-to-br from-slate-50 via-slate-100 to-white text-slate-900">
+<div class="min-h-screen flex flex-col">
+
+    <header class="nati-hero bg-gradient-to-r from-indigo-700 via-blue-700 to-slate-900 text-white shadow">
+        <div class="nati-shell">
+            <div class="flex flex-wrap items-center gap-4 justify-between py-5">
+                <div class="flex items-center gap-3">
+                    <a href="index.html"><img src="logo.jpg" alt="NATI" class="h-14 w-14 rounded-xl border border-white/40 bg-white object-cover shadow"></a>
+                    <div>
+                        <p class="text-xs uppercase tracking-[.2em] text-white/70">NATI Collective</p>
+                        <h1 class="text-2xl font-semibold">Cash Flow</h1>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="nati-nav-wrapper">
+                        <button class="nati-nav-toggle" onclick="toggleNav('nav-cf')"><i class="fas fa-bars"></i><span>Menu</span></button>
+                        <nav class="nati-nav" id="nav-cf">
+                            <a href="index.html"        class="nati-nav-link"><i class="fas fa-gauge"></i><span>Dashboard</span></a>
+                            <a href="documents.html"    class="nati-nav-link"><i class="fas fa-folder-open"></i><span>Documents</span></a>
+                            <a href="upload.html"       class="nati-nav-link"><i class="fas fa-upload"></i><span>Upload</span></a>
+                            <a href="drop.html"         class="nati-nav-link"><i class="fas fa-layer-group"></i><span>Drop</span></a>
+                            <a href="reports.html"      class="nati-nav-link"><i class="fas fa-chart-line"></i><span>Reports</span></a>
+                            <a href="sales.html"        class="nati-nav-link"><i class="fas fa-store"></i><span>Sales</span></a>
+                            <a href="payables.html"     class="nati-nav-link"><i class="fas fa-file-invoice-dollar"></i><span>Payables</span></a>
+                            <a href="balance-sheet.html" class="nati-nav-link"><i class="fas fa-scale-balanced"></i><span>Balance Sheet</span></a>
+                            <a href="cashflow.html"     class="nati-nav-link is-active"><i class="fas fa-water"></i><span>Cash Flow</span></a>
+                            <a href="accounts.html"     class="nati-nav-link"><i class="fas fa-book"></i><span>Accounts</span></a>
+                            <a href="admin.html"        class="nati-nav-link hidden" id="nav-admin"><i class="fas fa-user-shield"></i><span>Admin</span></a>
+                        </nav>
+                    </div>
+                    <div id="user-pill" class="hidden sm:flex items-center gap-2 px-3 py-2 rounded-2xl border border-white/30 bg-white/10 backdrop-blur">
+                        <div>
+                            <p id="user-name" class="text-sm font-semibold leading-tight">—</p>
+                            <p id="user-role" class="text-[11px] tracking-[.2em] text-white/70 uppercase">—</p>
+                        </div>
+                    </div>
+                    <button id="logout-btn" class="hidden px-3 py-2 bg-white/15 hover:bg-white/25 text-sm font-semibold rounded-2xl flex items-center gap-2 transition">
+                        <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 py-6">
+        <div class="nati-shell space-y-5">
+
+            <!-- Controls -->
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-wrap items-center gap-3">
+                <div class="flex items-center gap-2 text-sm">
+                    <label class="text-slate-500 text-xs">From</label>
+                    <input type="date" id="start-date" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="flex items-center gap-2 text-sm">
+                    <label class="text-slate-500 text-xs">To</label>
+                    <input type="date" id="end-date" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <button onclick="load()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 flex items-center gap-2">
+                    <i class="fas fa-sync"></i> Refresh
+                </button>
+                <button onclick="exportCSV()" class="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 flex items-center gap-2">
+                    <i class="fas fa-download text-slate-400"></i> Export CSV
+                </button>
+                <div class="ml-auto flex gap-2">
+                    <button onclick="setFY()" class="px-3 py-1.5 text-xs border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600">FY to date</button>
+                    <button onclick="setLastN(3)" class="px-3 py-1.5 text-xs border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600">3 months</button>
+                    <button onclick="setLastN(6)" class="px-3 py-1.5 text-xs border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600">6 months</button>
+                    <button onclick="setLastN(12)" class="px-3 py-1.5 text-xs border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600">12 months</button>
+                </div>
+            </div>
+
+            <!-- Summary tiles -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex items-start gap-3">
+                    <div class="p-2 rounded-lg bg-emerald-50 text-emerald-600"><i class="fas fa-arrow-down-to-line text-lg"></i></div>
+                    <div>
+                        <p class="text-xs uppercase tracking-wide text-slate-400">Total Cash In</p>
+                        <p id="tile-in" class="text-2xl font-bold text-emerald-700 mt-1">—</p>
+                        <p class="text-xs text-slate-400 mt-0.5">Net sales receipts</p>
+                    </div>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex items-start gap-3">
+                    <div class="p-2 rounded-lg bg-rose-50 text-rose-600"><i class="fas fa-arrow-up-from-line text-lg"></i></div>
+                    <div>
+                        <p class="text-xs uppercase tracking-wide text-slate-400">Total Cash Out</p>
+                        <p id="tile-out" class="text-2xl font-bold text-rose-600 mt-1">—</p>
+                        <p class="text-xs text-slate-400 mt-0.5">Payments made</p>
+                    </div>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex items-start gap-3">
+                    <div class="p-2 rounded-lg bg-indigo-50 text-indigo-600"><i class="fas fa-water text-lg"></i></div>
+                    <div>
+                        <p class="text-xs uppercase tracking-wide text-slate-400">Net Cash Flow</p>
+                        <p id="tile-net" class="text-2xl font-bold mt-1">—</p>
+                        <p id="tile-net-label" class="text-xs text-slate-400 mt-0.5">Cash surplus / deficit</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Waterfall chart -->
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="font-semibold">Monthly Cash Flow</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Cash received vs cash paid each month</p>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs text-slate-500">
+                        <span><span class="inline-block w-3 h-3 rounded bg-emerald-400 mr-1"></span>Cash In</span>
+                        <span><span class="inline-block w-3 h-3 rounded bg-rose-400 mr-1"></span>Cash Out</span>
+                        <span><span class="inline-block w-2 h-2 rounded-full bg-indigo-500 mr-1"></span>Net</span>
+                    </div>
+                </div>
+                <div id="chart" class="overflow-x-auto">
+                    <div class="text-center py-10 text-slate-400">Loading…</div>
+                </div>
+            </div>
+
+            <!-- Monthly table -->
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-100">
+                    <h2 class="font-semibold">Cash Flow by Month</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Cash receipts vs. actual payments recorded</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="nati-table min-w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-xs text-slate-500 uppercase tracking-wide bg-slate-50">
+                                <th class="px-4 py-3">Month</th>
+                                <th class="px-4 py-3 text-right">Gross Sales</th>
+                                <th class="px-4 py-3 text-right">Returns</th>
+                                <th class="px-4 py-3 text-right">Platform Fees</th>
+                                <th class="px-4 py-3 text-right font-semibold text-emerald-700">Net Cash In</th>
+                                <th class="px-4 py-3 text-right">COGS Paid</th>
+                                <th class="px-4 py-3 text-right">Mktg Paid</th>
+                                <th class="px-4 py-3 text-right">Ops Paid</th>
+                                <th class="px-4 py-3 text-right font-semibold text-rose-600">Total Out</th>
+                                <th class="px-4 py-3 text-right font-semibold text-indigo-700">Net Cash</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbl-body" class="divide-y divide-slate-100">
+                            <tr><td colspan="10" class="text-center py-8 text-slate-400">Loading…</td></tr>
+                        </tbody>
+                        <tfoot id="tbl-foot" class="bg-slate-50 font-semibold text-sm border-t-2 border-slate-200"></tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Accrual note -->
+            <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-700 flex gap-3">
+                <i class="fas fa-circle-info mt-0.5 shrink-0"></i>
+                <div>
+                    <strong>Cash basis view.</strong> Cash In = net sales from settlement entries. Cash Out = actual payments recorded in the payments ledger.
+                    Bill accruals (bills raised but not yet paid) appear in the Accrual Out column for reference but are excluded from Net Cash.
+                    Use the <a href="balance-sheet.html" class="underline hover:text-blue-900">Balance Sheet</a> for full accrual-basis financial position.
+                </div>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<script src="js/session.js" defer></script>
+<script src="js/nav.js" defer></script>
+<script>
+const API = '/api';
+const fmt = n => n == null ? '—' : '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+const fmtS = n => n == null ? '—' : (n >= 0 ? '+' : '') + '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+
+function authFetch(url, opts = {}) { return fetch(url, Object.assign({ credentials: 'include' }, opts)); }
+
+let _data = null;
+
+function today() { return new Date().toISOString().split('T')[0]; }
+function firstOfMonth(d = new Date()) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`; }
+
+function setFY() {
+    const n = new Date();
+    const fyYear = n.getMonth() >= 3 ? n.getFullYear() : n.getFullYear() - 1;
+    document.getElementById('start-date').value = `${fyYear}-04-01`;
+    document.getElementById('end-date').value   = today();
+    load();
+}
+function setLastN(n) {
+    const end   = new Date();
+    const start = new Date(end.getFullYear(), end.getMonth() - n + 1, 1);
+    document.getElementById('start-date').value = start.toISOString().split('T')[0];
+    document.getElementById('end-date').value   = today();
+    load();
+}
+
+async function load() {
+    const start = document.getElementById('start-date').value;
+    const end   = document.getElementById('end-date').value;
+    setLoading();
+    try {
+        const d = await authFetch(`${API}/reports/cash-flow?start_date=${start}&end_date=${end}`).then(r => r.json());
+        if (!d.success) throw new Error(d.error || 'Failed');
+        _data = d;
+        render(d);
+    } catch (err) {
+        document.getElementById('chart').innerHTML   = `<div class="py-8 text-center text-red-500">${err.message}</div>`;
+        document.getElementById('tbl-body').innerHTML = `<tr><td colspan="10" class="py-6 text-center text-red-500">${err.message}</td></tr>`;
+    }
+}
+
+function setLoading() {
+    document.getElementById('chart').innerHTML    = '<div class="py-10 text-center text-slate-400"><i class="fas fa-circle-notch animate-spin mr-2"></i>Loading…</div>';
+    document.getElementById('tbl-body').innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400">Loading…</td></tr>';
+    ['tile-in','tile-out','tile-net'].forEach(id => document.getElementById(id).textContent = '—');
+}
+
+function render(d) {
+    const tot = d.totals || {};
+    document.getElementById('tile-in').textContent  = fmt(tot.cash_in);
+    document.getElementById('tile-out').textContent = fmt(tot.cash_out);
+    const net = tot.net_cash || 0;
+    const netEl = document.getElementById('tile-net');
+    netEl.textContent = fmtS(net);
+    netEl.className   = `text-2xl font-bold mt-1 ${net >= 0 ? 'text-emerald-700' : 'text-rose-600'}`;
+    document.getElementById('tile-net-label').textContent = net >= 0 ? 'Cash surplus' : 'Cash deficit';
+
+    renderChart(d.months || []);
+    renderTable(d.months || [], tot);
+}
+
+function renderChart(months) {
+    const el = document.getElementById('chart');
+    if (!months.length) { el.innerHTML = '<div class="py-10 text-center text-slate-400">No data</div>'; return; }
+
+    const maxAbs = Math.max(...months.map(m => Math.max(m.cash_in, m.cash_out)), 1);
+    const H = 120; // bar area height px
+
+    const bars = months.map(m => {
+        const inPct   = Math.round(m.cash_in  / maxAbs * H);
+        const outPct  = Math.round(m.cash_out / maxAbs * H);
+        const net     = m.net_cash;
+        const netPct  = Math.min(Math.abs(Math.round(net / maxAbs * H)), H);
+        const netColor = net >= 0 ? '#10b981' : '#f43f5e';
+
+        return `<div class="flex flex-col items-center gap-0.5 min-w-[52px]" title="${m.label}&#10;In: ${fmt(m.cash_in)}&#10;Out: ${fmt(m.cash_out)}&#10;Net: ${fmtS(m.net_cash)}">
+            <span class="text-[10px] font-semibold ${net >= 0 ? 'text-emerald-600' : 'text-rose-500'}">${fmtS(net).replace('₹','₹')}</span>
+            <div class="relative flex items-end gap-0.5" style="height:${H}px">
+                <div class="w-4 rounded-t" style="height:${inPct}px;background:#34d399;min-height:2px" title="In ${fmt(m.cash_in)}"></div>
+                <div class="w-4 rounded-t" style="height:${outPct}px;background:#fb7185;min-height:2px" title="Out ${fmt(m.cash_out)}"></div>
+            </div>
+            <span class="text-[9px] text-slate-400 text-center leading-tight">${m.label.split(' ')[0]}<br>${m.label.split(' ')[1] || ''}</span>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = `<div class="flex items-end gap-2 px-2 py-2 overflow-x-auto">${bars}</div>`;
+}
+
+function renderTable(months, tot) {
+    const body = document.getElementById('tbl-body');
+    if (!months.length) {
+        body.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400">No data in this period</td></tr>';
+        document.getElementById('tbl-foot').innerHTML = '';
+        return;
+    }
+
+    body.innerHTML = months.map(m => {
+        const net = m.net_cash;
+        const netCls = net >= 0 ? 'text-emerald-700 font-semibold' : 'text-rose-600 font-semibold';
+        const cog  = m.cash_out_by_group?.COGS        || 0;
+        const mkt  = m.cash_out_by_group?.MARKETING   || 0;
+        const ops  = (m.cash_out_by_group?.OPERATIONS || 0) + (m.cash_out_by_group?.FULFILLMENT || 0);
+        return `<tr class="hover:bg-slate-50 transition">
+            <td class="px-4 py-2.5 font-medium text-slate-700">${m.label}</td>
+            <td class="px-4 py-2.5 text-right text-slate-600">${fmt(m.gross_sales)}</td>
+            <td class="px-4 py-2.5 text-right text-slate-400">${m.returns ? '('+fmt(m.returns)+')' : '—'}</td>
+            <td class="px-4 py-2.5 text-right text-slate-400">${m.platform_fees ? '('+fmt(m.platform_fees)+')' : '—'}</td>
+            <td class="px-4 py-2.5 text-right font-semibold text-emerald-700">${fmt(m.cash_in)}</td>
+            <td class="px-4 py-2.5 text-right text-slate-600">${cog  ? fmt(cog)  : '—'}</td>
+            <td class="px-4 py-2.5 text-right text-slate-600">${mkt  ? fmt(mkt)  : '—'}</td>
+            <td class="px-4 py-2.5 text-right text-slate-600">${ops  ? fmt(ops)  : '—'}</td>
+            <td class="px-4 py-2.5 text-right font-semibold text-rose-600">${fmt(m.cash_out)}</td>
+            <td class="px-4 py-2.5 text-right ${netCls}">${fmtS(net)}</td>
+        </tr>`;
+    }).join('');
+
+    const totCog = months.reduce((s,m) => s + (m.cash_out_by_group?.COGS||0), 0);
+    const totMkt = months.reduce((s,m) => s + (m.cash_out_by_group?.MARKETING||0), 0);
+    const totOps = months.reduce((s,m) => s + (m.cash_out_by_group?.OPERATIONS||0) + (m.cash_out_by_group?.FULFILLMENT||0), 0);
+    const totGS  = months.reduce((s,m) => s + (m.gross_sales||0), 0);
+    const totRet = months.reduce((s,m) => s + (m.returns||0), 0);
+    const totFee = months.reduce((s,m) => s + (m.platform_fees||0), 0);
+    const netCls = (tot.net_cash||0) >= 0 ? 'text-emerald-700' : 'text-rose-600';
+
+    document.getElementById('tbl-foot').innerHTML = `<tr>
+        <td class="px-4 py-3">Total</td>
+        <td class="px-4 py-3 text-right">${fmt(totGS)}</td>
+        <td class="px-4 py-3 text-right text-slate-400">${totRet ? '('+fmt(totRet)+')' : '—'}</td>
+        <td class="px-4 py-3 text-right text-slate-400">${totFee ? '('+fmt(totFee)+')' : '—'}</td>
+        <td class="px-4 py-3 text-right text-emerald-700">${fmt(tot.cash_in)}</td>
+        <td class="px-4 py-3 text-right">${totCog ? fmt(totCog) : '—'}</td>
+        <td class="px-4 py-3 text-right">${totMkt ? fmt(totMkt) : '—'}</td>
+        <td class="px-4 py-3 text-right">${totOps ? fmt(totOps) : '—'}</td>
+        <td class="px-4 py-3 text-right text-rose-600">${fmt(tot.cash_out)}</td>
+        <td class="px-4 py-3 text-right ${netCls}">${fmtS(tot.net_cash)}</td>
+    </tr>`;
+}
+
+function exportCSV() {
+    if (!_data?.months?.length) { alert('Load data first'); return; }
+    const rows = [['Month','Gross Sales','Returns','Platform Fees','Net Cash In','COGS Paid','Marketing Paid','Ops Paid','Total Cash Out','Net Cash']];
+    _data.months.forEach(m => {
+        const cog = m.cash_out_by_group?.COGS||0;
+        const mkt = m.cash_out_by_group?.MARKETING||0;
+        const ops = (m.cash_out_by_group?.OPERATIONS||0)+(m.cash_out_by_group?.FULFILLMENT||0);
+        rows.push([m.label, m.gross_sales, m.returns, m.platform_fees, m.cash_in, cog, mkt, ops, m.cash_out, m.net_cash]);
+    });
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = `cash-flow-${document.getElementById('start-date').value}-${document.getElementById('end-date').value}.csv`;
+    a.click();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const n = new Date();
+    const fyYear = n.getMonth() >= 3 ? n.getFullYear() : n.getFullYear() - 1;
+    document.getElementById('start-date').value = `${fyYear}-04-01`;
+    document.getElementById('end-date').value   = today();
+    const init = () => load();
+    if (window.sessionReady) window.sessionReady.then(init).catch(init);
+    else init();
+});
+</script>
+</body>
+</html>

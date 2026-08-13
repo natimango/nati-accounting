@@ -1226,6 +1226,134 @@ async function getVendorAnalysis(req, res) {
   }
 }
 
+// Cash Flow Statement — monthly cash receipts vs cash payments
+async function getCashFlow(req, res) {
+  try {
+    const { start_date, end_date } = req.query;
+    const startDate = start_date || new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+    const endDate   = end_date   || new Date().toISOString().split('T')[0];
+
+    // Cash receipts: sales settlements by month
+    const receipts = await pool.query(`
+      SELECT
+        TO_CHAR(DATE_TRUNC('month', entry_date), 'YYYY-MM') AS month,
+        SUM(net_sales)  AS net_sales,
+        SUM(gross_sales) AS gross_sales,
+        SUM(returns_amount) AS returns,
+        SUM(marketplace_commission + payment_gateway_charges) AS platform_fees,
+        COUNT(*) AS entry_count
+      FROM sales_entries
+      WHERE entry_date BETWEEN $1 AND $2
+      GROUP BY DATE_TRUNC('month', entry_date)
+      ORDER BY 1
+    `, [startDate, endDate]);
+
+    // Cash payments: actual payments made (from payments table)
+    const payments = await pool.query(`
+      SELECT
+        TO_CHAR(DATE_TRUNC('month', p.payment_date), 'YYYY-MM') AS month,
+        COALESCE(b.category_group, 'OPERATIONS') AS category_group,
+        SUM(p.amount_paid) AS amount_paid,
+        COUNT(*) AS payment_count
+      FROM payments p
+      LEFT JOIN bills b ON p.bill_id = b.bill_id
+      WHERE p.payment_date BETWEEN $1 AND $2
+      GROUP BY DATE_TRUNC('month', p.payment_date), COALESCE(b.category_group, 'OPERATIONS')
+      ORDER BY 1, 2
+    `, [startDate, endDate]);
+
+    // Bill spend accrual by month (for reference)
+    const billAccrual = await pool.query(`
+      SELECT
+        TO_CHAR(DATE_TRUNC('month', ${BILL_DATE_SQL}), 'YYYY-MM') AS month,
+        COALESCE(b.category_group, 'OPERATIONS') AS category_group,
+        SUM(b.total_amount) AS accrued_amount,
+        COUNT(*) AS bill_count
+      FROM bills b
+      LEFT JOIN documents d ON b.document_id = d.document_id
+      WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
+        AND ${ACTIVE_BILL_FILTER}
+      GROUP BY DATE_TRUNC('month', ${BILL_DATE_SQL}), COALESCE(b.category_group, 'OPERATIONS')
+      ORDER BY 1, 2
+    `, [startDate, endDate]);
+
+    // Build month-keyed maps
+    const receiptMap = {};
+    receipts.rows.forEach(r => {
+      receiptMap[r.month] = {
+        net_sales:     parseFloat(r.net_sales || 0),
+        gross_sales:   parseFloat(r.gross_sales || 0),
+        returns:       parseFloat(r.returns || 0),
+        platform_fees: parseFloat(r.platform_fees || 0),
+        entry_count:   parseInt(r.entry_count),
+      };
+    });
+
+    const paymentMap = {};
+    payments.rows.forEach(r => {
+      if (!paymentMap[r.month]) paymentMap[r.month] = {};
+      paymentMap[r.month][r.category_group] = parseFloat(r.amount_paid || 0);
+    });
+
+    const accrualMap = {};
+    billAccrual.rows.forEach(r => {
+      if (!accrualMap[r.month]) accrualMap[r.month] = {};
+      accrualMap[r.month][r.category_group] = parseFloat(r.accrued_amount || 0);
+    });
+
+    const allMonths = Array.from(new Set([
+      ...Object.keys(receiptMap),
+      ...Object.keys(paymentMap),
+      ...Object.keys(accrualMap),
+    ])).sort();
+
+    const GROUPS = ['COGS', 'FULFILLMENT', 'MARKETING', 'OPERATIONS'];
+
+    const months = allMonths.map(month => {
+      const rec  = receiptMap[month]  || {};
+      const paid = paymentMap[month]  || {};
+      const acc  = accrualMap[month]  || {};
+
+      const cashIn    = rec.net_sales || 0;
+      const cashOut   = GROUPS.reduce((s, g) => s + (paid[g] || 0), 0);
+      const netCash   = cashIn - cashOut;
+
+      const accrualOut = GROUPS.reduce((s, g) => s + (acc[g] || 0), 0);
+
+      return {
+        month,
+        label: new Date(month + '-01').toLocaleString('en-IN', { month: 'short', year: 'numeric' }),
+        cash_in:   cashIn,
+        gross_sales: rec.gross_sales || 0,
+        returns:     rec.returns || 0,
+        platform_fees: rec.platform_fees || 0,
+        cash_out:  cashOut,
+        cash_out_by_group: GROUPS.reduce((o, g) => { o[g] = paid[g] || 0; return o; }, {}),
+        accrual_out: accrualOut,
+        accrual_by_group: GROUPS.reduce((o, g) => { o[g] = acc[g] || 0; return o; }, {}),
+        net_cash: netCash,
+      };
+    });
+
+    const totCashIn  = months.reduce((s, m) => s + m.cash_in,  0);
+    const totCashOut = months.reduce((s, m) => s + m.cash_out, 0);
+
+    res.json({
+      success: true,
+      period: { start_date: startDate, end_date: endDate },
+      months,
+      totals: {
+        cash_in:   totCashIn,
+        cash_out:  totCashOut,
+        net_cash:  totCashIn - totCashOut,
+      },
+    });
+  } catch (error) {
+    console.error('Cash flow error:', error);
+    res.status(500).json({ error: error.message });
+  }
+}
+
 module.exports = {
   getProfitLoss,
   getPLTrend,
@@ -1251,5 +1379,6 @@ module.exports = {
   getSalesEntries,
   createSalesEntry,
   updateSalesEntry,
-  deleteSalesEntry
+  deleteSalesEntry,
+  getCashFlow
 };
