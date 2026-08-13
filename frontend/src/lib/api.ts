@@ -87,4 +87,16 @@ export const reportsApi = {
     });
     return unwrap(response);
   },
+
+  getSpendByCategory: async (startDate: string, endDate: string) => {
+    const response = await api.get('/reports/spend-by-category', {
+      params: { start_date: startDate, end_date: endDate },
+    });
+    return unwrap(response);
+  },
+
+  getMonthlyTrend: async (months: number = 6) => {
+    const response = await api.get('/reports/monthly-trend', { params: { months } });
+    return unwrap(response);
+  },
 };
