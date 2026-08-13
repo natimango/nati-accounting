@@ -72,20 +72,20 @@
 
             <!-- ── Doc stat pills ── -->
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                <a href="documents.html" class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm block hover:border-indigo-300 transition">
                     <p class="text-xs text-slate-400 uppercase tracking-wide">Total bills</p>
                     <p id="total-docs" class="text-3xl font-bold text-indigo-700 mt-1">—</p>
-                </div>
-                <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                </a>
+                <a href="documents.html" class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm block hover:border-indigo-300 transition">
                     <p class="text-xs text-slate-400 uppercase tracking-wide">This month</p>
                     <p id="month-docs" class="text-3xl font-bold mt-1">—</p>
                     <p class="text-xs text-slate-400 mt-0.5">Ingested</p>
-                </div>
-                <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                </a>
+                <a href="documents.html?status=manual_required" class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm block hover:border-amber-300 transition">
                     <p class="text-xs text-amber-500 uppercase tracking-wide font-semibold">Needs review</p>
                     <p id="pending-docs" class="text-3xl font-bold text-amber-600 mt-1">—</p>
-                    <p class="text-xs text-slate-400 mt-0.5">Awaiting action</p>
-                </div>
+                    <p class="text-xs text-slate-400 mt-0.5">Click to review →</p>
+                </a>
                 <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
                     <p class="text-xs text-slate-400 uppercase tracking-wide">Overdue bills</p>
                     <p id="pay-overdue" class="text-3xl font-bold text-red-600 mt-1">—</p>
