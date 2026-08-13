@@ -1083,7 +1083,7 @@ function renderVariance(rows) {
             return `<tr class="border-t border-slate-50">
                 <td class="px-4 py-2 text-xs text-slate-500 capitalize">${(i.department||'—').replace(/_/g,' ')}</td>
                 <td class="px-4 py-2 text-xs text-right">${i.budget_amount > 0 ? fmt(i.budget_amount) : '—'}</td>
-                <td class="px-4 py-2 text-xs text-right">${fmt(i.actual_amount)}<div class="text-[10px] text-slate-400">${i.bill_count} bills</div>${bar}</td>
+                <td class="px-4 py-2 text-xs text-right">${fmt(i.actual_amount)}<div class="text-[10px] text-slate-400"><a href="documents.html?q=${encodeURIComponent(drop)}&filter_group=${encodeURIComponent(i.department||'')}" class="hover:underline text-indigo-400">${i.bill_count} bills</a></div>${bar}</td>
                 <td class="px-4 py-2 text-xs text-right font-semibold ${vColor}">${i.budget_amount > 0 ? (vIcon + ' ' + fmt(Math.abs(i.variance))) : '—'}</td>
                 <td class="px-4 py-2 text-xs text-right text-slate-400">${pct != null ? pct + '%' : '—'}</td>
             </tr>`;
