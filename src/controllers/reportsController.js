@@ -1176,6 +1176,56 @@ async function getPLTrend(req, res) {
   }
 }
 
+// Vendor spend analysis — top vendors by total spend with category breakdown
+async function getVendorAnalysis(req, res) {
+  try {
+    const { start_date, end_date } = req.query;
+    const startDate = start_date || new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+    const endDate   = end_date   || new Date().toISOString().split('T')[0];
+
+    const result = await pool.query(`
+      SELECT
+        COALESCE(b.vendor_name, 'Unknown Vendor') AS vendor_name,
+        COALESCE(b.vendor_type, 'Other')          AS vendor_type,
+        COALESCE(b.category_group, 'OPERATIONS')  AS category_group,
+        COUNT(*)                                   AS bill_count,
+        SUM(b.total_amount)                        AS total_spend,
+        AVG(b.total_amount)                        AS avg_bill,
+        MIN(${BILL_DATE_SQL})                      AS first_bill,
+        MAX(${BILL_DATE_SQL})                      AS last_bill
+      FROM bills b
+      LEFT JOIN documents d ON b.document_id = d.document_id
+      WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
+        AND ${ACTIVE_BILL_FILTER}
+      GROUP BY b.vendor_name, b.vendor_type, COALESCE(b.category_group, 'OPERATIONS')
+      ORDER BY total_spend DESC NULLS LAST
+      LIMIT 100
+    `, [startDate, endDate]);
+
+    const totalSpend = result.rows.reduce((s, r) => s + parseFloat(r.total_spend || 0), 0);
+
+    res.json({
+      success: true,
+      period: { start_date: startDate, end_date: endDate },
+      total_spend: totalSpend,
+      vendors: result.rows.map(r => ({
+        vendor_name:   r.vendor_name,
+        vendor_type:   r.vendor_type,
+        category_group: r.category_group,
+        bill_count:    parseInt(r.bill_count),
+        total_spend:   parseFloat(r.total_spend || 0),
+        avg_bill:      parseFloat(r.avg_bill    || 0),
+        first_bill:    r.first_bill ? r.first_bill.toISOString().split('T')[0] : null,
+        last_bill:     r.last_bill  ? r.last_bill.toISOString().split('T')[0]  : null,
+        pct_of_total:  totalSpend > 0 ? parseFloat(((parseFloat(r.total_spend || 0) / totalSpend) * 100).toFixed(1)) : 0,
+      })),
+    });
+  } catch (error) {
+    console.error('Vendor analysis error:', error);
+    res.status(500).json({ error: error.message });
+  }
+}
+
 module.exports = {
   getProfitLoss,
   getPLTrend,
@@ -1183,6 +1233,7 @@ module.exports = {
   getBalanceSheet,
   getJournalEntries,
   getChartOfAccounts,
+  getVendorAnalysis,
   getDimensionSpend,
   upsertDropBudget,
   getDropBudgets,

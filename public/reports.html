@@ -158,6 +158,7 @@
                 <button class="tab-btn" onclick="showTab('variance')"><i class="fas fa-bullseye mr-1.5"></i>Budget vs Actual</button>
                 <button class="tab-btn" onclick="showTab('cm')"><i class="fas fa-percent mr-1.5"></i>Contribution Margin</button>
                 <button class="tab-btn" onclick="showTab('ue')"><i class="fas fa-dollar-sign mr-1.5"></i>Unit Economics</button>
+                <button class="tab-btn" onclick="showTab('vendors')"><i class="fas fa-building mr-1.5"></i>Vendors</button>
                 <a href="balance-sheet.html" class="tab-btn flex items-center no-print" style="text-decoration:none"><i class="fas fa-scale-balanced mr-1.5"></i>Balance Sheet</a>
                 <a href="accounts.html" class="tab-btn flex items-center no-print" style="text-decoration:none"><i class="fas fa-book mr-1.5"></i>Accounts</a>
                 <a href="sku-catalog.html" class="tab-btn flex items-center no-print" style="text-decoration:none"><i class="fas fa-shirt mr-1.5"></i>SKU Catalog</a>
@@ -337,6 +338,33 @@
                 </div>
             </section>
 
+            <!-- ── Vendors tab ── -->
+            <section id="tab-vendors" class="print-area hidden">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h3 class="font-semibold text-base">Vendor Spend Analysis</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Top vendors by total spend for the selected period</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input id="vendor-search" type="text" placeholder="Search vendor…" oninput="filterVendors()"
+                                class="px-2.5 py-1 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 w-40">
+                            <select id="vendor-cat-filter" onchange="filterVendors()" class="px-2 py-1 border border-slate-300 rounded-lg text-xs">
+                                <option value="">All categories</option>
+                                <option value="COGS">COGS</option>
+                                <option value="FULFILLMENT">Fulfillment</option>
+                                <option value="MARKETING">Marketing</option>
+                                <option value="OPERATIONS">Operations</option>
+                            </select>
+                            <button onclick="vendorsLoaded=false; loadVendors()" class="text-xs text-indigo-600 hover:underline"><i class="fas fa-rotate mr-1"></i>Refresh</button>
+                        </div>
+                    </div>
+                    <div id="vendorContent">
+                        <div class="text-center py-8 text-slate-400">Open this tab to load vendor data</div>
+                    </div>
+                </div>
+            </section>
+
         </div>
     </main>
 </div>
@@ -439,6 +467,8 @@ async function loadReports(start, end, label) {
     currentLabel = label;
     currentStart = start;
     currentEnd   = end;
+    // Reset lazy tabs so they reload with new period
+    vendorsLoaded = false;
     document.getElementById('plSub').textContent  = label;
     document.getElementById('plBadge').textContent = 'Loading…';
     document.getElementById('plBadge').className   = 'text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-400';
@@ -827,7 +857,7 @@ function renderDropSpend(d) {
 }
 
 // ── Tab switcher ──────────────────────────────────────────────────────────────
-const TABS = ['pl','section','gst','spend','trend','drops','variance','cm','ue'];
+const TABS = ['pl','section','gst','spend','trend','drops','variance','cm','ue','vendors'];
 function showTab(name) {
     TABS.forEach(t => { document.getElementById('tab-' + t).classList.toggle('hidden', t !== name); });
     document.querySelectorAll('.tab-btn').forEach((b, i) => { b.classList.toggle('active', TABS[i] === name); });
@@ -835,6 +865,7 @@ function showTab(name) {
     if (name === 'variance' && !varianceLoaded) loadVariance();
     if (name === 'cm' && !cmLoaded) loadCM();
     if (name === 'ue' && !ueLoaded) loadUE();
+    if (name === 'vendors' && !vendorsLoaded) loadVendors();
 }
 
 // ── Trend chart ───────────────────────────────────────────────────────────────
@@ -1267,6 +1298,80 @@ function renderUE(data) {
             <tbody>${rows}</tbody>
         </table></div>
         <p class="text-xs text-slate-400 mt-3">Max CAC = CM after returns − margin buffer (${buffer}% of price). Use this as your per-acquisition marketing budget ceiling.</p>`;
+}
+
+// ── Vendor Analysis ───────────────────────────────────────────────────────────
+let vendorsLoaded = false;
+let _vendorData   = [];
+
+const CAT_COLORS = { COGS: '#3b82f6', FULFILLMENT: '#8b5cf6', MARKETING: '#f59e0b', OPERATIONS: '#6b7280' };
+
+async function loadVendors() {
+    const el = document.getElementById('vendorContent');
+    el.innerHTML = '<div class="text-center py-8 text-slate-400">Loading…</div>';
+    try {
+        const d = await fetch(`/api/reports/vendor-analysis?start_date=${currentStart}&end_date=${currentEnd}`, { credentials: 'include' }).then(r => r.json());
+        _vendorData = d.vendors || [];
+        filterVendors();
+        vendorsLoaded = true;
+    } catch (e) {
+        el.innerHTML = `<div class="text-center py-6 text-red-400">Failed to load: ${e.message}</div>`;
+    }
+}
+
+function filterVendors() {
+    const q   = (document.getElementById('vendor-search')?.value || '').toLowerCase();
+    const cat = document.getElementById('vendor-cat-filter')?.value || '';
+    const rows = _vendorData.filter(v => {
+        const matchCat = !cat || v.category_group === cat;
+        const matchQ   = !q   || v.vendor_name.toLowerCase().includes(q) || (v.vendor_type || '').toLowerCase().includes(q);
+        return matchCat && matchQ;
+    });
+    renderVendors(rows);
+}
+
+function renderVendors(rows) {
+    const el = document.getElementById('vendorContent');
+    if (!rows.length) {
+        el.innerHTML = '<div class="text-center py-8 text-slate-400">No vendors match your filter.</div>';
+        return;
+    }
+    const maxSpend = rows[0]?.total_spend || 1;
+    const html = rows.map(v => {
+        const barPct = Math.max(2, Math.round(v.total_spend / maxSpend * 100));
+        const color  = CAT_COLORS[v.category_group] || '#6b7280';
+        const catBadge = `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;background:${color}22;color:${color}">${v.category_group}</span>`;
+        const docsLink = `<a href="documents.html?q=${encodeURIComponent(v.vendor_name)}" class="text-indigo-600 hover:underline text-xs" title="View bills"><i class="fas fa-receipt mr-0.5"></i>${v.bill_count}</a>`;
+        return `<tr>
+            <td class="px-4 py-3">
+                <div class="font-medium text-slate-800">${v.vendor_name}</div>
+                <div class="flex items-center gap-1.5 mt-0.5">${catBadge}${v.vendor_type ? `<span class="text-[11px] text-slate-400">${v.vendor_type}</span>` : ''}</div>
+            </td>
+            <td class="px-4 py-3 text-right font-semibold text-slate-800">${fmt(v.total_spend)}</td>
+            <td class="px-4 py-3">
+                <div class="flex items-center gap-2">
+                    <div style="flex:1;height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden">
+                        <div style="width:${barPct}%;height:100%;background:${color};border-radius:3px"></div>
+                    </div>
+                    <span class="text-xs text-slate-400 w-8 text-right">${v.pct_of_total}%</span>
+                </div>
+            </td>
+            <td class="px-4 py-3 text-right text-slate-500">${fmt(v.avg_bill)}</td>
+            <td class="px-4 py-3 text-center">${docsLink}</td>
+            <td class="px-4 py-3 text-xs text-slate-400">${v.last_bill || '—'}</td>
+        </tr>`;
+    }).join('');
+    el.innerHTML = `<div class="overflow-x-auto"><table class="rt w-full">
+        <thead><tr>
+            <th>Vendor</th>
+            <th class="tr">Total Spend</th>
+            <th style="min-width:160px">Share</th>
+            <th class="tr">Avg Bill</th>
+            <th class="text-center">Bills</th>
+            <th>Last Bill</th>
+        </tr></thead>
+        <tbody>${html}</tbody>
+    </table></div>`;
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
