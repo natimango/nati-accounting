@@ -185,9 +185,10 @@ document.addEventListener('keydown', e => {
 
 async function loadHealth() {
   try {
-    const [wd, inv] = await Promise.all([
+    const [wd, inv, alertSum] = await Promise.all([
       fetch('/api/brain/watchdog', { credentials: 'include' }).then(r => r.json()),
-      fetch('/api/brain/invariants/check', { credentials: 'include' }).then(r => r.json()).catch(() => ({}))
+      fetch('/api/brain/invariants/check', { credentials: 'include' }).then(r => r.json()).catch(() => ({})),
+      fetch('/api/brain/alerts/summary', { credentials: 'include' }).then(r => r.json()).catch(() => ({}))
     ]);
     const summary = wd.summary || {};
     const setH = (id, val, warn) => {
@@ -206,6 +207,20 @@ async function loadHealth() {
       setH('inv-unposted',         i.unposted_postable_items,          false);
       setH('inv-verified-unposted', i.verified_documents_with_unposted, true);
       setH('inv-duplicates',       i.duplicate_file_hash_count,        true);
+    }
+    if (alertSum.summary) {
+      const a = alertSum.summary;
+      const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+      setH('as-total-docs', a.total_unposted_docs, true);
+      const amtEl = document.getElementById('as-total-amt');
+      if (amtEl) amtEl.textContent = fmt(a.unposted_amount);
+      setH('as-aged', a.aged_unposted_docs, true);
+      setH('as-hv', a.high_value_unposted_docs, true);
+      const hvEl = document.getElementById('as-hv-amt');
+      if (hvEl) hvEl.textContent = a.high_value_unposted_docs > 0 ? fmt(a.high_value_unposted_amount) : '';
+      setH('as-golive', a.go_live_unposted_docs, true);
+      const glEl = document.getElementById('as-golive-amt');
+      if (glEl) glEl.textContent = a.go_live_unposted_docs > 0 ? fmt(a.go_live_unposted_amount) : '';
     }
   } catch (_) {}
 }
