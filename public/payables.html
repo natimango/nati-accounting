@@ -80,6 +80,33 @@
                     </div>
                 </div>
 
+                <!-- Payment schedule installments -->
+                <section id="schedule-section" class="nati-card bg-white/90 border border-indigo-200 rounded-2xl shadow hidden">
+                    <div class="px-6 py-4 border-b border-indigo-100 flex items-center justify-between">
+                        <div>
+                            <h2 class="text-lg font-semibold text-slate-900">Payment Schedule Installments</h2>
+                            <p class="text-xs text-slate-500 mt-0.5">Overdue &amp; upcoming installments from payment schedules</p>
+                        </div>
+                        <button onclick="document.getElementById('schedule-section').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-sm"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-indigo-50 text-xs text-slate-500 uppercase tracking-wide">
+                                    <th class="px-4 py-3 text-left">Vendor</th>
+                                    <th class="px-4 py-3 text-left">Bill #</th>
+                                    <th class="px-4 py-3 text-right">Due</th>
+                                    <th class="px-4 py-3 text-right">Outstanding</th>
+                                    <th class="px-4 py-3 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="schedule-tbody">
+                                <tr><td colspan="5" class="px-4 py-4 text-center text-slate-400">No schedule data</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
                 <!-- All unpaid bills table -->
                 <section class="nati-card bg-white/90 border border-slate-200 rounded-2xl shadow">
                     <div class="px-6 py-4 border-b border-slate-100 space-y-3">
@@ -297,6 +324,29 @@ async function loadPayables() {
         document.getElementById('tile-week').textContent = fmt(dash.forecast?.next_7_days || 0);
         document.getElementById('tile-month').textContent = fmt(dash.forecast?.next_30_days || 0);
 
+        // Render payment schedule installments
+        const schedRows = [...(dash.overdue || []), ...(dash.due_this_week || []), ...(dash.due_this_month || [])];
+        if (schedRows.length) {
+            const sec = document.getElementById('schedule-section');
+            sec.classList.remove('hidden');
+            const today = new Date();
+            document.getElementById('schedule-tbody').innerHTML = schedRows.map(r => {
+                const outstanding = Number(r.amount_due || 0) - Number(r.amount_paid || 0);
+                const dueDate = r.due_date ? new Date(r.due_date) : null;
+                const isOverdue = dueDate && dueDate < today;
+                return `<tr class="${isOverdue ? 'bg-red-50' : ''} border-t border-slate-100 hover:bg-slate-50">
+                    <td class="px-4 py-3 font-medium">${r.vendor_name || '—'}</td>
+                    <td class="px-4 py-3 text-slate-500 text-xs">${r.bill_number || '—'}</td>
+                    <td class="px-4 py-3 text-right ${isOverdue ? 'text-red-600 font-medium' : 'text-slate-600'}">${dueDate ? dueDate.toLocaleDateString('en-IN') : '—'}</td>
+                    <td class="px-4 py-3 text-right font-semibold">${fmt(outstanding)}</td>
+                    <td class="px-4 py-3 text-center">
+                        <button onclick="openInstallmentModal(${r.schedule_id}, ${r.bill_id}, '${(r.vendor_name || '').replace(/'/g,'')}', ${outstanding})"
+                            class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs hover:bg-indigo-700"><i class="fas fa-check mr-1"></i>Pay</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
         filterPayables();
     } catch (e) {
         console.error(e);
@@ -371,6 +421,11 @@ function openPayModal(billId, vendor, outstanding) {
 
 function closePayModal() {
     document.getElementById('pay-modal').classList.add('hidden');
+    // Restore submit button to simple payment handler if installment flow was active
+    const btn = document.querySelector('#pay-modal button[onclick="submitInstallment()"]');
+    if (btn) btn.setAttribute('onclick', 'submitPayment()');
+    _installmentScheduleId = null;
+    _installmentBillId = null;
 }
 
 async function submitPayment() {
@@ -408,6 +463,59 @@ async function submitPayment() {
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check mr-1"></i>Record Payment';
+    }
+}
+
+let _installmentScheduleId = null;
+let _installmentBillId     = null;
+
+function openInstallmentModal(scheduleId, billId, vendor, outstanding) {
+    _installmentScheduleId = scheduleId;
+    _installmentBillId     = billId;
+    document.getElementById('pay-bill-id').value = billId;
+    document.getElementById('pay-bill-info').innerHTML =
+        `<strong>${vendor}</strong> — installment outstanding: <strong>${fmt(outstanding)}</strong>`;
+    document.getElementById('pay-amount').value = outstanding;
+    document.getElementById('pay-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('pay-notes').value = '';
+    // Switch modal submit to use recordPayment with schedule_id
+    const btn = document.querySelector('#pay-modal button[onclick="submitPayment()"]');
+    if (btn) btn.setAttribute('onclick', 'submitInstallment()');
+    document.getElementById('pay-modal').classList.remove('hidden');
+    document.getElementById('pay-amount').focus();
+}
+
+async function submitInstallment() {
+    const amount = parseFloat(document.getElementById('pay-amount').value);
+    const date   = document.getElementById('pay-date').value;
+    const method = document.getElementById('pay-method').value;
+    const notes  = document.getElementById('pay-notes').value;
+    if (!amount || !date) { alert('Amount and date are required'); return; }
+
+    const btn = document.querySelector('#pay-modal button[onclick="submitInstallment()"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    try {
+        const res = await authFetch(`${API}/payments/record`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bill_id: _installmentBillId, schedule_id: _installmentScheduleId, amount, payment_date: date, payment_method: method, notes })
+        });
+        const data = await res.json();
+        if (data.success) {
+            // Restore original button onclick
+            if (btn) btn.setAttribute('onclick', 'submitPayment()');
+            _installmentScheduleId = null;
+            _installmentBillId = null;
+            closePayModal();
+            showToast('Installment payment recorded', 'success');
+            loadPayables();
+        } else {
+            showToast('Error: ' + (data.error || 'Unknown'), 'error');
+        }
+    } catch (e) {
+        showToast('Network error', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check mr-1"></i>Record Payment'; }
     }
 }
 
