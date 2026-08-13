@@ -28,6 +28,9 @@ function initAdminPage() {
   loadHealth();
   loadDrops();
   loadAlerts();
+  loadIngestDrops();
+  const mktDate = document.getElementById('mkt-date');
+  if (mktDate) mktDate.value = new Date().toISOString().split('T')[0];
 }
 
 // ─── Drop management ────────────────────────────────────────────────────────
@@ -414,3 +417,88 @@ window.deleteUser = async function deleteUser(userId, email) {
     alert(err.message || 'Unable to delete user');
   }
 };
+
+// ─── Ingest: drops population ────────────────────────────────────────────────
+
+async function loadIngestDrops() {
+  try {
+    const d = await fetch('/api/meta/drops', { credentials: 'include' }).then(r => r.json());
+    ['mkt-drop', 'ship-drop'].forEach(selId => {
+      const sel = document.getElementById(selId);
+      if (!sel) return;
+      (d.drops || []).forEach(drop => {
+        const o = document.createElement('option');
+        o.value = drop.drop_name;
+        o.textContent = drop.drop_name;
+        sel.appendChild(o);
+      });
+    });
+  } catch (_) {}
+}
+
+// ─── Ingest: Marketing Spend ─────────────────────────────────────────────────
+
+async function ingestMarketing() {
+  const channel = document.getElementById('mkt-channel')?.value;
+  const amount  = parseFloat(document.getElementById('mkt-amount')?.value);
+  const date    = document.getElementById('mkt-date')?.value;
+  const drop    = document.getElementById('mkt-drop')?.value;
+  const campaign = document.getElementById('mkt-campaign')?.value;
+  const msg = document.getElementById('mkt-msg');
+
+  if (!channel || !amount || !date) {
+    if (msg) { msg.textContent = 'Channel, amount, and date are required'; msg.className = 'text-xs text-red-500'; msg.classList.remove('hidden'); }
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/ingest/marketing', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channel, amount, spend_date: date, drop_name: drop || null, campaign: campaign || null, source: 'admin' })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Failed');
+    document.getElementById('mkt-amount').value = '';
+    document.getElementById('mkt-campaign').value = '';
+    if (msg) { msg.textContent = '✓ Marketing spend recorded'; msg.className = 'text-xs text-emerald-600'; msg.classList.remove('hidden'); }
+    setTimeout(() => msg?.classList.add('hidden'), 3000);
+  } catch (e) {
+    if (msg) { msg.textContent = '✗ ' + e.message; msg.className = 'text-xs text-red-500'; msg.classList.remove('hidden'); }
+  }
+}
+
+// ─── Ingest: Shipment Cost ────────────────────────────────────────────────────
+
+async function ingestShipment() {
+  const carrier   = document.getElementById('ship-carrier')?.value;
+  const amount    = parseFloat(document.getElementById('ship-amount')?.value);
+  const orderId   = document.getElementById('ship-order')?.value;
+  const tracking  = document.getElementById('ship-tracking')?.value;
+  const drop      = document.getElementById('ship-drop')?.value;
+  const sku       = document.getElementById('ship-sku')?.value;
+  const msg = document.getElementById('ship-msg');
+
+  if (!amount) {
+    if (msg) { msg.textContent = 'Charge amount is required'; msg.className = 'text-xs text-red-500'; msg.classList.remove('hidden'); }
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/ingest/shipment', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ carrier, charge_amount: amount, order_id: orderId || null, tracking_number: tracking || null, drop_name: drop || null, sku_code: sku || null })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Failed');
+    document.getElementById('ship-amount').value = '';
+    document.getElementById('ship-order').value = '';
+    document.getElementById('ship-tracking').value = '';
+    document.getElementById('ship-sku').value = '';
+    if (msg) { msg.textContent = '✓ Shipment cost recorded'; msg.className = 'text-xs text-emerald-600'; msg.classList.remove('hidden'); }
+    setTimeout(() => msg?.classList.add('hidden'), 3000);
+  } catch (e) {
+    if (msg) { msg.textContent = '✗ ' + e.message; msg.className = 'text-xs text-red-500'; msg.classList.remove('hidden'); }
+  }
+}

@@ -313,6 +313,9 @@ function renderPayablesTable(rows) {
         const dropName = d.bill_drop_name || d.drop_name || '';
         const isOverdue = dueDate && new Date(dueDate) < new Date();
         const rowClass = isOverdue ? 'bg-red-50' : '';
+        // Estimate outstanding: for advance bills, balance due = total - advance portion
+        const advancePct = Number(d.bill_advance_percentage || 0);
+        const outstanding = advancePct > 0 ? total * (1 - advancePct / 100) : total;
 
         return `<tr class="${rowClass} hover:bg-slate-50 border-t border-slate-100">
             <td class="px-4 py-3 font-medium text-slate-900">${vendor}</td>
@@ -324,10 +327,10 @@ function renderPayablesTable(rows) {
             <td class="px-4 py-3 ${isOverdue ? 'text-red-600 font-medium' : 'text-slate-500'}">${fmtDate(dueDate)}</td>
             <td class="px-4 py-3">${statusBadge(d.bill_payment_status, dueDate)}</td>
             <td class="px-4 py-3 text-right font-semibold">${fmt(total)}</td>
-            <td class="px-4 py-3 text-right text-slate-700">${fmt(total)}</td>
+            <td class="px-4 py-3 text-right text-slate-700 font-semibold ${outstanding < total ? 'text-blue-700' : ''}">${fmt(outstanding)}${outstanding < total ? `<div class="text-[10px] text-slate-400">${advancePct}% advance paid</div>` : ''}</td>
             <td class="px-4 py-3 text-center">
                 ${billId
-                    ? `<button onclick="openPayModal(${billId}, '${vendor.replace(/'/g, '')}', ${total})" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700"><i class="fas fa-check mr-1"></i>Mark Paid</button>`
+                    ? `<button onclick="openPayModal(${billId}, '${vendor.replace(/'/g, '')}', ${outstanding})" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700"><i class="fas fa-check mr-1"></i>Mark Paid</button>`
                     : `<span class="text-xs text-slate-400">Process bill first</span>`
                 }
             </td>

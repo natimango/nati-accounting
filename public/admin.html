@@ -271,6 +271,102 @@
                     <p class="text-sm text-slate-400">Loading alerts…</p>
                 </div>
             </section>
+
+            <!-- ── Ingest Data ── -->
+            <section class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-6 space-y-5">
+                <div>
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Ingest Data</p>
+                    <h2 class="text-2xl font-semibold text-slate-900">Record external spend</h2>
+                    <p class="text-sm text-slate-500 mt-1">Log marketing spend or shipment costs that aren't captured via document upload.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Marketing Spend -->
+                    <div class="border border-slate-100 rounded-xl p-4 space-y-3">
+                        <h3 class="text-sm font-semibold text-slate-800"><i class="fas fa-bullhorn text-violet-500 mr-1.5"></i>Marketing Spend</h3>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Channel *</label>
+                                <select id="mkt-channel" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                                    <option value="meta">Meta (FB/IG)</option>
+                                    <option value="google">Google</option>
+                                    <option value="influencer">Influencer</option>
+                                    <option value="email">Email</option>
+                                    <option value="sms">SMS</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Amount (₹) *</label>
+                                <input type="number" id="mkt-amount" min="1" step="0.01" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm" placeholder="e.g. 5000">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Date *</label>
+                                <input type="date" id="mkt-date" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Drop</label>
+                                <select id="mkt-drop" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                                    <option value="">All / Unassigned</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Campaign / notes</label>
+                            <input type="text" id="mkt-campaign" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm" placeholder="Campaign name or UTM label">
+                        </div>
+                        <button onclick="ingestMarketing()" class="w-full px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-semibold hover:bg-violet-700">
+                            <i class="fas fa-plus mr-1"></i>Record Marketing Spend
+                        </button>
+                        <p id="mkt-msg" class="text-xs text-slate-400 hidden"></p>
+                    </div>
+
+                    <!-- Shipment Cost -->
+                    <div class="border border-slate-100 rounded-xl p-4 space-y-3">
+                        <h3 class="text-sm font-semibold text-slate-800"><i class="fas fa-truck text-blue-500 mr-1.5"></i>Shipment Cost</h3>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Carrier</label>
+                                <select id="ship-carrier" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                                    <option value="delhivery">Delhivery</option>
+                                    <option value="shiprocket">Shiprocket</option>
+                                    <option value="bluedart">Blue Dart</option>
+                                    <option value="dtdc">DTDC</option>
+                                    <option value="ecomexpress">Ecom Express</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Charge (₹) *</label>
+                                <input type="number" id="ship-amount" min="0.01" step="0.01" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm" placeholder="e.g. 75">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Order ID</label>
+                                <input type="text" id="ship-order" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm" placeholder="ORD-12345">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Tracking #</label>
+                                <input type="text" id="ship-tracking" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm" placeholder="Optional">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Drop</label>
+                                <select id="ship-drop" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                                    <option value="">All / Unassigned</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">SKU Code</label>
+                                <input type="text" id="ship-sku" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm" placeholder="Optional">
+                            </div>
+                        </div>
+                        <button onclick="ingestShipment()" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
+                            <i class="fas fa-plus mr-1"></i>Record Shipment Cost
+                        </button>
+                        <p id="ship-msg" class="text-xs text-slate-400 hidden"></p>
+                    </div>
+                </div>
+            </section>
+
             </div>
         </main>
     </div>
