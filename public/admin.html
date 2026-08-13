@@ -367,6 +367,37 @@
                 </div>
             </section>
 
+            <!-- ── Finance Overview ── -->
+            <section class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-5 space-y-4">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Finance Overview</p>
+                        <h2 class="text-xl font-semibold text-slate-900 mt-1">Spend breakdown</h2>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select id="finance-days" onchange="loadFinanceSummary()" class="text-sm border border-slate-300 rounded-lg px-3 py-2">
+                            <option value="30">Last 30 days</option>
+                            <option value="60">Last 60 days</option>
+                            <option value="90" selected>Last 90 days</option>
+                            <option value="180">Last 180 days</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="finance-totals">
+                    <div class="text-center text-xs text-slate-400 col-span-4 py-4">Loading…</div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-600 mb-2">Top drops by spend</p>
+                        <div id="finance-drops" class="space-y-1 text-xs text-slate-400">—</div>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-600 mb-2">Top vendors by spend</p>
+                        <div id="finance-vendors" class="space-y-1 text-xs text-slate-400">—</div>
+                    </div>
+                </div>
+            </section>
+
             </div>
         </main>
     </div>

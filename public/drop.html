@@ -219,6 +219,23 @@
                         </div>
                         <div id="budget-form-fields" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
                         <p id="budget-message" class="text-xs text-slate-500"></p>
+                        <div class="pt-2 border-t border-slate-100">
+                            <button onclick="toggleBudgetHistory()" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium"><i class="fas fa-history mr-1"></i>View change history</button>
+                            <div id="budget-history-wrap" class="hidden mt-3 overflow-auto max-h-64">
+                                <table class="nati-table min-w-full text-xs">
+                                    <thead class="bg-slate-50 text-slate-600">
+                                        <tr>
+                                            <th class="px-3 py-2 text-left">Date</th>
+                                            <th class="px-3 py-2 text-left">Category</th>
+                                            <th class="px-3 py-2 text-right">Amount</th>
+                                            <th class="px-3 py-2 text-left">Type</th>
+                                            <th class="px-3 py-2 text-left">Changed by</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="budget-history-body"><tr><td colspan="5" class="px-3 py-4 text-center text-slate-400">Loading…</td></tr></tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </section>
 

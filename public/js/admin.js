@@ -29,6 +29,7 @@ function initAdminPage() {
   loadDrops();
   loadAlerts();
   loadIngestDrops();
+  loadFinanceSummary();
   const mktDate = document.getElementById('mkt-date');
   if (mktDate) mktDate.value = new Date().toISOString().split('T')[0];
 }
@@ -500,5 +501,54 @@ async function ingestShipment() {
     setTimeout(() => msg?.classList.add('hidden'), 3000);
   } catch (e) {
     if (msg) { msg.textContent = '✗ ' + e.message; msg.className = 'text-xs text-red-500'; msg.classList.remove('hidden'); }
+  }
+}
+
+// ─── Finance overview ─────────────────────────────────────────────────────────
+
+async function loadFinanceSummary() {
+  const days = document.getElementById('finance-days')?.value || 90;
+  const totalsEl = document.getElementById('finance-totals');
+  const dropsEl = document.getElementById('finance-drops');
+  const vendorsEl = document.getElementById('finance-vendors');
+  if (!totalsEl) return;
+
+  try {
+    const data = await fetch(`/api/brain/summary?days=${days}`, { credentials: 'include' }).then(r => r.json());
+    const t = data.totals || {};
+    const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+
+    const cats = [
+      { label: 'COGS', val: t.cogs, color: 'text-indigo-700' },
+      { label: 'Fulfillment', val: t.fulfillment, color: 'text-blue-700' },
+      { label: 'Marketing', val: t.marketing, color: 'text-violet-700' },
+      { label: 'Operations', val: t.operations, color: 'text-slate-700' },
+    ];
+    totalsEl.innerHTML = cats.map(c => `
+      <div class="text-center p-3 bg-slate-50 rounded-xl">
+        <p class="text-xs text-slate-500">${c.label}</p>
+        <p class="text-lg font-semibold ${c.color} mt-1">${fmt(c.val)}</p>
+      </div>`).join('');
+
+    const drops = data.drops || [];
+    dropsEl.innerHTML = drops.length
+      ? drops.slice(0, 8).map(d => {
+          const pct = t.spend ? (Number(d.total) / t.spend * 100).toFixed(0) : 0;
+          return `<div class="flex items-center justify-between py-1">
+            <a href="drop.html?drop=${encodeURIComponent(d.drop_name)}" class="text-indigo-600 hover:underline truncate max-w-[140px]">${d.drop_name}</a>
+            <span class="font-medium text-slate-700 ml-2">${fmt(d.total)} <span class="text-slate-400">${pct}%</span></span>
+          </div>`;
+        }).join('')
+      : '<span class="text-slate-400">No data</span>';
+
+    const vendors = data.vendors || [];
+    vendorsEl.innerHTML = vendors.length
+      ? vendors.slice(0, 8).map(v => `<div class="flex items-center justify-between py-1">
+          <span class="text-slate-600 truncate max-w-[140px]">${v.vendor_name || 'Unknown'}</span>
+          <span class="font-medium text-slate-700 ml-2">${fmt(v.total)}</span>
+        </div>`).join('')
+      : '<span class="text-slate-400">No data</span>';
+  } catch (e) {
+    totalsEl.innerHTML = `<div class="text-xs text-red-400 col-span-4 py-4">Failed to load finance summary</div>`;
   }
 }

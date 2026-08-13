@@ -48,6 +48,7 @@ async function loadDashboard() {
     renderDropStrip(drops);
     renderMiniTrend(trend);
     loadWatchdog();
+    loadQualitySummary();
 }
 
 // ── Doc stats ─────────────────────────────────────────────────────────────────
@@ -303,6 +304,39 @@ function renderWatchdog(data, alerts) {
         : `<div class="text-xs text-emerald-600 px-1">All alerts cleared</div>`;
 
     container.innerHTML = checksHtml + `<div class="pt-3 mt-1">${alertsHtml}</div>`;
+}
+
+// ── Quality summary ───────────────────────────────────────────────────────────
+async function loadQualitySummary() {
+    const el = document.getElementById('quality-summary');
+    if (!el) return;
+    try {
+        const d = await authFetch(`${API}/quality/summary`).then(r => r.json());
+        const s = d.summary || {};
+        const unpostedAmt = Number(s.unposted_amount || 0);
+        const docsUnposted = Number(s.documents_with_unposted || 0);
+        const missingCoa = Number(s.missing_coa_amount || 0);
+        const missingDrop = Number(s.missing_drop_amount || 0);
+        const allGood = docsUnposted === 0 && missingCoa === 0 && missingDrop === 0;
+        el.innerHTML = allGood
+            ? `<div class="text-xs text-emerald-600 font-medium"><i class="fas fa-circle-check mr-1"></i>All items posted — no gaps</div>`
+            : `<div class="space-y-2">
+                ${docsUnposted > 0 ? `<a href="documents.html" class="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-amber-50 hover:bg-amber-100 transition">
+                    <span class="text-amber-700"><i class="fas fa-inbox mr-1"></i>${docsUnposted} doc${docsUnposted!==1?'s':''} with unposted items</span>
+                    <span class="font-semibold text-amber-700">${fmt(unpostedAmt)}</span>
+                </a>` : ''}
+                ${missingCoa > 0 ? `<div class="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-rose-50">
+                    <span class="text-rose-600"><i class="fas fa-tag mr-1"></i>Missing COA account</span>
+                    <span class="font-semibold text-rose-600">${fmt(missingCoa)}</span>
+                </div>` : ''}
+                ${missingDrop > 0 ? `<div class="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-rose-50">
+                    <span class="text-rose-600"><i class="fas fa-layer-group mr-1"></i>Missing drop assignment</span>
+                    <span class="font-semibold text-rose-600">${fmt(missingDrop)}</span>
+                </div>` : ''}
+              </div>`;
+    } catch (_) {
+        el.innerHTML = `<div class="text-xs text-slate-400">Quality data unavailable</div>`;
+    }
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────────────

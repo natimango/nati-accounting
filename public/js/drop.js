@@ -377,6 +377,46 @@ async function saveBudgets() {
   }
 }
 
+// ---- Budget history ----
+
+let budgetHistoryOpen = false;
+
+async function toggleBudgetHistory() {
+  const wrap = document.getElementById('budget-history-wrap');
+  if (!wrap) return;
+  budgetHistoryOpen = !budgetHistoryOpen;
+  wrap.classList.toggle('hidden', !budgetHistoryOpen);
+  if (budgetHistoryOpen && currentDrop) {
+    await loadBudgetHistory();
+  }
+}
+
+async function loadBudgetHistory() {
+  const body = document.getElementById('budget-history-body');
+  if (!body || !currentDrop) return;
+  try {
+    const data = await authFetch(`${REPORT_API}/drop-budgets/history?drop_name=${encodeURIComponent(currentDrop)}&limit=50`).then(r => r.json());
+    const rows = data.history || [];
+    if (!rows.length) {
+      body.innerHTML = `<tr><td colspan="5" class="px-3 py-4 text-center text-slate-400 text-xs">No history yet.</td></tr>`;
+      return;
+    }
+    body.innerHTML = rows.map(r => {
+      const date = r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
+      const typeClass = r.change_type === 'delete' ? 'text-rose-600' : r.change_type === 'create' ? 'text-emerald-600' : 'text-slate-500';
+      return `<tr class="border-b border-slate-50 hover:bg-slate-50">
+        <td class="px-3 py-2 text-slate-500">${date}</td>
+        <td class="px-3 py-2 font-medium">${formatGroupLabel(r.department || r.category_group || '')}</td>
+        <td class="px-3 py-2 text-right">${formatCurrency(r.amount)}</td>
+        <td class="px-3 py-2 ${typeClass}">${r.change_type || '—'}</td>
+        <td class="px-3 py-2 text-slate-400">${r.changed_by || '—'}</td>
+      </tr>`;
+    }).join('');
+  } catch (err) {
+    body.innerHTML = `<tr><td colspan="5" class="px-3 py-4 text-center text-rose-400 text-xs">Failed to load history.</td></tr>`;
+  }
+}
+
 // ---- New drop modal ----
 
 function showNewDropModal() {
