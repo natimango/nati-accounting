@@ -1,5 +1,6 @@
 const API_URL = '/api';
 let selectedFile = null;
+let fileQueue = []; // batch upload queue
 
 function togglePaymentFields() {
     const status = document.getElementById('payment_status')?.value;
@@ -49,9 +50,10 @@ dropZone.addEventListener('dragleave', (e) => {
 dropZone.addEventListener('drop', (e) => {
     e.preventDefault();
     dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
-    
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 1) {
+        addToQueue(files);
+    } else if (files.length === 1) {
         handleFile(files[0]);
     }
 });
@@ -64,9 +66,12 @@ dropZone.addEventListener('click', (e) => {
 });
 
 function handleFileSelect(e) {
-    const file = e.target.files[0];
-    if (file) {
-        handleFile(file);
+    const files = Array.from(e.target.files);
+    if (files.length > 1) {
+        addToQueue(files);
+        e.target.value = '';
+    } else if (files.length === 1) {
+        handleFile(files[0]);
     }
 }
 
@@ -254,6 +259,111 @@ async function uploadFile() {
         document.getElementById('upload-btn').disabled = false;
         document.getElementById('upload-btn').innerHTML = '<i class="fas fa-upload mr-2"></i>Upload Bill';
     }
+}
+
+// ── Batch queue ────────────────────────────────────────────────────────────────
+function addToQueue(files) {
+    const allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'xlsx', 'xls', 'doc', 'docx'];
+    const valid = files.filter(f => allowedExtensions.includes(f.name.split('.').pop().toLowerCase()) && f.size <= 25 * 1024 * 1024);
+    const invalid = files.length - valid.length;
+    if (!valid.length) { showMessage('No valid files in selection (PDF, JPG, PNG, Excel, Word; max 25MB each)', 'error'); return; }
+    valid.forEach(f => fileQueue.push({ file: f, status: 'queued' }));
+    renderQueue();
+    if (invalid > 0) showMessage(`${invalid} file(s) skipped (unsupported type or too large)`, 'error');
+}
+
+function renderQueue() {
+    let wrap = document.getElementById('batch-queue-wrap');
+    if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.id = 'batch-queue-wrap';
+        // Insert after drop-zone
+        const dz = document.getElementById('drop-zone');
+        dz.parentNode.insertBefore(wrap, dz.nextSibling);
+    }
+    if (!fileQueue.length) { wrap.innerHTML = ''; return; }
+    const rows = fileQueue.map((q, i) => {
+        const icon = q.status === 'done' ? 'fa-check-circle text-emerald-500' : q.status === 'error' ? 'fa-times-circle text-red-500' : q.status === 'uploading' ? 'fa-spinner fa-spin text-indigo-400' : 'fa-clock text-slate-300';
+        const label = q.status === 'done' ? 'Done' : q.status === 'error' ? 'Failed' : q.status === 'uploading' ? 'Uploading…' : 'Queued';
+        const rmBtn = q.status === 'queued' ? `<button onclick="removeFromQueue(${i})" class="text-slate-300 hover:text-red-400 text-xs"><i class="fas fa-times"></i></button>` : '';
+        return `<div class="flex items-center gap-2 py-1 border-b border-slate-100 last:border-0">
+            <i class="fas ${icon}"></i>
+            <span class="flex-1 text-xs text-slate-700 truncate">${q.file.name}</span>
+            <span class="text-xs text-slate-400">${(q.file.size/1024).toFixed(0)}KB</span>
+            <span class="text-xs font-medium text-slate-500">${label}</span>
+            ${rmBtn}
+        </div>`;
+    }).join('');
+    const allDone = fileQueue.every(q => q.status === 'done' || q.status === 'error');
+    const hasQueued = fileQueue.some(q => q.status === 'queued');
+    wrap.innerHTML = `<div class="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+        <div class="flex items-center justify-between mb-2">
+            <p class="text-xs font-semibold text-slate-600 uppercase tracking-wide"><i class="fas fa-layer-group mr-1 text-indigo-400"></i>Batch Queue (${fileQueue.length} files)</p>
+            ${allDone ? `<button onclick="fileQueue=[];renderQueue()" class="text-xs text-slate-400 hover:text-red-500">Clear</button>` : ''}
+        </div>
+        <div class="space-y-0 max-h-48 overflow-y-auto">${rows}</div>
+        ${hasQueued ? `<button onclick="uploadBatch()" id="batch-upload-btn" class="mt-3 w-full px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 flex items-center justify-center gap-2"><i class="fas fa-cloud-upload-alt"></i>Upload All (${fileQueue.filter(q=>q.status==='queued').length} files)</button>` : ''}
+    </div>`;
+}
+
+function removeFromQueue(idx) {
+    fileQueue.splice(idx, 1);
+    renderQueue();
+}
+
+async function uploadBatch() {
+    const category = document.getElementById('category').value;
+    const dropName = document.getElementById('drop_name')?.value || '';
+    const paymentMethod = document.getElementById('payment_method')?.value || 'UNSPECIFIED';
+    if (!category) { showMessage('Select a category before batch upload', 'error'); return; }
+    if (!dropName) { showMessage('Select a drop before batch upload', 'error'); return; }
+    if (!paymentMethod || paymentMethod === 'UNSPECIFIED') { showMessage('Select a payment method before batch upload', 'error'); return; }
+
+    const notes = document.getElementById('notes')?.value || '';
+    const paymentStatus = document.getElementById('payment_status')?.value || 'paid';
+    const advancePct = paymentStatus === 'advance' ? (parseFloat(document.getElementById('advance_percentage')?.value) || null) : null;
+    const dueDate = paymentStatus === 'advance'
+        ? (document.getElementById('due_date')?.value || null)
+        : paymentStatus === 'pending'
+            ? (document.getElementById('due_date_pending')?.value || null)
+            : null;
+    const section = document.getElementById('section')?.value || '';
+
+    const btn = document.getElementById('batch-upload-btn');
+    if (btn) btn.disabled = true;
+
+    for (let i = 0; i < fileQueue.length; i++) {
+        const q = fileQueue[i];
+        if (q.status !== 'queued') continue;
+        q.status = 'uploading';
+        renderQueue();
+        try {
+            const formData = new FormData();
+            formData.append('bill', q.file);
+            formData.append('category', category);
+            formData.append('drop_name', dropName);
+            formData.append('notes', notes);
+            formData.append('payment_method', paymentMethod);
+            formData.append('payment_status', paymentStatus);
+            if (section) formData.append('section', section);
+            if (advancePct) formData.append('advance_percentage', advancePct);
+            if (dueDate) formData.append('due_date', dueDate);
+            const resp = await authFetch(`${API_URL}/upload`, { method: 'POST', body: formData });
+            const data = await resp.json();
+            if (data.success) {
+                q.status = 'done';
+                addSessionUpload({ name: q.file.name, drop: dropName, category, doc: data.document || data });
+            } else {
+                q.status = 'error';
+            }
+        } catch (_) {
+            q.status = 'error';
+        }
+        renderQueue();
+    }
+    const done = fileQueue.filter(q => q.status === 'done').length;
+    const failed = fileQueue.filter(q => q.status === 'error').length;
+    showMessage(`Batch complete: ${done} uploaded${failed ? ', ' + failed + ' failed' : ''}`, failed ? 'error' : 'success');
 }
 
 function showMessage(message, type) {
