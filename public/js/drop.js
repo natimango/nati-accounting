@@ -102,7 +102,14 @@ function showDropContent() {
   document.getElementById('vendors-section').classList.remove('hidden');
 }
 
+let _currentDropId = null;
+let _goLiveOpen = false;
+
 async function loadGuardrails(dropId) {
+  _currentDropId = dropId;
+  _goLiveOpen = false;
+  const bd = document.getElementById('go-live-breakdown');
+  if (bd) bd.classList.add('hidden');
   const sec = document.getElementById('guardrails-section');
   if (!sec || !dropId) return;
   try {
@@ -117,6 +124,47 @@ async function loadGuardrails(dropId) {
     document.getElementById('gr-mktg').textContent       = fmt(d.allowed_marketing_budget);
     sec.classList.remove('hidden');
   } catch (_) {}
+}
+
+async function toggleGoLiveBreakdown() {
+  const wrap = document.getElementById('go-live-breakdown');
+  if (!wrap) return;
+  _goLiveOpen = !_goLiveOpen;
+  wrap.classList.toggle('hidden', !_goLiveOpen);
+  if (_goLiveOpen && _currentDropId) {
+    const content = document.getElementById('go-live-breakdown-content');
+    try {
+      const data = await authFetch(`/api/drops/${_currentDropId}/go-live`).then(r => r.json());
+      if (!data.success) throw new Error(data.error || 'Failed');
+      const t = data.totals || {};
+      const bd = data.breakdowns || {};
+      const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+      const fmtRow = (label, val, extra) => `<div class="flex justify-between py-1 border-b border-slate-50">
+        <span class="text-slate-600">${label}</span>
+        <span class="font-semibold text-slate-800">${fmt(val)}${extra ? ' <span class="text-slate-400 font-normal">' + extra + '</span>' : ''}</span>
+      </div>`;
+
+      const deptRows = (bd.by_department || []).map(r => fmtRow(r.department_name || 'Unassigned', r.amount)).join('');
+      const vendorRows = (bd.by_vendor || []).slice(0, 6).map(r => fmtRow(r.vendor_name, r.amount)).join('');
+      const unpostedNote = t.unposted_go_live_count > 0
+        ? `<p class="text-amber-600 text-xs mt-2"><i class="fas fa-triangle-exclamation mr-1"></i>${t.unposted_go_live_count} unposted item(s) worth ${fmt(t.excluded_unposted_amount)} excluded from go-live cost</p>`
+        : '';
+      content.innerHTML = `
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <p class="font-semibold text-slate-700 mb-2">By department</p>
+            ${deptRows || '<p class="text-slate-400">No department data</p>'}
+          </div>
+          <div>
+            <p class="font-semibold text-slate-700 mb-2">By vendor</p>
+            ${vendorRows || '<p class="text-slate-400">No vendor data</p>'}
+          </div>
+        </div>
+        ${unpostedNote}`;
+    } catch (e) {
+      document.getElementById('go-live-breakdown-content').innerHTML = `<span class="text-rose-400">Failed to load breakdown: ${e.message}</span>`;
+    }
+  }
 }
 
 // ---- Load drop data ----

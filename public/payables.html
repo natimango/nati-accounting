@@ -309,6 +309,7 @@ function renderPayablesTable(rows) {
         const grpChip = GRP_CHIP[grp] || '';
         const total = Number(d.total_amount || d.bill_total_amount || 0);
         const billId = d.bill_id;
+        const docId = d.document_id;
         const dueDate = d.bill_payment_due_date;
         const dropName = d.bill_drop_name || d.drop_name || '';
         const isOverdue = dueDate && new Date(dueDate) < new Date();
@@ -316,9 +317,10 @@ function renderPayablesTable(rows) {
         // Estimate outstanding: for advance bills, balance due = total - advance portion
         const advancePct = Number(d.bill_advance_percentage || 0);
         const outstanding = advancePct > 0 ? total * (1 - advancePct / 100) : total;
+        const docLink = docId ? `<a href="documents.html?doc=${docId}" class="ml-1 text-indigo-400 hover:text-indigo-700 text-xs" title="Open document"><i class="fas fa-receipt"></i></a>` : '';
 
         return `<tr class="${rowClass} hover:bg-slate-50 border-t border-slate-100">
-            <td class="px-4 py-3 font-medium text-slate-900">${vendor}</td>
+            <td class="px-4 py-3 font-medium text-slate-900">${vendor}${docLink}</td>
             <td class="px-4 py-3 text-slate-600">
                 <div class="flex items-center gap-1.5 flex-wrap">${grpChip}${category ? `<span class="capitalize text-xs">${category}</span>` : ''}</div>
             </td>
