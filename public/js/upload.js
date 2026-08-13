@@ -293,12 +293,15 @@ function addSessionUpload(info) {
     const list = document.getElementById('session-upload-list');
     if (!wrap || !list) return;
     wrap.classList.remove('hidden');
-    list.innerHTML = _sessionUploads.map((u, i) => `
-        <div class="flex items-center justify-between gap-3 text-sm ${i > 0 ? 'border-t border-slate-100 pt-2 mt-2' : ''}">
+    list.innerHTML = _sessionUploads.map((u, i) => {
+        const docId = u.doc?.document_id || u.doc?.id;
+        const docLink = docId ? `<a href="documents.html?doc=${docId}" class="text-xs text-indigo-500 hover:underline ml-2" title="View document"><i class="fas fa-arrow-up-right-from-square"></i></a>` : '';
+        return `<div class="flex items-center justify-between gap-3 text-sm ${i > 0 ? 'border-t border-slate-100 pt-2 mt-2' : ''}">
             <div class="flex-1 min-w-0">
-                <p class="font-medium text-slate-800 truncate">${u.name}</p>
+                <p class="font-medium text-slate-800 truncate">${u.name}${docLink}</p>
                 <p class="text-xs text-slate-400">${u.drop || '—'} · ${(u.category || '').replace(/_/g,' ')}</p>
             </div>
             <span class="text-xs text-emerald-600 font-semibold shrink-0"><i class="fas fa-check-circle mr-1"></i>Uploaded</span>
-        </div>`).join('');
+        </div>`;
+    }).join('');
 }

@@ -1989,10 +1989,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el) el.value = qSearch;
     }
 
+    const qDoc = urlParams.get('doc');
     if (window.sessionReady) {
-        window.sessionReady.then(() => loadDocuments()).catch(() => {});
+        window.sessionReady.then(() => loadDocuments().then(() => {
+            if (qDoc) {
+                const docId = parseInt(qDoc, 10);
+                if (docId) setTimeout(() => openManualModal(docId), 300);
+            }
+        })).catch(() => {});
     } else {
-        loadDocuments();
+        loadDocuments().then(() => {
+            if (qDoc) {
+                const docId = parseInt(qDoc, 10);
+                if (docId) setTimeout(() => openManualModal(docId), 300);
+            }
+        });
     }
     if (bus && bus.subscribe) {
         bus.subscribe(bus.EVENTS.DATA_CHANGED, () => loadDocuments());
