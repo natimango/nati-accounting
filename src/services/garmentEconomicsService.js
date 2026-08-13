@@ -320,7 +320,16 @@ async function getGarmentEconomics(dropId = null) {
       cm_healthy: cmHealthy,
       missing_price: !sellingPrice,
       missing_sell_through: unitsSold === 0 && unitsAvailable === 0,
-      missing_assumptions: !assump
+      missing_assumptions: !assump,
+      assumptions: assump ? {
+        shipping_subsidy_avg: assump.shipping_subsidy_avg,
+        gateway_fee_pct: assump.gateway_fee_pct,
+        gateway_fee_fixed: assump.gateway_fee_fixed,
+        returns_rate: assump.returns_rate,
+        return_shipping_avg: assump.return_shipping_avg,
+        reconditioning_cost_avg: assump.reconditioning_cost_avg,
+        expected_resale_discount_pct: assump.expected_resale_discount_pct
+      } : null
     };
   });
 

@@ -340,19 +340,18 @@ function openPanel(skuId) {
     if (!sku) return;
     document.getElementById('panel-sku-name').textContent = `${sku.sku_code} — ${sku.sku_name}`;
     document.getElementById('assumptions-panel').style.display = '';
-    // Fetch assumptions for this sku to pre-fill
-    authFetch(`${API}/reports/unit-economics?drop_id=`)
-        .then(() => {}).catch(() => {});
-    // Pre-clear fields (actual values would come from a dedicated GET endpoint)
-    document.getElementById('a-shipping').value = '';
-    document.getElementById('a-gateway-pct').value = '';
-    document.getElementById('a-gateway-fixed').value = '';
-    document.getElementById('a-returns-rate').value = '';
-    document.getElementById('a-return-ship').value = '';
-    document.getElementById('a-recon').value = '';
-    document.getElementById('a-resale-pct').value = '';
-    document.getElementById('a-cm-buffer').value = '';
-    document.getElementById('assump-msg').textContent = '';
+    // Pre-fill assumption fields from data already returned by garment-economics endpoint
+    const a = sku.assumptions || {};
+    const setField = (id, val) => { const el = document.getElementById(id); if (el) el.value = val != null ? val : ''; };
+    setField('a-shipping',     a.shipping_subsidy_avg);
+    setField('a-gateway-pct', a.gateway_fee_pct != null ? (parseFloat(a.gateway_fee_pct) * 100).toFixed(2) : '');
+    setField('a-gateway-fixed', a.gateway_fee_fixed);
+    setField('a-returns-rate', a.returns_rate != null ? (parseFloat(a.returns_rate) * 100).toFixed(2) : '');
+    setField('a-return-ship',  a.return_shipping_avg);
+    setField('a-recon',        a.reconditioning_cost_avg);
+    setField('a-resale-pct',   a.expected_resale_discount_pct != null ? (parseFloat(a.expected_resale_discount_pct) * 100).toFixed(2) : '');
+    setField('a-cm-buffer',    '');
+    document.getElementById('assump-msg').textContent = sku.missing_assumptions ? 'No assumptions saved yet — fill in and save.' : '';
 
     // Sell-through sizes
     const sizeDiv = document.getElementById('size-rows');
