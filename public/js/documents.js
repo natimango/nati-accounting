@@ -1221,10 +1221,12 @@ function filterDocuments() {
 
     if (searchTerm) {
         filtered = filtered.filter(doc => {
-            const vendor = (doc.bill_vendor_name || doc.vendor_name || doc.gemini_data?.vendor_name || '').toLowerCase();
-            const fname  = (doc.file_name || '').toLowerCase();
-            const notes  = (doc.notes || '').toLowerCase();
-            return vendor.includes(searchTerm) || fname.includes(searchTerm) || notes.includes(searchTerm);
+            const vendor   = (doc.bill_vendor_name || doc.vendor_name || doc.gemini_data?.vendor_name || '').toLowerCase();
+            const fname    = (doc.file_name || '').toLowerCase();
+            const notes    = (doc.notes || '').toLowerCase();
+            const category = (getCategory(doc) || '').toLowerCase();
+            const billNum  = (doc.bill_number || '').toLowerCase();
+            return vendor.includes(searchTerm) || fname.includes(searchTerm) || notes.includes(searchTerm) || category.includes(searchTerm) || billNum.includes(searchTerm);
         });
     }
 
