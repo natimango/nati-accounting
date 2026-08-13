@@ -8,7 +8,8 @@ const {
   recordPayment,
   recordSimplePayment,
   deleteBill,
-  updateBillMeta
+  updateBillMeta,
+  bulkUpdateBillMeta
 } = require('../controllers/billController');
 const { authorize } = require('../middleware/auth');
 
@@ -36,5 +37,8 @@ router.patch('/bills/:bill_id/meta', updateBillMeta);
 
 // Quick payment record against earliest pending schedule
 router.post('/payments/record-simple', recordSimplePayment);
+
+// Bulk metadata update (group/category/drop) across multiple bills
+router.patch('/bills/bulk-meta', authorize('manager', 'admin'), bulkUpdateBillMeta);
 
 module.exports = router;

@@ -71,7 +71,7 @@ async function fetchActualCogs(skuCodes) {
      FROM bill_items bi
      JOIN bills b ON bi.bill_id = b.bill_id
      WHERE bi.sku_code = ANY($1::text[])
-       AND COALESCE(b.category_group, 'OPERATING') = 'COGS'
+       AND COALESCE(b.category_group, 'OPERATIONS') = 'COGS'
        AND COALESCE(b.status, 'pending') NOT IN ('deleted', 'void')
      GROUP BY bi.sku_code`,
     [skuCodes]
@@ -320,7 +320,16 @@ async function getGarmentEconomics(dropId = null) {
       cm_healthy: cmHealthy,
       missing_price: !sellingPrice,
       missing_sell_through: unitsSold === 0 && unitsAvailable === 0,
-      missing_assumptions: !assump
+      missing_assumptions: !assump,
+      assumptions: assump ? {
+        shipping_subsidy_avg: assump.shipping_subsidy_avg,
+        gateway_fee_pct: assump.gateway_fee_pct,
+        gateway_fee_fixed: assump.gateway_fee_fixed,
+        returns_rate: assump.returns_rate,
+        return_shipping_avg: assump.return_shipping_avg,
+        reconditioning_cost_avg: assump.reconditioning_cost_avg,
+        expected_resale_discount_pct: assump.expected_resale_discount_pct
+      } : null
     };
   });
 

@@ -238,8 +238,10 @@ async function getFinanceSummary(req, res) {
         `
         SELECT
           SUM(total_amount) AS total_spend,
-          SUM(CASE WHEN department ILIKE 'marketing%' THEN total_amount ELSE 0 END) AS marketing,
-          SUM(CASE WHEN (department ILIKE 'cogs%' OR department ILIKE 'manufacturing%' OR category ILIKE 'logistics%' OR category ILIKE 'stitch%') THEN total_amount ELSE 0 END) AS cogs_ops
+          SUM(CASE WHEN category_group = 'COGS'        THEN total_amount ELSE 0 END) AS cogs,
+          SUM(CASE WHEN category_group = 'FULFILLMENT' THEN total_amount ELSE 0 END) AS fulfillment,
+          SUM(CASE WHEN category_group = 'MARKETING'   THEN total_amount ELSE 0 END) AS marketing,
+          SUM(CASE WHEN category_group = 'OPERATIONS'  THEN total_amount ELSE 0 END) AS operations
         FROM bills
         WHERE bill_date >= $1
         `,
@@ -293,9 +295,11 @@ async function getFinanceSummary(req, res) {
     res.json({
       period: { days, start: startISO },
       totals: {
-        spend: Number(spendTotals.rows[0]?.total_spend || 0),
-        marketing: Number(spendTotals.rows[0]?.marketing || 0),
-        cogs_ops: Number(spendTotals.rows[0]?.cogs_ops || 0)
+        spend:       Number(spendTotals.rows[0]?.total_spend  || 0),
+        cogs:        Number(spendTotals.rows[0]?.cogs         || 0),
+        fulfillment: Number(spendTotals.rows[0]?.fulfillment  || 0),
+        marketing:   Number(spendTotals.rows[0]?.marketing    || 0),
+        operations:  Number(spendTotals.rows[0]?.operations   || 0),
       },
       drops: dropTotals.rows,
       vendors: vendorTotals.rows,
@@ -317,8 +321,10 @@ async function getDropOverview(req, res) {
         `
         SELECT
           SUM(total_amount) AS total_spend,
-          SUM(CASE WHEN department ILIKE 'marketing%' THEN total_amount ELSE 0 END) AS marketing_spend,
-          SUM(CASE WHEN department ILIKE 'cogs%' OR category ILIKE 'stitch%' OR category ILIKE 'logistics%' THEN total_amount ELSE 0 END) AS cogs_spend
+          SUM(CASE WHEN category_group = 'COGS'        THEN total_amount ELSE 0 END) AS cogs_spend,
+          SUM(CASE WHEN category_group = 'FULFILLMENT' THEN total_amount ELSE 0 END) AS fulfillment_spend,
+          SUM(CASE WHEN category_group = 'MARKETING'   THEN total_amount ELSE 0 END) AS marketing_spend,
+          SUM(CASE WHEN category_group = 'OPERATIONS'  THEN total_amount ELSE 0 END) AS operations_spend
         FROM bills
         WHERE drop_name ILIKE $1
         `,
@@ -399,7 +405,7 @@ async function getSkuOverview(req, res) {
 // Simple watchdog: duplicate invoice numbers per vendor + oversized bills.
 async function getWatchdog(req, res) {
   try {
-    const [billDupes, fileDupes, oversized, staleDocs, agedUnpaid, budgetsOpen] = await Promise.all([
+    const [billDupes, fileDupes, oversized, staleDocs, agedUnpaid, budgetsOpen, uncategorized] = await Promise.all([
       pool.query(
         `
         SELECT v.vendor_name, bill_number, COUNT(*) AS count
@@ -490,6 +496,19 @@ async function getWatchdog(req, res) {
         ORDER BY created_at DESC
         LIMIT 20
         `
+      ),
+      pool.query(
+        `
+        SELECT b.bill_id, COALESCE(v.vendor_name, 'Unknown') AS vendor_name, b.total_amount, d.file_name
+        FROM bills b
+        LEFT JOIN documents d ON b.document_id = d.document_id
+        LEFT JOIN vendors v ON v.vendor_id = b.vendor_id
+        WHERE b.category_group IS NULL
+          AND (b.status IS NULL OR b.status NOT IN ('deleted','void'))
+          AND COALESCE(b.total_amount, 0) > 0
+        ORDER BY b.bill_id DESC
+        LIMIT 20
+        `
       )
     ]);
     const duplicateRows = [
@@ -514,13 +533,15 @@ async function getWatchdog(req, res) {
         oversized: oversized.rowCount,
         stale_manual: staleDocs.rowCount,
         aged_unpaid: agedUnpaid.rowCount,
-        budget: budgetsOpen.rowCount
+        budget: budgetsOpen.rowCount,
+        uncategorized: uncategorized.rowCount
       },
       duplicates: duplicateRows,
       oversized: oversized.rows,
       stale_manual: staleDocs.rows,
       aged_unpaid: agedUnpaid.rows,
-      budget_alerts: budgetsOpen.rows
+      budget_alerts: budgetsOpen.rows,
+      uncategorized: uncategorized.rows
     });
   } catch (err) {
     console.error('Watchdog error', err);
@@ -566,7 +587,7 @@ async function runBudgetAlerts(req, res) {
                SELECT SUM(b.total_amount)
                FROM bills b
                WHERE b.drop_name = db.drop_name
-                 AND COALESCE(b.department, 'OPERATING') = COALESCE(db.department, 'OPERATING')
+                 AND COALESCE(b.category_group, b.department, 'OPERATIONS') = COALESCE(db.department, 'OPERATIONS')
                  AND b.bill_date BETWEEN db.start_date AND db.end_date
                  AND (b.status IS NULL OR b.status NOT IN ('deleted','void'))
              ), 0) AS actual_amount
@@ -968,17 +989,29 @@ async function getDropCostOverview(req, res) {
       [dropName]
     );
 
+    const bySectionResult = await client.query(
+      `SELECT COALESCE(b.section, 'Unassigned') AS section,
+              SUM(b.total_amount) AS committed
+       FROM bills b
+       WHERE b.drop_name = $1
+         AND b.section IS NOT NULL
+         AND (b.status IS NULL OR b.status NOT IN ('deleted','void'))
+       GROUP BY COALESCE(b.section, 'Unassigned')
+       ORDER BY committed DESC`,
+      [dropName]
+    );
+
     const byGroupResult = await client.query(
       `
       SELECT
-        COALESCE(b.category_group, 'OPERATING') AS category_group,
+        COALESCE(b.category_group, 'OPERATIONS') AS category_group,
         SUM(b.total_amount) AS committed,
         COALESCE(SUM(p.amount_paid), 0) AS paid
       FROM bills b
       LEFT JOIN payments p ON p.bill_id = b.bill_id
       WHERE b.drop_name = $1
         AND (b.status IS NULL OR b.status NOT IN ('deleted','void'))
-      GROUP BY COALESCE(b.category_group, 'OPERATING')
+      GROUP BY COALESCE(b.category_group, 'OPERATIONS')
       ORDER BY committed DESC
       `,
       [dropName]
@@ -996,7 +1029,7 @@ async function getDropCostOverview(req, res) {
 
     const groupMap = {};
     byGroupResult.rows.forEach(r => {
-      const key = r.category_group || 'OPERATING';
+      const key = r.category_group || 'OPERATIONS';
       groupMap[key] = {
         category_group: key,
         committed: Number(r.committed || 0),
@@ -1009,7 +1042,7 @@ async function getDropCostOverview(req, res) {
     let totalBudget = 0;
     let totalActual = 0;
     budgetRows.rows.forEach(b => {
-      const key = b.category_group || 'OPERATING';
+      const key = b.category_group || 'OPERATIONS';
       const actual = groupMap[key] || { committed: 0 };
       const budgetAmount = Number(b.amount || 0);
       const committedActual = Number(actual.committed || 0);
@@ -1060,6 +1093,7 @@ async function getDropCostOverview(req, res) {
         paid: Number(r.paid || 0)
       })),
       byGroup: Object.values(groupMap),
+      bySection: bySectionResult.rows.map(r => ({ section: r.section, committed: Number(r.committed || 0) })),
       budgetSummary,
       budgetTotals: {
         budgeted: totalBudget,

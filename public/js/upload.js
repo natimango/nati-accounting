@@ -10,7 +10,7 @@ function togglePaymentFields() {
 // Load real drops into the drop selector
 async function loadDrops() {
     try {
-        const r = await authFetch(`${API_URL}/drops`);
+        const r = await authFetch(`${API_URL}/meta/drops`);
         const data = await r.json();
         const drops = data.drops || data || [];
         const sel = document.getElementById('drop_name');
@@ -194,6 +194,8 @@ async function uploadFile() {
             ? (document.getElementById('due_date_pending')?.value || null)
             : null;
 
+    const section = document.getElementById('section')?.value || '';
+
     // Prepare form data
     const formData = new FormData();
     formData.append('bill', selectedFile);
@@ -202,6 +204,7 @@ async function uploadFile() {
     formData.append('notes', notes);
     formData.append('payment_method', paymentMethod);
     formData.append('payment_status', paymentStatus);
+    if (section) formData.append('section', section);
     if (advancePct) formData.append('advance_percentage', advancePct);
     if (dueDate) formData.append('due_date', dueDate);
     
@@ -233,14 +236,16 @@ async function uploadFile() {
         const data = await response.json();
         
         if (data.success) {
-            showMessage(`✅ ${selectedFile.name} uploaded successfully!`, 'success');
-            setTimeout(() => {
-                window.location.href = 'documents.html';
-            }, 1500);
+            showMessage(`✅ ${selectedFile.name} uploaded — ready for next bill`, 'success');
+            addSessionUpload({ name: selectedFile.name, drop: dropName, category, doc: data.document || data });
+            clearFile();
+            document.getElementById('progress-container').classList.add('hidden');
+            document.getElementById('upload-btn').disabled = false;
+            document.getElementById('upload-btn').innerHTML = '<i class="fas fa-upload mr-1"></i>Upload Bill';
         } else {
             showMessage('Upload failed: ' + data.error, 'error');
             document.getElementById('upload-btn').disabled = false;
-            document.getElementById('upload-btn').innerHTML = '<i class="fas fa-upload mr-2"></i>Upload Bill';
+            document.getElementById('upload-btn').innerHTML = '<i class="fas fa-upload mr-1"></i>Upload Bill';
         }
     } catch (error) {
         clearInterval(progressInterval);
@@ -277,4 +282,26 @@ function formatBytes(bytes) {
     const sizes = ['Bytes', 'KB', 'MB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// ── Session upload history ────────────────────────────────────────────────────
+const _sessionUploads = [];
+
+function addSessionUpload(info) {
+    _sessionUploads.unshift({ ...info, time: new Date() });
+    const wrap = document.getElementById('session-uploads');
+    const list = document.getElementById('session-upload-list');
+    if (!wrap || !list) return;
+    wrap.classList.remove('hidden');
+    list.innerHTML = _sessionUploads.map((u, i) => {
+        const docId = u.doc?.document_id || u.doc?.id;
+        const docLink = docId ? `<a href="documents.html?doc=${docId}" class="text-xs text-indigo-500 hover:underline ml-2" title="View document"><i class="fas fa-arrow-up-right-from-square"></i></a>` : '';
+        return `<div class="flex items-center justify-between gap-3 text-sm ${i > 0 ? 'border-t border-slate-100 pt-2 mt-2' : ''}">
+            <div class="flex-1 min-w-0">
+                <p class="font-medium text-slate-800 truncate">${u.name}${docLink}</p>
+                <p class="text-xs text-slate-400">${u.drop || '—'} · ${(u.category || '').replace(/_/g,' ')}</p>
+            </div>
+            <span class="text-xs text-emerald-600 font-semibold shrink-0"><i class="fas fa-check-circle mr-1"></i>Uploaded</span>
+        </div>`;
+    }).join('');
 }

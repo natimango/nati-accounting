@@ -114,7 +114,8 @@ async function processBillManual(req, res) {
     payment_terms,
     line_items = [],
     notes,
-    payment_method
+    payment_method,
+    section
   } = req.body;
 
   try {
@@ -154,7 +155,10 @@ async function processBillManual(req, res) {
 
     const categoryInfo = normalizeCategory(category || document.document_category || 'misc');
     const normalizedCategory = categoryInfo.category;
-    const categoryGroup = categoryInfo.category_group;
+    const VALID_GROUPS = ['COGS', 'FULFILLMENT', 'MARKETING', 'OPERATIONS'];
+    const categoryGroup = VALID_GROUPS.includes((department || '').toUpperCase())
+      ? department.toUpperCase()
+      : categoryInfo.category_group;
 
     const dimError = validateDimensions(normalizedCategory, drop_name, channel, campaign);
     if (dimError) {
@@ -224,8 +228,9 @@ async function processBillManual(req, res) {
            campaign = $15,
            department = $16,
            tags = $17::jsonb,
-           payment_method = $18
-         WHERE bill_id = $19`,
+           payment_method = $18,
+           section = $19
+         WHERE bill_id = $20`,
         [
           vendorId,
           bill_number || null,
@@ -245,6 +250,7 @@ async function processBillManual(req, res) {
           department || null,
           tagsValue ? JSON.stringify(tagsValue) : null,
           normalizedPayment,
+          section || null,
           billId
         ]
       );
@@ -254,8 +260,8 @@ async function processBillManual(req, res) {
       const billResult = await pool.query(
         `INSERT INTO bills 
          (document_id, vendor_id, bill_number, bill_date, subtotal, tax_amount, total_amount, 
-          category, category_group, confidence_score, status, payment_status, drop_name, trip_name, channel, campaign, department, tags, payment_method)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb, $19)
+          category, category_group, confidence_score, status, payment_status, drop_name, trip_name, channel, campaign, department, tags, payment_method, section)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb, $19, $20)
          RETURNING bill_id`,
         [
           document_id,
@@ -276,7 +282,8 @@ async function processBillManual(req, res) {
           campaign || null,
           department || null,
           tagsValue ? JSON.stringify(tagsValue) : null,
-          normalizedPayment
+          normalizedPayment,
+          section || null
         ]
       );
       billId = billResult.rows[0].bill_id;
@@ -683,12 +690,19 @@ async function getPaymentDashboard(req, res) {
       WHERE payment_status IN ('PENDING', 'PARTIAL')
       AND due_date >= $1 AND due_date <= $2
     `, [today, next30Days]);
-    
+
+    const totalOutstanding = await pool.query(`
+      SELECT SUM(amount_due - amount_paid) as total
+      FROM payment_schedule
+      WHERE payment_status IN ('PENDING', 'PARTIAL', 'OVERDUE')
+    `);
+
     res.json({
       success: true,
       overdue: overdue.rows,
       due_this_week: thisWeek.rows,
       due_this_month: thisMonth.rows,
+      total_outstanding: parseFloat(totalOutstanding.rows[0].total || 0),
       forecast: {
         next_7_days: parseFloat(forecast7Days.rows[0].total || 0),
         next_30_days: parseFloat(forecast30Days.rows[0].total || 0)
@@ -769,15 +783,24 @@ async function recordSimplePayment(req, res) {
     );
 
     await pool.query(
-      `UPDATE payment_schedule 
+      `UPDATE payment_schedule
        SET amount_paid = amount_paid + $1,
-           payment_status = CASE 
+           payment_status = CASE
              WHEN amount_paid + $1 >= amount_due THEN 'PAID'
              ELSE 'PARTIAL'
            END
        WHERE schedule_id = $2`,
       [amount, schedule_id]
     );
+
+    // Update bill payment_status based on all schedules
+    const allPaid = await pool.query(
+      `SELECT COUNT(*) FILTER (WHERE payment_status != 'PAID') AS pending_count
+       FROM payment_schedule WHERE bill_id = $1`,
+      [bill_id]
+    );
+    const billStatus = parseInt(allPaid.rows[0].pending_count) === 0 ? 'paid' : 'advance';
+    await pool.query(`UPDATE bills SET payment_status = $1 WHERE bill_id = $2`, [billStatus, bill_id]);
 
     res.json({
       success: true,
@@ -982,16 +1005,19 @@ async function updateBillMeta(req, res) {
     }
     const documentId = bill.rows[0].document_id;
 
+    const VALID_GROUPS = ['COGS', 'FULFILLMENT', 'MARKETING', 'OPERATIONS'];
+    const newGroup = VALID_GROUPS.includes((department || '').toUpperCase()) ? department.toUpperCase() : null;
     await pool.query(
-      `UPDATE bills 
+      `UPDATE bills
        SET drop_name = COALESCE($1, drop_name),
            trip_name = COALESCE($2, trip_name),
            channel = COALESCE($3, channel),
            campaign = COALESCE($4, campaign),
            department = COALESCE($5, department),
-           category = COALESCE($6, category)
+           category = COALESCE($6, category),
+           category_group = COALESCE($8, category_group)
        WHERE bill_id = $7`,
-      [drop_name || null, trip_name || null, channel || null, campaign || null, department || null, category || null, bill_id]
+      [drop_name || null, trip_name || null, channel || null, campaign || null, department || null, category || null, bill_id, newGroup]
     );
 
     if (documentId) {
@@ -1015,6 +1041,37 @@ async function updateBillMeta(req, res) {
   }
 }
 
+// PATCH /api/bills/bulk-meta — apply department/category to multiple bill_ids at once
+async function bulkUpdateBillMeta(req, res) {
+  try {
+    const { bill_ids, department, category, drop_name } = req.body || {};
+    if (!Array.isArray(bill_ids) || !bill_ids.length) {
+      return res.status(400).json({ error: 'bill_ids array required' });
+    }
+    const VALID_GROUPS = ['COGS', 'FULFILLMENT', 'MARKETING', 'OPERATIONS'];
+    const newGroup = department && VALID_GROUPS.includes(department.toUpperCase()) ? department.toUpperCase() : null;
+
+    const ids = bill_ids.map(Number).filter(Boolean);
+    const setClauses = [];
+    const params = [];
+    let idx = 1;
+    if (newGroup)   { setClauses.push(`category_group=$${idx++}`); params.push(newGroup); setClauses.push(`department=$${idx++}`); params.push(newGroup); }
+    if (category)   { setClauses.push(`category=$${idx++}`); params.push(category); }
+    if (drop_name)  { setClauses.push(`drop_name=$${idx++}`); params.push(drop_name); }
+    if (!setClauses.length) return res.status(400).json({ error: 'Nothing to update' });
+
+    params.push(ids);
+    await pool.query(
+      `UPDATE bills SET ${setClauses.join(', ')} WHERE bill_id = ANY($${idx})`,
+      params
+    );
+    res.json({ success: true, updated: ids.length });
+  } catch (error) {
+    console.error('bulkUpdateBillMeta error:', error);
+    res.status(500).json({ error: error.message });
+  }
+}
+
 module.exports = {
   processBillWithAI,
   processBillManual,
@@ -1022,5 +1079,6 @@ module.exports = {
   recordPayment,
   deleteBill,
   updateBillMeta,
+  bulkUpdateBillMeta,
   recordSimplePayment
 };

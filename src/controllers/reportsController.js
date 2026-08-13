@@ -11,135 +11,239 @@ const ACTIVE_BILL_FILTER = `
   AND COALESCE(d.status, 'uploaded') <> 'deleted'
 `;
 
-// Get Profit & Loss Statement
+// Get Profit & Loss Statement — Management P&L format
+// Gross Sales → Net Sales → COGS → Gross Profit → CM1 → CM2 → EBITDA
 async function getProfitLoss(req, res) {
   try {
-    const { start_date, end_date } = req.query;
-    
+    const { start_date, end_date, section, drop_name } = req.query;
+
     const startDate = start_date || new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
-    const endDate = end_date || new Date().toISOString().split('T')[0];
-    
-    // Aggregate bills by category_group + category
-    const billAgg = await pool.query(
-      `SELECT
-         COALESCE(b.category_group, 'OPERATING') AS category_group,
-         COALESCE(b.category, 'misc') AS category,
-         SUM(b.total_amount) AS total
-       FROM bills b
-       LEFT JOIN documents d ON b.document_id = d.document_id
-       WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
-         AND ${ACTIVE_BILL_FILTER}
-       GROUP BY b.category_group, b.category`,
-      [startDate, endDate]
-    );
+    const endDate   = end_date   || new Date().toISOString().split('T')[0];
 
-    // Aggregate by tag group (PURCHASE/FULFILLMENT/MARKETING/OPERATIONS) for tagged bills
-    const tagAgg = await pool.query(
-      `SELECT
-         et.tag_group,
-         et.tag_name,
-         et.account_code,
-         SUM(b.total_amount) AS total
-       FROM bill_expense_tags bet
-       JOIN expense_tags et ON bet.tag_id = et.tag_id
-       JOIN bills b ON bet.bill_id = b.bill_id
-       LEFT JOIN documents d ON b.document_id = d.document_id
-       WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
-         AND ${ACTIVE_BILL_FILTER}
-       GROUP BY et.tag_group, et.tag_name, et.account_code
-       ORDER BY et.tag_group, et.account_code`,
-      [startDate, endDate]
-    );
+    // ── REVENUE ──────────────────────────────────────────────────────────────
+    const salesParams = [startDate, endDate];
+    let salesWhere = 'entry_date BETWEEN $1 AND $2';
+    if (section) { salesParams.push(section); salesWhere += ` AND section = $${salesParams.length}`; }
+    if (drop_name) {
+      salesParams.push(drop_name);
+      salesWhere += ` AND drop_id IN (SELECT drop_id FROM drops WHERE drop_name = $${salesParams.length})`;
+    }
 
-    // Real revenue from sales_entries
     const salesAgg = await pool.query(
       `SELECT
          channel,
-         SUM(gross_sales)   AS gross_sales,
+         SUM(gross_sales)    AS gross_sales,
          SUM(returns_amount) AS returns_amount,
-         SUM(net_sales)     AS net_sales,
-         SUM(gross_units)   AS gross_units,
+         SUM(net_sales)      AS net_sales,
+         SUM(gross_units)    AS gross_units,
          SUM(returned_units) AS returned_units,
+         SUM(marketplace_commission)    AS marketplace_commission,
+         SUM(payment_gateway_charges)   AS payment_gateway_charges,
+         SUM(shipping_collected)        AS shipping_collected,
          SUM(cgst_collected + sgst_collected + igst_collected) AS gst_collected
        FROM sales_entries
-       WHERE entry_date BETWEEN $1 AND $2
+       WHERE ${salesWhere}
        GROUP BY channel
        ORDER BY net_sales DESC`,
-      [startDate, endDate]
+      salesParams
     );
 
-    let totalRevenue = 0;
-    const revenueRows = [];
+    let grossSalesTotal = 0, returnsTotal = 0, netSalesTotal = 0;
+    let marketplaceCommTotal = 0, gatewayTotal = 0, shippingCollectedTotal = 0;
+    let gstCollectedTotal = 0;
+    const revenueByChannel = [];
+
     salesAgg.rows.forEach(row => {
+      const gs = parseFloat(row.gross_sales || 0);
+      const ret = parseFloat(row.returns_amount || 0);
       const net = parseFloat(row.net_sales || 0);
-      totalRevenue += net;
-      revenueRows.push({
+      grossSalesTotal += gs;
+      returnsTotal    += ret;
+      netSalesTotal   += net;
+      marketplaceCommTotal   += parseFloat(row.marketplace_commission || 0);
+      gatewayTotal           += parseFloat(row.payment_gateway_charges || 0);
+      shippingCollectedTotal += parseFloat(row.shipping_collected || 0);
+      gstCollectedTotal      += parseFloat(row.gst_collected || 0);
+      revenueByChannel.push({
+        channel: row.channel,
         account_code: channelAccountCode(row.channel),
-        account_name: row.channel.replace(/_/g, ' '),
-        amount: net,
-        gross_sales: parseFloat(row.gross_sales || 0),
-        returns: parseFloat(row.returns_amount || 0),
+        gross_sales: gs,
+        returns: ret,
+        net_sales: net,
         units: parseInt(row.gross_units || 0),
+        returned_units: parseInt(row.returned_units || 0),
+        marketplace_commission: parseFloat(row.marketplace_commission || 0),
+        payment_gateway: parseFloat(row.payment_gateway_charges || 0),
         gst_collected: parseFloat(row.gst_collected || 0)
       });
     });
 
-    let totalCOGS = 0;
-    let totalExpenses = 0;
+    // ── BILLS — split by management category ─────────────────────────────────
+    const billParams = [startDate, endDate];
+    let billExtra = '';
+    if (section) { billParams.push(section); billExtra += ` AND b.section = $${billParams.length}`; }
+    if (drop_name) { billParams.push(drop_name); billExtra += ` AND b.drop_name = $${billParams.length}`; }
 
-    const cogsRows = [];
-    const expRows = [];
-    const groupTotals = {};
+    const billAgg = await pool.query(
+      `SELECT
+         COALESCE(b.category_group, 'OPERATIONS') AS category_group,
+         COALESCE(b.category, 'misc')              AS category,
+         SUM(b.total_amount)                       AS total,
+         COUNT(*)                                  AS bill_count
+       FROM bills b
+       LEFT JOIN documents d ON b.document_id = d.document_id
+       WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
+         AND ${ACTIVE_BILL_FILTER}${billExtra}
+       GROUP BY b.category_group, b.category`,
+      billParams
+    );
+
+    let cogsTotal = 0, fulfilmentTotal = 0, marketingTotal = 0, opexTotal = 0;
+    const cogsLines = [], fulfilmentLines = [], marketingLines = [], opexLines = [];
 
     billAgg.rows.forEach(row => {
-      const groupKey = (row.category_group || 'OPERATING').toUpperCase();
+      const grp = (row.category_group || 'OPERATIONS').toUpperCase();
+      const cat = (row.category || 'misc').toLowerCase();
       const amt = parseFloat(row.total || 0);
-      const label = row.category || 'misc';
-      groupTotals[groupKey] = (groupTotals[groupKey] || 0) + amt;
+      const cnt = parseInt(row.bill_count || 0);
+      const label = cat.replace(/_/g, ' ');
 
-      if (groupKey === 'COGS') {
-        totalCOGS += amt;
-        cogsRows.push({ account_name: label, amount: amt });
+      if (grp === 'COGS') {
+        cogsTotal += amt;
+        cogsLines.push({ category: label, amount: amt, bill_count: cnt });
+      } else if (grp === 'FULFILLMENT') {
+        fulfilmentTotal += amt;
+        fulfilmentLines.push({ category: label, amount: amt, bill_count: cnt });
+      } else if (grp === 'MARKETING') {
+        marketingTotal += amt;
+        marketingLines.push({ category: label, amount: amt, bill_count: cnt });
       } else {
-        totalExpenses += amt;
-        expRows.push({ account_name: `${groupKey} - ${label}`, amount: amt });
+        opexTotal += amt;
+        opexLines.push({ category: label, amount: amt, bill_count: cnt });
       }
     });
 
-    // Build tag breakdown by group
-    const tagBreakdown = {};
-    tagAgg.rows.forEach(row => {
-      const g = row.tag_group;
-      if (!tagBreakdown[g]) tagBreakdown[g] = { lines: [], total: 0 };
-      const amt = parseFloat(row.total || 0);
-      tagBreakdown[g].lines.push({ tag_name: row.tag_name, account_code: row.account_code, amount: amt });
-      tagBreakdown[g].total += amt;
-    });
+    // ── INPUT TAX CREDIT from bills ───────────────────────────────────────────
+    const itcRow = await pool.query(
+      `SELECT
+         COALESCE(SUM(b.cgst_amount), 0) AS cgst_itc,
+         COALESCE(SUM(b.sgst_amount), 0) AS sgst_itc,
+         COALESCE(SUM(b.igst_amount), 0) AS igst_itc
+       FROM bills b
+       LEFT JOIN documents d ON b.document_id = d.document_id
+       WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
+         AND ${ACTIVE_BILL_FILTER}${billExtra}`,
+      billParams
+    );
+    const cgstItc = parseFloat(itcRow.rows[0]?.cgst_itc || 0);
+    const sgstItc = parseFloat(itcRow.rows[0]?.sgst_itc || 0);
+    const igstItc = parseFloat(itcRow.rows[0]?.igst_itc || 0);
+    const totalItc = cgstItc + sgstItc + igstItc;
 
-    const grossProfit = totalRevenue - totalCOGS;
-    const netProfit = grossProfit - totalExpenses;
+    // ── MANAGEMENT P&L WATERFALL ──────────────────────────────────────────────
+    const grossProfit    = netSalesTotal - cogsTotal;
+    const grossMarginPct = netSalesTotal ? (grossProfit / netSalesTotal * 100) : 0;
+
+    // CM1 = Gross Profit - Fulfilment (logistics, commissions, gateway)
+    // Also include marketplace_commission and gateway from sales_entries
+    const totalFulfilment = fulfilmentTotal + marketplaceCommTotal + gatewayTotal;
+    const cm1 = grossProfit - totalFulfilment;
+    const cm1Pct = netSalesTotal ? (cm1 / netSalesTotal * 100) : 0;
+
+    // CM2 = CM1 - Marketing / CAC spend
+    const cm2 = cm1 - marketingTotal;
+    const cm2Pct = netSalesTotal ? (cm2 / netSalesTotal * 100) : 0;
+
+    // EBITDA = CM2 - Operating expenses
+    const ebitda    = cm2 - opexTotal;
+    const ebitdaPct = netSalesTotal ? (ebitda / netSalesTotal * 100) : 0;
+
+    // Section-level breakdown (if no section filter applied)
+    let sectionBreakdown = null;
+    if (!section) {
+      const secSales = await pool.query(
+        `SELECT section, SUM(net_sales) AS net_sales, SUM(gross_units - returned_units) AS net_units
+         FROM sales_entries WHERE entry_date BETWEEN $1 AND $2 AND section IS NOT NULL
+         GROUP BY section ORDER BY net_sales DESC`,
+        [startDate, endDate]
+      );
+      const secBills = await pool.query(
+        `SELECT section, category_group, SUM(total_amount) AS total
+         FROM bills b LEFT JOIN documents d ON b.document_id = d.document_id
+         WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
+           AND ${ACTIVE_BILL_FILTER}
+           AND b.section IS NOT NULL
+           AND b.category_group IN ('COGS', 'FULFILLMENT')
+         GROUP BY section, category_group`,
+        [startDate, endDate]
+      );
+      const secMap = {};
+      secSales.rows.forEach(r => {
+        secMap[r.section] = { section: r.section, net_sales: parseFloat(r.net_sales || 0), net_units: parseInt(r.net_units || 0), cogs: 0, fulfillment: 0 };
+      });
+      secBills.rows.forEach(r => {
+        if (!secMap[r.section]) return;
+        const grp = (r.category_group || '').toUpperCase();
+        if (grp === 'COGS') secMap[r.section].cogs += parseFloat(r.total || 0);
+        else if (grp === 'FULFILLMENT') secMap[r.section].fulfillment += parseFloat(r.total || 0);
+      });
+      sectionBreakdown = Object.values(secMap).map(s => {
+        const gp  = s.net_sales - s.cogs;
+        const cm1 = gp - s.fulfillment;
+        return {
+          ...s,
+          gross_profit:      gp,
+          gross_margin_pct:  s.net_sales ? parseFloat((gp  / s.net_sales * 100).toFixed(1)) : 0,
+          cm1,
+          cm1_pct:           s.net_sales ? parseFloat((cm1 / s.net_sales * 100).toFixed(1)) : 0,
+        };
+      });
+    }
 
     res.json({
       success: true,
       period: { start_date: startDate, end_date: endDate },
-      revenue: {
-        accounts: revenueRows,
-        total: totalRevenue
-      },
-      cogs: {
-        accounts: cogsRows,
-        total: totalCOGS
-      },
+      filters: { section: section || null, drop_name: drop_name || null },
+
+      // Revenue
+      gross_sales: grossSalesTotal,
+      returns: returnsTotal,
+      net_sales: netSalesTotal,
+      revenue_by_channel: revenueByChannel,
+      gst_collected: gstCollectedTotal,
+
+      // GST / ITC
+      itc: { cgst: cgstItc, sgst: sgstItc, igst: igstItc, total: totalItc },
+      net_gst_payable: Math.max(0, gstCollectedTotal - totalItc),
+
+      // COGS
+      cogs: { lines: cogsLines, total: cogsTotal },
+
+      // Waterfall
       gross_profit: grossProfit,
-      expenses: {
-        accounts: expRows,
-        total: totalExpenses
+      gross_margin_pct: parseFloat(grossMarginPct.toFixed(1)),
+
+      fulfilment: {
+        lines: fulfilmentLines,
+        marketplace_commission: marketplaceCommTotal,
+        payment_gateway: gatewayTotal,
+        total: totalFulfilment
       },
-      net_profit: netProfit,
-      group_totals: groupTotals,
-      tag_breakdown: tagBreakdown
+      cm1: cm1,
+      cm1_pct: parseFloat(cm1Pct.toFixed(1)),
+
+      marketing: { lines: marketingLines, total: marketingTotal },
+      cm2: cm2,
+      cm2_pct: parseFloat(cm2Pct.toFixed(1)),
+
+      opex: { lines: opexLines, total: opexTotal },
+      ebitda: ebitda,
+      ebitda_pct: parseFloat(ebitdaPct.toFixed(1)),
+
+      // Section breakdown (when no section filter)
+      section_breakdown: sectionBreakdown
     });
-    
+
   } catch (error) {
     console.error('P&L error:', error);
     res.status(500).json({ error: error.message });
@@ -245,9 +349,9 @@ async function getBalanceSheet(req, res) {
 
     const billsRow = await pool.query(
       `SELECT
-         COALESCE(SUM(CASE WHEN COALESCE(b.category_group,'OPERATING') = 'COGS'
+         COALESCE(SUM(CASE WHEN COALESCE(b.category_group,'OPERATIONS') = 'COGS'
                           THEN b.total_amount END), 0)  AS cogs_payable,
-         COALESCE(SUM(CASE WHEN COALESCE(b.category_group,'OPERATING') <> 'COGS'
+         COALESCE(SUM(CASE WHEN COALESCE(b.category_group,'OPERATIONS') <> 'COGS'
                           THEN b.total_amount END), 0)  AS opex_payable,
          COUNT(*)                                        AS unpaid_count
        FROM bills b
@@ -445,18 +549,20 @@ async function getDimensionSpend(req, res) {
 
     const query = `
       SELECT
-        COALESCE(drop_name, 'Unassigned') AS drop_name,
-        COALESCE(trip_name, 'Unassigned') AS trip_name,
-              'Unassigned' AS channel,
-              'Unassigned' AS campaign,
-        COALESCE(department, 'Unassigned') AS department,
-        SUM(total_amount) AS spend_total,
-        SUM(subtotal) AS spend_subtotal,
-        SUM(tax_amount) AS spend_tax,
+        COALESCE(b.drop_name, 'Unassigned') AS drop_name,
+        COALESCE(b.trip_name, 'Unassigned') AS trip_name,
+        'Unassigned' AS channel,
+        'Unassigned' AS campaign,
+        COALESCE(b.category_group, b.department, 'OPERATIONS') AS department,
+        SUM(b.total_amount) AS spend_total,
+        SUM(b.subtotal) AS spend_subtotal,
+        SUM(b.tax_amount) AS spend_tax,
         COUNT(*) AS bill_count
-      FROM bills
-      WHERE bill_date BETWEEN $1 AND $2
-      GROUP BY drop_name, trip_name, department
+      FROM bills b
+      LEFT JOIN documents d ON b.document_id = d.document_id
+      WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
+        AND ${ACTIVE_BILL_FILTER}
+      GROUP BY b.drop_name, b.trip_name, COALESCE(b.category_group, b.department, 'OPERATIONS')
       ORDER BY spend_total DESC NULLS LAST, bill_count DESC;
     `;
 
@@ -809,7 +915,7 @@ async function getSalesEntries(req, res) {
 async function createSalesEntry(req, res) {
   try {
     const {
-      entry_date, channel, drop_id, drop_name,
+      entry_date, channel, drop_id, drop_name, section,
       gross_sales, returns_amount = 0,
       gross_units = 0, returned_units = 0,
       marketplace_commission = 0, payment_gateway_charges = 0,
@@ -827,16 +933,16 @@ async function createSalesEntry(req, res) {
     }
     const r = await pool.query(
       `INSERT INTO sales_entries
-         (entry_date, channel, drop_id, drop_name,
+         (entry_date, channel, drop_id, drop_name, section,
           gross_sales, returns_amount,
           gross_units, returned_units,
           marketplace_commission, payment_gateway_charges, shipping_collected,
           cgst_collected, sgst_collected, igst_collected,
           settlement_ref, settlement_date, notes, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
        RETURNING *`,
       [entry_date || new Date().toISOString().split('T')[0], ch, drop_id || null,
-       drop_name || null, gross_sales, returns_amount, gross_units, returned_units,
+       drop_name || null, section || null, gross_sales, returns_amount, gross_units, returned_units,
        marketplace_commission, payment_gateway_charges, shipping_collected,
        cgst_collected, sgst_collected, igst_collected,
        settlement_ref || null, settlement_date || null, notes || null,
@@ -855,6 +961,52 @@ async function deleteSalesEntry(req, res) {
     await pool.query('DELETE FROM sales_entries WHERE entry_id = $1', [req.params.id]);
     res.json({ success: true });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// PUT /api/reports/sales/:id
+async function updateSalesEntry(req, res) {
+  try {
+    const { id } = req.params;
+    const {
+      entry_date, channel, drop_id, section,
+      gross_sales, returns_amount = 0,
+      gross_units = 0, returned_units = 0,
+      marketplace_commission = 0, payment_gateway_charges = 0,
+      shipping_collected = 0,
+      cgst_collected = 0, sgst_collected = 0, igst_collected = 0,
+      settlement_ref, settlement_date, notes
+    } = req.body;
+    if (!channel || gross_sales == null) {
+      return res.status(400).json({ error: 'channel and gross_sales required' });
+    }
+    const VALID_CHANNELS = ['D2C_WEBSITE','MYNTRA','AJIO','NYKAA','INSTAGRAM','POPUP','OTHER'];
+    const ch = channel.toUpperCase();
+    if (!VALID_CHANNELS.includes(ch)) {
+      return res.status(400).json({ error: `channel must be one of: ${VALID_CHANNELS.join(', ')}` });
+    }
+    const r = await pool.query(
+      `UPDATE sales_entries SET
+         entry_date=$1, channel=$2, drop_id=$3, section=$4,
+         gross_sales=$5, returns_amount=$6,
+         gross_units=$7, returned_units=$8,
+         marketplace_commission=$9, payment_gateway_charges=$10, shipping_collected=$11,
+         cgst_collected=$12, sgst_collected=$13, igst_collected=$14,
+         settlement_ref=$15, settlement_date=$16, notes=$17
+       WHERE entry_id=$18
+       RETURNING *`,
+      [entry_date, ch, drop_id || null, section || null,
+       gross_sales, returns_amount, gross_units, returned_units,
+       marketplace_commission, payment_gateway_charges, shipping_collected,
+       cgst_collected, sgst_collected, igst_collected,
+       settlement_ref || null, settlement_date || null, notes || null,
+       id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Entry not found' });
+    res.json({ success: true, entry: r.rows[0] });
+  } catch (err) {
+    console.error('updateSalesEntry error', err);
     res.status(500).json({ error: err.message });
   }
 }
@@ -933,8 +1085,100 @@ async function upsertSizeSellThrough(req, res) {
   }
 }
 
+// GET /api/reports/trend?months=6
+// Returns monthly P&L metrics for the last N months — for sparklines/charts
+async function getPLTrend(req, res) {
+  try {
+    const months = Math.min(parseInt(req.query.months || 6), 24);
+    const now = new Date();
+
+    // Build month ranges
+    const ranges = [];
+    for (let i = months - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      ranges.push({
+        label: d.toLocaleString('en-IN', { month: 'short', year: 'numeric' }),
+        start: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`,
+        end: `${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`,
+      });
+    }
+
+    const salesAgg = await pool.query(
+      `SELECT DATE_TRUNC('month', entry_date) AS month,
+              SUM(net_sales) AS net_sales, SUM(gross_units - returned_units) AS net_units
+       FROM sales_entries
+       WHERE entry_date >= $1 AND entry_date <= $2
+       GROUP BY 1 ORDER BY 1`,
+      [ranges[0].start, ranges[ranges.length - 1].end]
+    );
+
+    const billAgg = await pool.query(
+      `SELECT DATE_TRUNC('month', ${BILL_DATE_SQL}) AS month,
+              COALESCE(b.category_group, 'OPERATIONS') AS category_group,
+              SUM(b.total_amount) AS total
+       FROM bills b
+       LEFT JOIN documents d ON b.document_id = d.document_id
+       WHERE ${BILL_DATE_SQL} >= $1
+         AND ${BILL_DATE_SQL} <= $2
+         AND ${ACTIVE_BILL_FILTER}
+       GROUP BY 1, 2 ORDER BY 1`,
+      [ranges[0].start, ranges[ranges.length - 1].end]
+    );
+
+    // Build lookup maps
+    const salesMap = {};
+    salesAgg.rows.forEach(r => {
+      const key = r.month.toISOString().slice(0, 7);
+      salesMap[key] = { net_sales: parseFloat(r.net_sales || 0), net_units: parseInt(r.net_units || 0) };
+    });
+    const billMap = {};
+    billAgg.rows.forEach(r => {
+      const key = r.month.toISOString().slice(0, 7);
+      if (!billMap[key]) billMap[key] = { COGS: 0, FULFILLMENT: 0, MARKETING: 0, OPERATIONS: 0 };
+      const grp = (r.category_group || 'OPERATIONS').toUpperCase();
+      billMap[key][grp] = (billMap[key][grp] || 0) + parseFloat(r.total || 0);
+    });
+
+    const data = ranges.map(r => {
+      const key = r.start.slice(0, 7);
+      const s = salesMap[key] || { net_sales: 0, net_units: 0 };
+      const b = billMap[key] || { COGS: 0, FULFILLMENT: 0, MARKETING: 0, OPERATIONS: 0 };
+      const ns      = s.net_sales;
+      const gp      = ns - b.COGS;
+      const cm1     = gp - b.FULFILLMENT;
+      const cm2     = cm1 - b.MARKETING;
+      const ebitda  = cm2 - b.OPERATIONS;
+      return {
+        label: r.label,
+        month: key,
+        net_sales: ns,
+        net_units: s.net_units,
+        cogs: b.COGS,
+        fulfillment: b.FULFILLMENT,
+        marketing: b.MARKETING,
+        operations: b.OPERATIONS,
+        gross_profit: gp,
+        gross_margin_pct: ns ? parseFloat((gp / ns * 100).toFixed(1)) : 0,
+        cm1: cm1,
+        cm1_pct: ns ? parseFloat((cm1 / ns * 100).toFixed(1)) : 0,
+        cm2: cm2,
+        cm2_pct: ns ? parseFloat((cm2 / ns * 100).toFixed(1)) : 0,
+        ebitda: ebitda,
+        ebitda_pct: ns ? parseFloat((ebitda / ns * 100).toFixed(1)) : 0,
+      };
+    });
+
+    res.json({ success: true, months: data });
+  } catch (err) {
+    console.error('PLTrend error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 module.exports = {
   getProfitLoss,
+  getPLTrend,
   getTrialBalance,
   getBalanceSheet,
   getJournalEntries,
@@ -955,5 +1199,6 @@ module.exports = {
   ingestShipmentCost,
   getSalesEntries,
   createSalesEntry,
+  updateSalesEntry,
   deleteSalesEntry
 };

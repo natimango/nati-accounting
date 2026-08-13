@@ -3,403 +3,1299 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monthly Reports — NATI Accounting</title>
+    <title>Reports — NATI Accounting</title>
     <link rel="stylesheet" href="css/tailwind.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/theme.css">
     <style>
-        .tab-btn { padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid #e5e7eb; background: #f9fafb; color: #374151; cursor: pointer; }
+        /* ── Tab bar ── */
+        .tab-btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; cursor: pointer; transition: all .15s; }
+        .tab-btn:hover { background: #f1f5f9; }
         .tab-btn.active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
-        .report-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .report-table th { padding: 9px 14px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; background: #f9fafb; border-bottom: 2px solid #e5e7eb; }
-        .report-table td { padding: 9px 14px; border-bottom: 1px solid #f3f4f6; color: #374151; }
-        .report-table tr:last-child td { border-bottom: none; }
-        .report-table .total-row td { font-weight: 700; background: #f0f9ff; border-top: 2px solid #bae6fd; color: #0369a1; }
-        .report-table .subtotal-row td { font-weight: 600; background: #fafafa; border-top: 1px solid #e5e7eb; }
-        .report-table .section-header td { background: #1e293b; color: #fff; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
-        .report-table .group-header td { background: #f1f5f9; color: #475569; font-weight: 600; font-size: 12px; }
-        .report-table .indent td:first-child { padding-left: 28px; }
-        .report-table .text-right { text-align: right; }
-        .report-table .positive { color: #059669; }
-        .report-table .negative { color: #dc2626; }
-        .month-chip { display: inline-block; padding: 4px 12px; border-radius: 99px; font-size: 12px; font-weight: 600; border: 1px solid #e5e7eb; background: #f9fafb; color: #374151; cursor: pointer; }
-        .month-chip.selected { background: #4f46e5; color: #fff; border-color: #4f46e5; }
-        .print-btn { padding: 8px 18px; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-        .print-btn:hover { background: #f9fafb; }
+
+        /* ── Report table ── */
+        .rt { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .rt td, .rt th { padding: 9px 16px; border-bottom: 1px solid #f1f5f9; }
+        .rt th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; background: #f8fafc; border-bottom: 2px solid #e2e8f0; }
+        .rt tr.sec-hdr td { background: #1e293b; color: #e2e8f0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; padding: 7px 16px; border: none; }
+        .rt tr.grp-hdr td { background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 600; }
+        .rt tr.item td:first-child { padding-left: 32px; }
+        .rt tr.sub td { font-weight: 600; background: #fafafa; border-top: 1px solid #e2e8f0; }
+        .rt tr.milestone td { font-weight: 700; background: #eff6ff; border-top: 2px solid #bfdbfe; color: #1d4ed8; }
+        .rt tr.milestone.neg td { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+        .rt .tr { text-align: right; }
+        .rt .pos { color: #059669; }
+        .rt .neg-val { color: #dc2626; }
+        .rt .muted { color: #94a3b8; font-size: 12px; }
+
+        /* ── Month chip ── */
+        .chip { display: inline-flex; align-items: center; padding: 4px 14px; border-radius: 99px; font-size: 12px; font-weight: 600; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; cursor: pointer; transition: all .15s; }
+        .chip:hover { border-color: #c7d2fe; background: #eef2ff; }
+        .chip.on { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+
+        /* ── KPI tiles ── */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+        .kpi { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
+        .kpi .label { font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+        .kpi .value { font-size: 20px; font-weight: 700; color: #1e293b; margin-top: 4px; }
+        .kpi .pct { font-size: 12px; color: #64748b; margin-top: 2px; }
+        .kpi.green .value { color: #059669; }
+        .kpi.red .value { color: #dc2626; }
+
         @media print {
             header, .no-print { display: none !important; }
             .print-area { box-shadow: none !important; border: none !important; }
-            body { background: white !important; }
+            body { background: #fff !important; }
         }
     </style>
 </head>
 <body class="nati-page bg-gradient-to-br from-slate-50 via-slate-100 to-white text-slate-900">
-    <div class="min-h-screen flex flex-col">
-        <header class="nati-hero bg-gradient-to-r from-indigo-700 via-blue-700 to-slate-900 text-white shadow-md no-print">
-            <div class="nati-shell">
-                <div class="py-5 flex flex-wrap items-center gap-4 justify-between">
-                    <div class="flex items-center gap-3">
-                        <a href="index.html" class="block">
-                            <img src="logo.jpg" alt="NATI logo" class="h-14 w-14 rounded-xl border border-white/40 bg-white object-cover shadow">
-                        </a>
+<div class="min-h-screen flex flex-col">
+
+    <header class="nati-hero bg-gradient-to-r from-indigo-700 via-blue-700 to-slate-900 text-white shadow-md no-print">
+        <div class="nati-shell">
+            <div class="py-5 flex flex-wrap items-center gap-4 justify-between">
+                <div class="flex items-center gap-3">
+                    <a href="index.html"><img src="logo.jpg" alt="NATI" class="h-14 w-14 rounded-xl border border-white/40 bg-white object-cover shadow"></a>
+                    <div>
+                        <p class="text-xs uppercase tracking-[.2em] text-white/70">Finance Reports</p>
+                        <h1 class="text-2xl font-semibold">P&amp;L &middot; GST &middot; Spend</h1>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="nati-nav-wrapper">
+                        <button class="nati-nav-toggle" onclick="toggleNav('nav-reports')"><i class="fas fa-bars"></i><span>Menu</span></button>
+                        <nav class="nati-nav" id="nav-reports">
+                            <a href="index.html"    class="nati-nav-link"><i class="fas fa-gauge"></i><span>Dashboard</span></a>
+                            <a href="documents.html" class="nati-nav-link"><i class="fas fa-folder-open"></i><span>Documents</span></a>
+                            <a href="upload.html"   class="nati-nav-link"><i class="fas fa-upload"></i><span>Upload</span></a>
+                            <a href="drop.html"     class="nati-nav-link"><i class="fas fa-layer-group"></i><span>Drop</span></a>
+                            <a href="reports.html"  class="nati-nav-link is-active"><i class="fas fa-chart-line"></i><span>Reports</span></a>
+                            <a href="sales.html"    class="nati-nav-link"><i class="fas fa-store"></i><span>Sales</span></a>
+                            <a href="payables.html" class="nati-nav-link"><i class="fas fa-file-invoice-dollar"></i><span>Payables</span></a>
+                            <a href="admin.html"    class="nati-nav-link hidden" id="nav-admin"><i class="fas fa-user-shield"></i><span>Admin</span></a>
+                        </nav>
+                    </div>
+                    <div id="user-pill" class="hidden sm:flex items-center gap-2 px-3 py-2 rounded-2xl border border-white/30 bg-white/10 backdrop-blur">
                         <div>
-                            <p class="text-xs uppercase tracking-[0.2em] text-white/70">Monthly Reports</p>
-                            <h1 class="text-2xl font-semibold">P&amp;L · Balance Sheet · GST</h1>
+                            <p id="user-name" class="text-sm font-semibold leading-tight">—</p>
+                            <p id="user-role" class="text-[11px] tracking-[.2em] text-white/70 uppercase">—</p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-4">
-                        <div class="nati-nav-wrapper">
-                            <button class="nati-nav-toggle" onclick="toggleNav('nav-reports')"><i class="fas fa-bars"></i><span>Menu</span></button>
-                            <nav class="nati-nav" id="nav-reports">
-                                <a href="index.html" class="nati-nav-link"><i class="fas fa-gauge"></i><span>Dashboard</span></a>
-                                <a href="documents.html" class="nati-nav-link"><i class="fas fa-folder-open"></i><span>Documents</span></a>
-                                <a href="upload.html" class="nati-nav-link"><i class="fas fa-upload"></i><span>Upload</span></a>
-                                <a href="drop.html" class="nati-nav-link"><i class="fas fa-layer-group"></i><span>Drop</span></a>
-                                <a href="reports.html" class="nati-nav-link is-active"><i class="fas fa-chart-line"></i><span>Reports</span></a>
-                                <a href="sales.html" class="nati-nav-link"><i class="fas fa-store"></i><span>Sales Revenue</span></a>
-                                <a href="admin.html" class="nati-nav-link hidden" id="nav-admin"><i class="fas fa-user-shield"></i><span>Admin</span></a>
-                            </nav>
+                    <button id="logout-btn" class="hidden px-3 py-2 bg-white/15 hover:bg-white/25 text-sm font-semibold rounded-2xl flex items-center gap-2 transition">
+                        <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 py-6">
+        <div class="nati-shell max-w-5xl mx-auto space-y-5">
+
+            <!-- ── Period & filter bar ── -->
+            <section class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 no-print">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div>
+                        <h2 class="text-base font-semibold">Period</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Click a month or set a custom range</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="exportCSV()" class="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-50">
+                            <i class="fas fa-file-csv text-slate-500"></i> CSV
+                        </button>
+                        <button onclick="window.print()" class="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-50">
+                            <i class="fas fa-print text-slate-500"></i> Print / PDF
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Month chips -->
+                <div class="flex flex-wrap gap-2 mb-4" id="monthChips"></div>
+
+                <!-- Filters row -->
+                <div class="flex flex-wrap items-center gap-3 text-sm pt-3 border-t border-slate-100">
+                    <span class="text-slate-400 text-xs font-semibold uppercase tracking-wide">Filters</span>
+                    <input type="date" id="customStart" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                    <span class="text-slate-400">to</span>
+                    <input type="date" id="customEnd"   class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                    <select id="filterSection" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm bg-white">
+                        <option value="">All sections</option>
+                        <option value="Regulars">Regulars</option>
+                        <option value="Artwear">Artwear</option>
+                        <option value="Collectibles">Collectibles</option>
+                    </select>
+                    <select id="filterDrop" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm bg-white">
+                        <option value="">All drops</option>
+                    </select>
+                    <button onclick="applyFilters()" class="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">Apply</button>
+                </div>
+            </section>
+
+            <!-- Print header -->
+            <div id="reportHeader" class="hidden text-center py-4">
+                <div class="text-xl font-bold">Nati Collective</div>
+                <div class="text-slate-500 text-sm mt-1" id="reportPeriodLabel"></div>
+            </div>
+
+            <!-- ── KPI tiles ── -->
+            <div class="kpi-grid no-print" id="kpiRow">
+                <div class="kpi"><div class="label">Net Sales</div><div class="value" id="kpi-sales">—</div></div>
+                <div class="kpi"><div class="label">Gross Profit</div><div class="value" id="kpi-gp">—</div><div class="pct" id="kpi-gp-pct"></div></div>
+                <div class="kpi"><div class="label">CM1</div><div class="value" id="kpi-cm1">—</div><div class="pct" id="kpi-cm1-pct"></div></div>
+                <div class="kpi"><div class="label">CM2</div><div class="value" id="kpi-cm2">—</div><div class="pct" id="kpi-cm2-pct"></div></div>
+                <div class="kpi"><div class="label">EBITDA</div><div class="value" id="kpi-ebitda">—</div><div class="pct" id="kpi-ebitda-pct"></div></div>
+            </div>
+
+            <!-- ── Tabs ── -->
+            <div class="flex gap-2 no-print">
+                <button class="tab-btn active" onclick="showTab('pl')"><i class="fas fa-chart-line mr-1.5"></i>P&amp;L</button>
+                <button class="tab-btn" onclick="showTab('section')"><i class="fas fa-layer-group mr-1.5"></i>By Section</button>
+                <button class="tab-btn" onclick="showTab('gst')"><i class="fas fa-percent mr-1.5"></i>GST</button>
+                <button class="tab-btn" onclick="showTab('spend')"><i class="fas fa-receipt mr-1.5"></i>Spend Detail</button>
+                <button class="tab-btn" onclick="showTab('trend')"><i class="fas fa-chart-bar mr-1.5"></i>Trend</button>
+                <button class="tab-btn" onclick="showTab('drops')"><i class="fas fa-layer-group mr-1.5"></i>By Drop</button>
+                <button class="tab-btn" onclick="showTab('variance')"><i class="fas fa-bullseye mr-1.5"></i>Budget vs Actual</button>
+                <button class="tab-btn" onclick="showTab('cm')"><i class="fas fa-percent mr-1.5"></i>Contribution Margin</button>
+                <button class="tab-btn" onclick="showTab('ue')"><i class="fas fa-dollar-sign mr-1.5"></i>Unit Economics</button>
+                <a href="balance-sheet.html" class="tab-btn flex items-center no-print" style="text-decoration:none"><i class="fas fa-scale-balanced mr-1.5"></i>Balance Sheet</a>
+                <a href="sku-catalog.html" class="tab-btn flex items-center no-print" style="text-decoration:none"><i class="fas fa-shirt mr-1.5"></i>SKU Catalog</a>
+            </div>
+
+            <!-- ── P&L ── -->
+            <section id="tab-pl" class="print-area">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h3 class="font-semibold text-base">Profit &amp; Loss Statement</h3>
+                            <p class="text-xs text-slate-400 mt-0.5" id="plSub">—</p>
                         </div>
                         <div class="flex items-center gap-2">
-                            <div id="user-pill" class="hidden sm:flex items-center gap-2 px-3 py-2 rounded-2xl border border-white/30 bg-white/10 backdrop-blur">
-                                <div>
-                                    <p id="user-name" class="text-sm font-semibold leading-tight">—</p>
-                                    <p id="user-role" class="text-[11px] tracking-[0.2em] text-white/70 uppercase">—</p>
-                                </div>
-                            </div>
-                            <button id="logout-btn" class="hidden px-3 py-2 bg-white/15 hover:bg-white/25 text-sm font-semibold rounded-2xl flex items-center gap-2 transition">
-                                <i class="fas fa-sign-out-alt"></i><span>Logout</span>
-                            </button>
-                        </div>
+                        <button id="compare-btn" onclick="toggleCompare()" class="px-2.5 py-1 text-xs border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 flex items-center gap-1.5">
+                            <i class="fas fa-code-compare"></i> Compare
+                        </button>
+                        <div id="plBadge" class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-400">—</div>
+                    </div>
+                    </div>
+                    <table class="rt" id="pl-table">
+                        <thead id="pl-thead" class="hidden">
+                            <tr class="grp-hdr">
+                                <td>Line Item</td>
+                                <td class="tr">Amount</td>
+                                <td class="tr">% Sales</td>
+                                <td class="tr" id="pl-prior-col-hdr" style="color:#6366f1">Prior Period</td>
+                                <td class="tr" id="pl-delta-col-hdr" style="color:#6366f1">Δ Change</td>
+                            </tr>
+                        </thead>
+                        <tbody id="plBody">
+                            <tr><td colspan="3" class="text-center py-10 text-slate-400">Select a period above</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ── By Section ── -->
+            <section id="tab-section" class="print-area hidden">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100">
+                        <h3 class="font-semibold text-base">Performance by Section</h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Regulars · Artwear · Collectibles — net sales and gross margin side by side</p>
+                    </div>
+                    <div id="sectionGrid" class="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="text-center py-8 text-slate-400 col-span-3">Select a period above</div>
                     </div>
                 </div>
-            </div>
-        </header>
+            </section>
 
-        <main class="flex-1 py-6">
-            <div class="nati-shell max-w-5xl mx-auto space-y-5">
+            <!-- ── GST ── -->
+            <section id="tab-gst" class="print-area hidden">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100">
+                        <h3 class="font-semibold text-base">GST Summary</h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Output GST (collected from customers) vs Input Tax Credit (ITC on bills) — GSTR-3B</p>
+                    </div>
+                    <table class="rt">
+                        <tbody id="gstBody">
+                            <tr><td colspan="4" class="text-center py-10 text-slate-400">Select a period above</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
 
-                <!-- Month selector + controls -->
-                <section class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 no-print">
-                    <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+            <!-- ── Spend Detail ── -->
+            <section id="tab-spend" class="print-area hidden">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100">
+                        <h3 class="font-semibold text-base">Expense Detail</h3>
+                        <p class="text-xs text-slate-400 mt-0.5">All bills by group and category — for audit &amp; filing</p>
+                    </div>
+                    <table class="rt">
+                        <thead>
+                            <tr><th>Group</th><th>Category</th><th class="tr">Amount (₹)</th></tr>
+                        </thead>
+                        <tbody id="spendBody">
+                            <tr><td colspan="3" class="text-center py-10 text-slate-400">Select a period above</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ── Trend ── -->
+            <section id="tab-trend" class="print-area hidden">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
                         <div>
-                            <h2 class="text-base font-semibold">Select Period</h2>
-                            <p class="text-xs text-slate-500 mt-0.5">Reports are generated month-by-month for GST & compliance filing</p>
+                            <h3 class="font-semibold text-base">P&amp;L Trend</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Net Sales · Gross Profit · EBITDA — rolling months</p>
                         </div>
-                        <div class="flex gap-2">
-                            <button class="print-btn" onclick="window.print()"><i class="fas fa-print"></i> Print / PDF</button>
+                        <div class="flex items-center gap-3">
+                            <select id="trendMonths" class="px-2 py-1.5 border border-slate-300 rounded-lg text-xs bg-white" onchange="trendLoaded=false; loadTrend()">
+                                <option value="3">3 months</option>
+                                <option value="6" selected>6 months</option>
+                                <option value="12">12 months</option>
+                                <option value="24">24 months</option>
+                            </select>
+                            <button onclick="exportTrendCSV()" class="text-xs text-slate-600 hover:underline border border-slate-200 rounded px-2 py-0.5"><i class="fas fa-file-csv mr-1"></i>CSV</button>
+                            <button onclick="trendLoaded=false; loadTrend()" class="text-xs text-indigo-600 hover:underline"><i class="fas fa-rotate mr-1"></i>Refresh</button>
                         </div>
                     </div>
-
-                    <!-- Quick month chips -->
-                    <div class="flex flex-wrap gap-2 mb-4" id="monthChips"></div>
-
-                    <!-- Custom range -->
-                    <div class="flex flex-wrap items-center gap-3 text-sm">
-                        <label class="text-slate-500">Custom range:</label>
-                        <input type="date" id="customStart" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
-                        <span class="text-slate-400">to</span>
-                        <input type="date" id="customEnd" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
-                        <button onclick="applyCustomRange()" class="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">Apply</button>
+                    <div id="trendChart" class="p-5">
+                        <div class="text-center py-8 text-slate-400">Loading trend…</div>
                     </div>
-                </section>
-
-                <!-- Period header shown in print -->
-                <div id="reportHeader" class="hidden print:block text-center py-4">
-                    <div class="text-2xl font-bold">Nati Collective</div>
-                    <div class="text-slate-500 text-sm" id="reportPeriodLabel"></div>
                 </div>
+            </section>
 
-                <!-- Tabs -->
-                <div class="flex gap-2 no-print" id="tabRow">
-                    <button class="tab-btn active" onclick="showTab('pl')"><i class="fas fa-chart-line mr-1"></i>Profit & Loss</button>
-                    <button class="tab-btn" onclick="showTab('bs')"><i class="fas fa-scale-balanced mr-1"></i>Balance Sheet</button>
-                    <button class="tab-btn" onclick="showTab('gst')"><i class="fas fa-percent mr-1"></i>GST Summary</button>
-                    <button class="tab-btn" onclick="showTab('spend')"><i class="fas fa-receipt mr-1"></i>Spend Detail</button>
+            <!-- ── By Drop ── -->
+            <section id="tab-drops" class="print-area hidden">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100">
+                        <h3 class="font-semibold text-base">Spend by Drop</h3>
+                        <p class="text-xs text-slate-400 mt-0.5">All bills grouped by drop and category — what each collection is costing</p>
+                    </div>
+                    <div id="dropSpendContent" class="p-5">
+                        <div class="text-center py-8 text-slate-400">Select a period above</div>
+                    </div>
                 </div>
+            </section>
 
-                <!-- ── P&L ── -->
-                <section id="tab-pl" class="print-area">
-                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                            <div>
-                                <h3 class="font-semibold text-base">Profit & Loss Statement</h3>
-                                <p class="text-xs text-slate-500 mt-0.5" id="plPeriodSub">—</p>
-                            </div>
-                            <div id="plStatus" class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-500">Loading…</div>
+            <!-- ── Budget vs Actual ── -->
+            <section id="tab-variance" class="print-area hidden">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h3 class="font-semibold text-base">Budget vs Actual Spend</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Drop-level budget set in the Drop page vs actual bills in the period</p>
                         </div>
-                        <table class="report-table" id="plTable">
-                            <tbody id="plBody"><tr><td colspan="3" class="text-center py-8 text-slate-400">Select a period above</td></tr></tbody>
-                        </table>
+                        <button onclick="varianceLoaded=false; loadVariance()" class="text-xs text-indigo-600 hover:underline"><i class="fas fa-rotate mr-1"></i>Refresh</button>
                     </div>
-                </section>
+                    <div id="varianceContent" class="p-5">
+                        <div class="text-center py-8 text-slate-400">Select a period above then open this tab</div>
+                    </div>
+                </div>
+            </section>
 
-                <!-- ── Balance Sheet ── -->
-                <section id="tab-bs" class="print-area hidden">
-                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                            <div>
-                                <h3 class="font-semibold text-base">Balance Sheet</h3>
-                                <p class="text-xs text-slate-500 mt-0.5" id="bsPeriodSub">As of end of period</p>
-                            </div>
-                            <div id="bsStatus" class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-500">Loading…</div>
+            <!-- ── Contribution Margin ── -->
+            <section id="tab-cm" class="print-area hidden">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h3 class="font-semibold text-base">Contribution Margin by SKU</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Selling price minus all cost layers. Set prices & costs in the SKU Catalog.</p>
                         </div>
-                        <table class="report-table" id="bsTable">
-                            <tbody id="bsBody"><tr><td colspan="2" class="text-center py-8 text-slate-400">Select a period above</td></tr></tbody>
-                        </table>
-                    </div>
-                </section>
-
-                <!-- ── GST Summary ── -->
-                <section id="tab-gst" class="print-area hidden">
-                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                        <div class="px-5 py-4 border-b border-slate-100">
-                            <h3 class="font-semibold text-base">GST Summary</h3>
-                            <p class="text-xs text-slate-500 mt-0.5">Output GST collected (sales) vs Input Tax Credit (bills) — for GSTR-3B filing</p>
+                        <div class="flex items-center gap-3">
+                            <select id="cmDropFilter" class="px-2 py-1 border border-slate-300 rounded-lg text-xs" onchange="cmLoaded=false; loadCM()">
+                                <option value="">All Drops</option>
+                            </select>
+                            <button onclick="cmLoaded=false; loadCM()" class="text-xs text-indigo-600 hover:underline"><i class="fas fa-rotate mr-1"></i>Refresh</button>
                         </div>
-                        <table class="report-table" id="gstTable">
-                            <tbody id="gstBody"><tr><td colspan="4" class="text-center py-8 text-slate-400">Select a period above</td></tr></tbody>
-                        </table>
                     </div>
-                </section>
+                    <div id="cmContent" class="p-5">
+                        <div class="text-center py-8 text-slate-400">Open this tab to load CM data</div>
+                    </div>
+                </div>
+            </section>
 
-                <!-- ── Spend Detail ── -->
-                <section id="tab-spend" class="print-area hidden">
-                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                        <div class="px-5 py-4 border-b border-slate-100">
-                            <h3 class="font-semibold text-base">Expense Detail</h3>
-                            <p class="text-xs text-slate-500 mt-0.5">All bills grouped by CoA account — for audit & filing</p>
+            <!-- ── Unit Economics ── -->
+            <section id="tab-ue" class="print-area hidden">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h3 class="font-semibold text-base">Unit Economics & Max CAC</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">CM after returns, gateway fees & shipping per SKU. Max CAC = what you can afford to spend acquiring one customer.</p>
                         </div>
-                        <table class="report-table" id="spendTable">
-                            <thead><tr>
-                                <th>Account Code</th><th>Account / Category</th><th>Group</th><th class="text-right">Amount (₹)</th>
-                            </tr></thead>
-                            <tbody id="spendBody"><tr><td colspan="4" class="text-center py-8 text-slate-400">Select a period above</td></tr></tbody>
-                        </table>
+                        <div class="flex items-center gap-3">
+                            <select id="ueDropFilter" class="px-2 py-1 border border-slate-300 rounded-lg text-xs" onchange="ueLoaded=false; loadUE()">
+                                <option value="">All Drops</option>
+                            </select>
+                            <button onclick="ueLoaded=false; loadUE()" class="text-xs text-indigo-600 hover:underline"><i class="fas fa-rotate mr-1"></i>Refresh</button>
+                        </div>
                     </div>
-                </section>
+                    <div id="ueContent" class="p-5">
+                        <div class="text-center py-8 text-slate-400">Open this tab to load unit economics</div>
+                    </div>
+                </div>
+            </section>
 
-            </div>
-        </main>
-    </div>
+        </div>
+    </main>
+</div>
 
-    <script src="js/session.js" defer></script>
-    <script src="js/nav.js" defer></script>
-    <script>
-    const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
-    const fmtN = n => Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
-    const pct = (a, b) => b ? ((a / b) * 100).toFixed(1) + '%' : '—';
+<script src="js/session.js" defer></script>
+<script src="js/nav.js" defer></script>
+<script>
+const fmt  = n => '&#8377;' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+const fmtN = n => Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 
-    let currentStart = '', currentEnd = '';
+let currentLabel = '';
 
-    // Build last 6 month chips
-    function buildMonthChips() {
-        const chips = document.getElementById('monthChips');
-        const now = new Date();
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const label = d.toLocaleString('en-IN', { month: 'short', year: 'numeric' });
-            const start = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
-            const last = new Date(d.getFullYear(), d.getMonth()+1, 0);
-            const end = `${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
-            const chip = document.createElement('span');
-            chip.className = 'month-chip' + (i === 0 ? ' selected' : '');
-            chip.textContent = label;
-            chip.dataset.start = start;
-            chip.dataset.end = end;
-            chip.onclick = () => selectMonth(chip, start, end, label);
-            chips.appendChild(chip);
-            if (i === 0) loadReports(start, end, label);
-        }
-    }
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function getSection() { return document.getElementById('filterSection').value || ''; }
+function getDrop()    { return document.getElementById('filterDrop').value    || ''; }
 
-    function selectMonth(el, start, end, label) {
-        document.querySelectorAll('.month-chip').forEach(c => c.classList.remove('selected'));
-        el.classList.add('selected');
+async function loadDrops() {
+    try {
+        const r = await fetch('/api/meta/drops', { credentials: 'include' });
+        const d = await r.json();
+        ['filterDrop', 'cmDropFilter', 'ueDropFilter'].forEach(selId => {
+            const sel = document.getElementById(selId);
+            if (!sel) return;
+            (d.drops || []).forEach(drop => {
+                const o = document.createElement('option');
+                o.value = drop.drop_id;
+                o.textContent = drop.drop_name;
+                sel.appendChild(o);
+            });
+        });
+    } catch (_) {}
+}
+
+// ── Month chips ────────────────────────────────────────────────────────────────
+function makeChip(label, start, end, active) {
+    const chip = document.createElement('span');
+    chip.className = 'chip' + (active ? ' on' : '');
+    chip.textContent = label;
+    chip.dataset.start = start;
+    chip.dataset.end   = end;
+    chip.onclick = () => {
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+        chip.classList.add('on');
         loadReports(start, end, label);
+    };
+    return chip;
+}
+
+function buildMonthChips() {
+    const wrap = document.getElementById('monthChips');
+    const now  = new Date();
+
+    // ── FY / YTD preset chips ─────────────────────────────────────────────────
+    // India FY: April 1 → March 31
+    const fyStartYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+    const fyStart = `${fyStartYear}-04-01`;
+    const fyEnd   = `${fyStartYear + 1}-03-31`;
+    const fyLabel = `FY ${fyStartYear}-${String(fyStartYear + 1).slice(-2)}`;
+
+    const ytdEnd   = now.toISOString().split('T')[0];
+    const ytdStart = fyStart; // YTD = FY start to today
+
+    const sep = document.createElement('span');
+    sep.className = 'text-slate-300 text-xs self-center mx-1';
+    sep.textContent = '|';
+
+    wrap.appendChild(makeChip(fyLabel, fyStart, fyEnd, false));
+    wrap.appendChild(makeChip('FY to date', ytdStart, ytdEnd, false));
+    wrap.appendChild(sep);
+
+    // ── Rolling 7 months ──────────────────────────────────────────────────────
+    for (let i = 0; i < 7; i++) {
+        const d     = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const label = d.toLocaleString('en-IN', { month: 'short', year: 'numeric' });
+        const start = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+        const last  = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        const end   = `${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
+        const isActive = !window._overrideStart && i === 0;
+        const chip  = makeChip(label, start, end, isActive);
+        wrap.appendChild(chip);
+        if (isActive) loadReports(start, end, label);
     }
-
-    function applyCustomRange() {
-        const start = document.getElementById('customStart').value;
-        const end = document.getElementById('customEnd').value;
-        if (!start || !end) return;
-        document.querySelectorAll('.month-chip').forEach(c => c.classList.remove('selected'));
-        const label = `${start} to ${end}`;
-        loadReports(start, end, label);
+    if (window._overrideStart) {
+        loadReports(window._overrideStart, window._overrideEnd, window._overrideLabel);
+        window._overrideStart = null;
     }
+}
 
-    async function loadReports(start, end, label) {
-        currentStart = start; currentEnd = end;
-        document.getElementById('plPeriodSub').textContent = label;
-        document.getElementById('bsPeriodSub').textContent = 'As of ' + end;
-        document.getElementById('reportPeriodLabel').textContent = label;
-        document.getElementById('plStatus').textContent = 'Loading…';
-        document.getElementById('bsStatus').textContent = 'Loading…';
+function applyFilters() {
+    const start = document.getElementById('customStart').value;
+    const end   = document.getElementById('customEnd').value;
+    if (!start || !end) return;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+    loadReports(start, end, `${start} to ${end}`);
+}
 
-        const [pl, bs] = await Promise.all([
-            fetch(`/api/reports/profit-loss?start_date=${start}&end_date=${end}`).then(r => r.json()).catch(() => ({})),
-            fetch(`/api/reports/balance-sheet?as_of_date=${end}`).then(r => r.json()).catch(() => ({}))
+let currentStart = '', currentEnd = '';
+// ── Load ───────────────────────────────────────────────────────────────────────
+async function loadReports(start, end, label) {
+    currentLabel = label;
+    currentStart = start;
+    currentEnd   = end;
+    document.getElementById('plSub').textContent  = label;
+    document.getElementById('plBadge').textContent = 'Loading…';
+    document.getElementById('plBadge').className   = 'text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-400';
+    document.getElementById('reportPeriodLabel').textContent = label;
+
+    const sec  = getSection();
+    const drop = getDrop();
+    const qs   = `start_date=${start}&end_date=${end}` +
+                 (sec  ? `&section=${encodeURIComponent(sec)}`       : '') +
+                 (drop ? `&drop_name=${encodeURIComponent(drop)}` : '');
+
+    try {
+        // Compute prior period (same length, shifted back)
+        const startMs = new Date(start).getTime();
+        const endMs   = new Date(end).getTime();
+        const diff    = endMs - startMs;
+        const priorEnd   = new Date(startMs - 1).toISOString().split('T')[0];
+        const priorStart = new Date(startMs - diff - 86400000).toISOString().split('T')[0];
+        const priorQs = `start_date=${priorStart}&end_date=${priorEnd}` +
+            (sec  ? `&section=${encodeURIComponent(sec)}`   : '') +
+            (drop ? `&drop_name=${encodeURIComponent(drop)}` : '');
+
+        const [pl, prior, dims, metrics] = await Promise.all([
+            fetch(`/api/reports/profit-loss?${qs}`, { credentials: 'include' }).then(r => r.json()),
+            fetch(`/api/reports/profit-loss?${priorQs}`, { credentials: 'include' }).then(r => r.json()).catch(() => null),
+            fetch(`/api/reports/spend-dimensions?start_date=${start}&end_date=${end}`, { credentials: 'include' }).then(r => r.json()).catch(() => null),
+            fetch(`/api/metrics/summary?start_date=${start}&end_date=${end}`, { credentials: 'include' }).then(r => r.json()).catch(() => null),
         ]);
-
+        lastPLData   = pl;
+        lastPriorData = prior;
+        renderKPIs(pl, prior);
         renderPL(pl);
-        renderBS(bs);
+        renderSectionGrid(pl);
         renderGST(pl);
-        renderSpend(pl);
+        renderSpend(pl, metrics);
+        renderDropSpend(dims);
+    } catch (e) {
+        document.getElementById('plBody').innerHTML = `<tr><td colspan="3" class="text-center py-8 text-red-400">Failed to load — ${e.message}</td></tr>`;
+    }
+}
+
+// ── KPI tiles ─────────────────────────────────────────────────────────────────
+function renderKPIs(d, prior) {
+    if (!d.success) return;
+    const ns = d.net_sales || 0;
+    const gp = d.gross_profit || 0;
+    const cm1 = d.cm1 || 0;
+    const cm2 = d.cm2 || 0;
+    const ebitda = d.ebitda || 0;
+
+    function delta(cur, prev) {
+        if (prev == null || !Number.isFinite(Number(prev)) || Number(prev) === 0) return '';
+        const chg = ((cur - prev) / Math.abs(prev) * 100);
+        const sign = chg >= 0 ? '+' : '';
+        const color = chg >= 0 ? 'color:#059669' : 'color:#dc2626';
+        return `<span style="font-size:10px;font-weight:600;${color}">${sign}${chg.toFixed(0)}%</span>`;
     }
 
-    function renderPL(d) {
-        if (!d.success) { document.getElementById('plBody').innerHTML = `<tr><td colspan="3" class="text-center py-6 text-red-400">Failed to load</td></tr>`; return; }
-        const rev = d.revenue?.total || 0;
-        const cogs = d.cogs?.total || 0;
-        const gp = d.gross_profit || 0;
-        const exp = d.expenses?.total || 0;
-        const np = d.net_profit || 0;
-        const gpPct = pct(gp, rev);
-        const npPct = pct(np, rev);
+    function setKPI(id, val, pctId, pct, positive, prevVal) {
+        const el = document.getElementById(id);
+        el.innerHTML = fmt(val) + (prevVal !== undefined ? ' ' + delta(val, prevVal) : '');
+        el.parentElement.classList.toggle('green', positive && val >= 0);
+        el.parentElement.classList.toggle('red',   positive && val < 0);
+        if (pctId) document.getElementById(pctId).textContent = pct !== undefined ? pct + '% margin' : '';
+    }
+    const p = (prior && prior.success) ? prior : null;
+    document.getElementById('kpi-sales').innerHTML = fmt(ns) + (p ? ' ' + delta(ns, p.net_sales) : '');
+    setKPI('kpi-gp',    gp,    'kpi-gp-pct',    d.gross_margin_pct, true, p?.gross_profit);
+    setKPI('kpi-cm1',   cm1,   'kpi-cm1-pct',   d.cm1_pct,         true, p?.cm1);
+    setKPI('kpi-cm2',   cm2,   'kpi-cm2-pct',   d.cm2_pct,         true, p?.cm2);
+    setKPI('kpi-ebitda',ebitda,'kpi-ebitda-pct', d.ebitda_pct,      true, p?.ebitda);
+}
 
-        let rows = '';
+// ── P&L waterfall ─────────────────────────────────────────────────────────────
+function renderPL(d) {
+    const body = document.getElementById('plBody');
+    if (!d.success) {
+        body.innerHTML = `<tr><td colspan="3" class="text-center py-8 text-red-400">Could not load P&amp;L</td></tr>`;
+        return;
+    }
 
-        // Revenue
-        rows += `<tr class="section-header"><td colspan="3">Revenue</td></tr>`;
-        (d.revenue?.accounts || []).forEach(a => {
-            rows += `<tr class="indent"><td>${a.account_code} · ${a.account_name}</td><td class="text-right">${fmt(a.amount)}</td><td class="text-right text-slate-400 text-xs">${a.units ? fmtN(a.units) + ' units' : ''}</td></tr>`;
-        });
-        rows += `<tr class="subtotal-row"><td>Total Revenue</td><td class="text-right">${fmt(rev)}</td><td></td></tr>`;
+    const ns     = d.net_sales     || 0;
+    const gp     = d.gross_profit  || 0;
+    const cm1    = d.cm1           || 0;
+    const cm2    = d.cm2           || 0;
+    const ebitda = d.ebitda        || 0;
 
-        // COGS
-        rows += `<tr class="section-header"><td colspan="3">Cost of Goods Sold (COGS)</td></tr>`;
-        (d.cogs?.accounts || []).forEach(a => {
-            rows += `<tr class="indent"><td>${a.account_name}</td><td class="text-right">${fmt(a.amount)}</td><td></td></tr>`;
-        });
-        rows += `<tr class="subtotal-row"><td>Total COGS</td><td class="text-right">${fmt(cogs)}</td><td></td></tr>`;
-
-        // Gross profit
-        rows += `<tr class="total-row"><td><b>Gross Profit</b></td><td class="text-right ${gp >= 0 ? 'positive' : 'negative'}">${fmt(gp)}</td><td class="text-right text-xs">${gpPct} margin</td></tr>`;
-
-        // Expenses by group
-        const groups = {};
-        (d.expenses?.accounts || []).forEach(a => {
-            const parts = a.account_name.split(' - ');
-            const g = parts[0] || 'OTHER';
-            const name = parts.slice(1).join(' - ') || a.account_name;
-            if (!groups[g]) groups[g] = [];
-            groups[g].push({ name, amount: a.amount });
-        });
-
-        // Also render tag breakdown if available
-        const tagData = d.tag_breakdown || {};
-        const hasTagData = Object.keys(tagData).length > 0;
-
-        if (hasTagData) {
-            rows += `<tr class="section-header"><td colspan="3">Operating Expenses (by CoA group)</td></tr>`;
-            ['FULFILLMENT', 'MARKETING', 'OPERATIONS'].forEach(g => {
-                const td = tagData[g];
-                if (!td) return;
-                rows += `<tr class="group-header"><td colspan="3">${g}</td></tr>`;
-                td.lines.forEach(l => {
-                    rows += `<tr class="indent"><td>${l.account_code} · ${l.tag_name}</td><td class="text-right">${fmt(l.amount)}</td><td></td></tr>`;
-                });
-                rows += `<tr class="subtotal-row"><td>  ${g} Total</td><td class="text-right">${fmt(td.total)}</td><td></td></tr>`;
-            });
-        } else {
-            rows += `<tr class="section-header"><td colspan="3">Operating Expenses</td></tr>`;
-            Object.entries(groups).forEach(([g, lines]) => {
-                rows += `<tr class="group-header"><td colspan="3">${g}</td></tr>`;
-                lines.forEach(l => { rows += `<tr class="indent"><td>${l.name}</td><td class="text-right">${fmt(l.amount)}</td><td></td></tr>`; });
-            });
+    const prior  = compareMode ? lastPriorData : null;
+    const pns    = prior?.success ? (prior.net_sales || 0) : null;
+    const thead  = document.getElementById('pl-thead');
+    if (thead) {
+        thead.classList.toggle('hidden', !compareMode);
+        if (compareMode && prior?.success) {
+            const hdr = document.getElementById('pl-prior-col-hdr');
+            if (hdr) hdr.textContent = `Prior Period`;
         }
-        rows += `<tr class="subtotal-row"><td>Total Expenses</td><td class="text-right">${fmt(exp)}</td><td></td></tr>`;
-
-        // Net profit
-        rows += `<tr class="total-row"><td><b>Net Profit / (Loss)</b></td><td class="text-right ${np >= 0 ? 'positive' : 'negative'}">${fmt(np)}</td><td class="text-right text-xs">${npPct} margin</td></tr>`;
-
-        document.getElementById('plBody').innerHTML = rows;
-        const st = document.getElementById('plStatus');
-        if (np >= 0) { st.textContent = 'Profitable'; st.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-emerald-100 text-emerald-700'; }
-        else { st.textContent = 'Loss'; st.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-red-100 text-red-600'; }
     }
 
-    function renderBS(d) {
-        const tbody = document.getElementById('bsBody');
-        if (!d.success) { tbody.innerHTML = `<tr><td colspan="2" class="text-center py-6 text-red-400">Failed to load</td></tr>`; return; }
-        let rows = '';
-        rows += `<tr class="section-header"><td colspan="2">Assets</td></tr>`;
-        (d.assets?.accounts || []).forEach(a => { rows += `<tr class="indent"><td>${a.account_code} · ${a.account_name}</td><td class="text-right">${fmt(a.balance)}</td></tr>`; });
-        rows += `<tr class="subtotal-row"><td>Total Assets</td><td class="text-right">${fmt(d.assets?.total)}</td></tr>`;
+    const pctOf = val => ns ? `<span class="muted">${(val/ns*100).toFixed(1)}%</span>` : '';
+    const extraCols = compareMode ? 2 : 0;
+    const colspan = 3 + extraCols;
 
-        rows += `<tr class="section-header"><td colspan="2">Liabilities</td></tr>`;
-        (d.liabilities?.accounts || []).forEach(a => { rows += `<tr class="indent"><td>${a.account_code} · ${a.account_name}</td><td class="text-right">${fmt(a.balance)}</td></tr>`; });
-        rows += `<tr class="subtotal-row"><td>Total Liabilities</td><td class="text-right">${fmt(d.liabilities?.total)}</td></tr>`;
-
-        rows += `<tr class="section-header"><td colspan="2">Equity</td></tr>`;
-        (d.equity?.accounts || []).forEach(a => { rows += `<tr class="indent"><td>${a.account_code} · ${a.account_name}</td><td class="text-right">${fmt(a.balance)}</td></tr>`; });
-        rows += `<tr class="subtotal-row"><td>Total Equity</td><td class="text-right">${fmt(d.equity?.total)}</td></tr>`;
-
-        const liabEquity = (d.liabilities?.total || 0) + (d.equity?.total || 0);
-        const balanced = Math.abs((d.assets?.total || 0) - liabEquity) < 1;
-        rows += `<tr class="total-row"><td><b>Total Liabilities + Equity</b></td><td class="text-right">${fmt(liabEquity)}</td></tr>`;
-
-        tbody.innerHTML = rows;
-        const st = document.getElementById('bsStatus');
-        if (balanced) { st.textContent = 'Balanced ✓'; st.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-emerald-100 text-emerald-700'; }
-        else { st.textContent = 'Check entries'; st.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-amber-100 text-amber-700'; }
+    function priorDelta(cur, priorAmt) {
+        if (!compareMode || pns == null || priorAmt == null) return '';
+        const d = cur - priorAmt;
+        const pct = priorAmt !== 0 ? (d / Math.abs(priorAmt) * 100).toFixed(0) : null;
+        const col = d >= 0 ? 'color:#059669' : 'color:#dc2626';
+        const sign = d >= 0 ? '+' : '';
+        return `<td class="tr muted">${fmt(priorAmt)}</td><td class="tr" style="${col};font-size:11px">${sign}${fmt(d)}${pct != null ? ` <span style="opacity:.7">${sign}${pct}%</span>` : ''}</td>`;
     }
 
-    function renderGST(d) {
-        // Output GST from sales_entries, Input GST from bills (coming from migration 029 columns)
-        const revenueRows = d.revenue?.accounts || [];
-        const totalGstOut = revenueRows.reduce((s, r) => s + (r.gst_collected || 0), 0);
-        // Input ITC not yet in API — show what we have + a note
-        let rows = `
-            <tr class="section-header"><td colspan="4">Output GST (Collected from customers)</td></tr>
-            <tr class="group-header"><td>Account Code</td><td>Channel</td><td class="text-right">Net Sales</td><td class="text-right">GST Collected</td></tr>`;
-        revenueRows.forEach(r => {
-            rows += `<tr class="indent"><td>${r.account_code}</td><td>${r.account_name}</td><td class="text-right">${fmt(r.amount)}</td><td class="text-right">${fmt(r.gst_collected || 0)}</td></tr>`;
+    function row(label, amt, indent, priorAmt) {
+        const cls = indent ? 'item' : '';
+        const col = amt < 0 ? 'neg-val' : '';
+        const display = amt < 0 ? `(${fmt(Math.abs(amt))})` : fmt(amt);
+        return `<tr class="${cls}"><td>${label}</td><td class="tr ${col}">${display}</td><td class="tr">${pctOf(Math.abs(amt))}</td>${priorDelta(amt, priorAmt)}</tr>`;
+    }
+    function catLink(category, grp) {
+        const dateQs = currentStart ? `&from=${currentStart}&to=${currentEnd}` : '';
+        const url = `documents.html?filter_group=${encodeURIComponent(grp)}&q=${encodeURIComponent(category)}${dateQs}`;
+        return `<a href="${url}" class="ml-1 text-indigo-300 hover:text-indigo-600 text-xs" title="View bills"><i class="fas fa-receipt"></i></a>`;
+    }
+    function sub(label, amt, priorAmt) {
+        return `<tr class="sub"><td>${label}</td><td class="tr">${fmt(amt)}</td><td></td>${priorDelta(amt, priorAmt)}</tr>`;
+    }
+    function stone(label, amt, pct, isNeg, priorAmt) {
+        const cls = 'milestone' + (isNeg ? ' neg' : '');
+        return `<tr class="${cls}"><td><b>${label}</b></td><td class="tr"><b>${fmt(amt)}</b></td><td class="tr" style="font-size:12px;font-weight:600">${pct !== undefined ? pct + '% margin' : ''}</td>${priorDelta(amt, priorAmt)}</tr>`;
+    }
+
+    let h = '';
+
+    const colSpan = 3 + (compareMode ? 2 : 0);
+
+    // Revenue
+    h += `<tr class="sec-hdr"><td colspan="${colSpan}">Revenue</td></tr>`;
+    h += row('Gross Product Sales', d.gross_sales || 0, true, prior?.gross_sales);
+    if (d.returns) h += row('Less: Returns &amp; Cancellations', -(d.returns), true, prior?.returns ? -(prior.returns) : null);
+    (d.revenue_by_channel || []).forEach(r => {
+        const priorCh = (prior?.revenue_by_channel || []).find(p => p.channel === r.channel);
+        h += `<tr class="item" style="opacity:.85"><td style="padding-left:48px">${r.channel.replace(/_/g,' ')} · Net</td><td class="tr">${fmt(r.net_sales)}</td><td class="tr muted">${r.units > 0 ? fmtN(r.units) + ' units' : ''}</td>${priorDelta(r.net_sales, priorCh?.net_sales)}</tr>`;
+    });
+    h += stone('Net Sales (excl. GST)', ns, '', false, prior?.net_sales);
+
+    // COGS
+    h += `<tr class="sec-hdr"><td colspan="${colSpan}">COGS &mdash; Manufacturing &amp; Materials</td></tr>`;
+    if ((d.cogs?.lines || []).length) {
+        d.cogs.lines.forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : '') + catLink(l.category, 'COGS'), l.amount, true));
+    } else {
+        h += `<tr class="item"><td class="muted" colspan="${colSpan}">No COGS bills this period</td></tr>`;
+    }
+    h += sub('Total COGS', d.cogs?.total || 0, prior?.cogs?.total);
+    h += stone('Gross Profit', gp, d.gross_margin_pct, gp < 0, prior?.gross_profit);
+
+    // Fulfilment → CM1
+    h += `<tr class="sec-hdr"><td colspan="${colSpan}">Fulfilment &amp; Variable Selling</td></tr>`;
+    (d.fulfilment?.lines || []).forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : '') + catLink(l.category, 'FULFILLMENT'), l.amount, true));
+    if (d.fulfilment?.marketplace_commission) h += row('Marketplace Commissions', d.fulfilment.marketplace_commission, true);
+    if (d.fulfilment?.payment_gateway)        h += row('Payment Gateway Charges', d.fulfilment.payment_gateway, true);
+    if (!(d.fulfilment?.lines || []).length && !d.fulfilment?.marketplace_commission) {
+        h += `<tr class="item"><td class="muted" colspan="${colSpan}">No fulfilment bills this period</td></tr>`;
+    }
+    h += sub('Total Fulfilment', d.fulfilment?.total || 0, prior?.fulfilment?.total);
+    h += stone('Contribution Margin 1 (CM1)', cm1, d.cm1_pct, cm1 < 0, prior?.cm1);
+
+    // Marketing → CM2
+    h += `<tr class="sec-hdr"><td colspan="${colSpan}">Marketing &amp; CAC</td></tr>`;
+    if ((d.marketing?.lines || []).length) {
+        d.marketing.lines.forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : '') + catLink(l.category, 'MARKETING'), l.amount, true));
+    } else {
+        h += `<tr class="item"><td class="muted" colspan="${colSpan}">No marketing bills this period</td></tr>`;
+    }
+    h += sub('Total Marketing', d.marketing?.total || 0, prior?.marketing?.total);
+    h += stone('Contribution Margin 2 (CM2)', cm2, d.cm2_pct, cm2 < 0, prior?.cm2);
+
+    // OPEX → EBITDA
+    h += `<tr class="sec-hdr"><td colspan="${colSpan}">Operating Expenses</td></tr>`;
+    if ((d.opex?.lines || []).length) {
+        d.opex.lines.forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : '') + catLink(l.category, 'OPERATIONS'), l.amount, true));
+    } else {
+        h += `<tr class="item"><td class="muted" colspan="${colSpan}">No opex bills this period</td></tr>`;
+    }
+    h += sub('Total Operations', d.opex?.total || 0, prior?.opex?.total);
+    h += stone('EBITDA', ebitda, d.ebitda_pct, ebitda < 0, prior?.ebitda);
+
+    // Section breakdown
+    if (d.section_breakdown && d.section_breakdown.length) {
+        h += `<tr class="sec-hdr"><td colspan="${colSpan}">Performance by Section</td></tr>`;
+        h += `<tr class="grp-hdr"><td>Section</td><td class="tr">Net Sales</td><td class="tr">Gross Margin</td></tr>`;
+        d.section_breakdown.forEach(s => {
+            h += `<tr class="item"><td>${s.section}</td><td class="tr">${fmt(s.net_sales)}</td><td class="tr">${s.gross_margin_pct.toFixed(1)}%</td></tr>`;
         });
-        rows += `<tr class="subtotal-row"><td colspan="3">Total Output GST</td><td class="text-right">${fmt(totalGstOut)}</td></tr>`;
-        rows += `<tr class="section-header"><td colspan="4">Input Tax Credit (ITC on bills)</td></tr>
-            <tr class="indent"><td colspan="3">CGST ITC (bills with cgst_amount)</td><td class="text-right text-slate-400">— add GST to bills</td></tr>
-            <tr class="indent"><td colspan="3">SGST ITC</td><td class="text-right text-slate-400">— add GST to bills</td></tr>
-            <tr class="indent"><td colspan="3">IGST ITC</td><td class="text-right text-slate-400">— add GST to bills</td></tr>
-            <tr class="total-row"><td colspan="3"><b>Net GST Payable (Output − ITC)</b></td><td class="text-right">${fmt(totalGstOut)}</td></tr>`;
-        document.getElementById('gstBody').innerHTML = rows;
     }
 
-    function renderSpend(d) {
-        const tagData = d.tag_breakdown || {};
-        let rows = '';
-        ['COGS', 'FULFILLMENT', 'MARKETING', 'OPERATIONS'].forEach(g => {
-            const td = tagData[g];
-            if (!td || !td.lines.length) return;
-            rows += `<tr class="section-header"><td colspan="4">${g}</td></tr>`;
-            td.lines.forEach(l => {
-                rows += `<tr class="indent"><td>${l.account_code}</td><td>${l.tag_name}</td><td>${g}</td><td class="text-right">${fmt(l.amount)}</td></tr>`;
-            });
-            rows += `<tr class="subtotal-row"><td colspan="3">${g} Total</td><td class="text-right">${fmt(td.total)}</td></tr>`;
+    body.innerHTML = h;
+
+    const badge = document.getElementById('plBadge');
+    if (ebitda >= 0) { badge.textContent = 'EBITDA Positive'; badge.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-emerald-100 text-emerald-700'; }
+    else             { badge.textContent = 'EBITDA Negative'; badge.className = 'text-xs font-semibold px-3 py-1 rounded-full bg-red-100 text-red-600'; }
+}
+
+// ── GST ───────────────────────────────────────────────────────────────────────
+function renderGST(d) {
+    const channels    = d.revenue_by_channel || [];
+    const totalGstOut = d.gst_collected || channels.reduce((s, r) => s + (r.gst_collected || 0), 0);
+
+    let h = `<tr class="sec-hdr"><td colspan="4">Output GST — Collected from Customers</td></tr>`;
+    h += `<tr class="grp-hdr"><td>Account</td><td>Channel</td><td class="tr">Net Sales</td><td class="tr">GST Collected</td></tr>`;
+
+    if (channels.length) {
+        channels.forEach(r => {
+            h += `<tr class="item"><td>${r.account_code || '—'}</td><td>${r.channel.replace(/_/g,' ')}</td><td class="tr">${fmt(r.net_sales)}</td><td class="tr">${fmt(r.gst_collected || 0)}</td></tr>`;
         });
-        // Fallback to bill category breakdown if no tags
-        if (!rows) {
-            (d.cogs?.accounts || []).forEach(a => {
-                rows += `<tr><td>5xxx</td><td>${a.account_name}</td><td>COGS</td><td class="text-right">${fmt(a.amount)}</td></tr>`;
-            });
-            (d.expenses?.accounts || []).forEach(a => {
-                rows += `<tr><td>—</td><td>${a.account_name}</td><td>OPERATING</td><td class="text-right">${fmt(a.amount)}</td></tr>`;
-            });
-        }
-        if (!rows) rows = `<tr><td colspan="4" class="text-center py-8 text-slate-400">No tagged expenses for this period. Tag bills to see CoA breakdown.</td></tr>`;
-        document.getElementById('spendBody').innerHTML = rows;
+    } else {
+        h += `<tr class="item"><td colspan="4" class="muted">No sales entries for this period</td></tr>`;
+    }
+    h += `<tr class="sub"><td colspan="3">Total Output GST</td><td class="tr">${fmt(totalGstOut)}</td></tr>`;
+
+    h += `<tr class="sec-hdr"><td colspan="4">Input Tax Credit (ITC) — From Bills</td></tr>`;
+    h += `<tr class="grp-hdr"><td colspan="2">Tax Type</td><td class="tr">Bills</td><td class="tr">ITC Amount</td></tr>`;
+    const itc = d.itc || {};
+    if (itc.total > 0) {
+        if (itc.cgst > 0) h += `<tr class="item"><td colspan="2">CGST ITC</td><td class="tr muted">—</td><td class="tr">${fmt(itc.cgst)}</td></tr>`;
+        if (itc.sgst > 0) h += `<tr class="item"><td colspan="2">SGST ITC</td><td class="tr muted">—</td><td class="tr">${fmt(itc.sgst)}</td></tr>`;
+        if (itc.igst > 0) h += `<tr class="item"><td colspan="2">IGST ITC</td><td class="tr muted">—</td><td class="tr">${fmt(itc.igst)}</td></tr>`;
+        h += `<tr class="sub"><td colspan="3">Total ITC Available</td><td class="tr">${fmt(itc.total)}</td></tr>`;
+    } else {
+        h += `<tr class="item"><td colspan="3" class="muted">No GST captured on bills yet — add CGST/SGST/IGST amounts to bills to see ITC</td><td class="tr muted">—</td></tr>`;
     }
 
-    function showTab(name) {
-        ['pl','bs','gst','spend'].forEach(t => {
-            document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
+    const netGst = d.net_gst_payable != null ? d.net_gst_payable : totalGstOut;
+    h += `<tr class="milestone${netGst > 0 ? '' : ' neg'}"><td colspan="3"><b>Net GST Payable (Output − ITC)</b></td><td class="tr"><b>${fmt(netGst)}</b></td></tr>`;
+
+    document.getElementById('gstBody').innerHTML = h;
+}
+
+// ── Spend Detail ───────────────────────────────────────────────────────────────
+function renderSpend(d, metrics) {
+    const GROUPS = [
+        { key: 'cogs',      label: 'COGS' },
+        { key: 'fulfilment',label: 'FULFILLMENT' },
+        { key: 'marketing', label: 'MARKETING' },
+        { key: 'opex',      label: 'OPERATIONS' },
+    ];
+
+    let h = '';
+    GROUPS.forEach(({ key, label }) => {
+        const grp   = d[key];
+        const lines = grp?.lines || [];
+        const extra = key === 'fulfilment' ? [
+            grp?.marketplace_commission ? { category: 'Marketplace Commissions', amount: grp.marketplace_commission } : null,
+            grp?.payment_gateway        ? { category: 'Payment Gateway',         amount: grp.payment_gateway }        : null,
+        ].filter(Boolean) : [];
+
+        const allLines = [...lines, ...extra];
+        if (!allLines.length && !grp?.total) return;
+
+        h += `<tr class="sec-hdr"><td colspan="3">${label}</td></tr>`;
+        allLines.forEach(l => {
+            const dateQs = currentStart ? `&from=${currentStart}&to=${currentEnd}` : '';
+            const catHref = `documents.html?filter_group=${encodeURIComponent(label)}&q=${encodeURIComponent(l.category)}${dateQs}`;
+            h += `<tr class="item"><td>${label}</td><td>${cap(l.category)} <a href="${catHref}" class="ml-1 text-indigo-400 hover:text-indigo-700 text-xs" title="View bills"><i class="fas fa-receipt"></i></a></td><td class="tr">${fmt(l.amount)}</td></tr>`;
         });
-        document.querySelectorAll('.tab-btn').forEach((b, i) => {
-            b.classList.toggle('active', ['pl','bs','gst','spend'][i] === name);
+        h += `<tr class="sub"><td colspan="2">${label} Total</td><td class="tr">${fmt(grp?.total || 0)}</td></tr>`;
+    });
+
+    // Top vendors
+    const vendors = metrics?.spend_by_vendor || [];
+    if (vendors.length) {
+        const totalVendorSpend = vendors.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+        h += `<tr class="sec-hdr"><td colspan="3">Top Vendors by Spend</td></tr>`;
+        vendors.forEach(v => {
+            const amt = parseFloat(v.total || 0);
+            const share = totalVendorSpend ? (amt / totalVendorSpend * 100).toFixed(0) : 0;
+            const docsSearch = `documents.html?q=${encodeURIComponent(v.vendor_name)}` +
+                (currentStart ? `&from=${currentStart}&to=${currentEnd}` : '');
+            h += `<tr class="item"><td colspan="2"><a href="${docsSearch}" class="hover:underline text-indigo-700">${v.vendor_name}</a></td><td class="tr">${fmt(amt)} <span class="muted">${share}%</span></td></tr>`;
         });
     }
 
+    if (!h) h = `<tr><td colspan="3" class="text-center py-10 text-slate-400">No bills categorised for this period</td></tr>`;
+    document.getElementById('spendBody').innerHTML = h;
+}
+
+// ── Section grid ──────────────────────────────────────────────────────────────
+function renderSectionGrid(d) {
+    const grid     = document.getElementById('sectionGrid');
+    const sections = d.section_breakdown || [];
+    const ns       = d.net_sales || 0;
+    if (!sections.length) {
+        grid.innerHTML = '<div class="col-span-3 text-center py-8 text-slate-400">No section data — tag bills and sales entries with a section to see comparison</div>';
+        return;
+    }
+    const maxSales = Math.max(...sections.map(s => s.net_sales), 1);
+    grid.innerHTML = sections.map(s => {
+        const gpColor  = s.gross_margin_pct >= 50 ? '#059669' : s.gross_margin_pct >= 30 ? '#2563eb' : '#d97706';
+        const cm1Color = (s.cm1_pct || 0) >= 40 ? '#059669' : (s.cm1_pct || 0) >= 20 ? '#7c3aed' : '#d97706';
+        const share    = ns ? (s.net_sales / ns * 100).toFixed(1) : 0;
+        const hasCM1   = s.cm1 != null;
+        const docsLink = `documents.html?section=${encodeURIComponent(s.section)}` +
+            (currentStart ? `&from=${currentStart}&to=${currentEnd}` : '');
+        return `
+        <div class="border border-slate-200 rounded-xl p-5">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-sm font-bold text-slate-900">${s.section}</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-slate-400">${share}% of sales</span>
+                    <a href="${docsLink}" class="text-xs text-indigo-500 hover:underline" title="View bills"><i class="fas fa-receipt"></i></a>
+                </div>
+            </div>
+            <div class="text-2xl font-bold text-slate-900 mb-1">${fmt(s.net_sales)}</div>
+            <div class="text-xs text-slate-400 mb-3">${(s.net_units||0).toLocaleString('en-IN')} units</div>
+            <div style="height:6px;border-radius:99px;background:#f1f5f9;overflow:hidden;margin-bottom:12px">
+                <div style="height:100%;border-radius:99px;background:#6366f1;width:${Math.round(s.net_sales/maxSales*100)}%"></div>
+            </div>
+            <div class="flex justify-between text-xs mb-1.5">
+                <span class="text-slate-500">Gross Profit</span>
+                <span style="color:${gpColor}" class="font-semibold">${fmt(s.gross_profit)} · ${s.gross_margin_pct}%</span>
+            </div>
+            ${hasCM1 ? `<div class="flex justify-between text-xs">
+                <span class="text-slate-500">CM1 (after Fulfilment)</span>
+                <span style="color:${cm1Color}" class="font-semibold">${fmt(s.cm1)} · ${s.cm1_pct}%</span>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+// ── Spend by Drop ─────────────────────────────────────────────────────────────
+function renderDropSpend(d) {
+    const el = document.getElementById('dropSpendContent');
+    if (!el) return;
+    if (!d || !d.success || !d.rows?.length) {
+        el.innerHTML = '<div class="text-center py-8 text-slate-400">No spend data for this period</div>';
+        return;
+    }
+
+    const GRP_COLOR = {
+        COGS:        { bg: '#fef3e2', text: '#b45309', label: 'COGS' },
+        FULFILLMENT: { bg: '#eff6ff', text: '#1d4ed8', label: 'Fulfil.' },
+        MARKETING:   { bg: '#f5f3ff', text: '#6d28d9', label: 'Mktg' },
+        OPERATIONS:  { bg: '#f8fafc', text: '#475569', label: 'Ops' },
+    };
+
+    // Group by drop_name
+    const byDrop = {};
+    d.rows.forEach(r => {
+        const drop = r.drop_name || 'Unassigned';
+        if (!byDrop[drop]) byDrop[drop] = { total: 0, groups: {} };
+        const grp = (r.department || 'OPERATIONS').toUpperCase();
+        byDrop[drop].total += parseFloat(r.spend_total || 0);
+        if (!byDrop[drop].groups[grp]) byDrop[drop].groups[grp] = 0;
+        byDrop[drop].groups[grp] += parseFloat(r.spend_total || 0);
+    });
+
+    const totalAllDrops = Object.values(byDrop).reduce((s, d) => s + d.total, 0);
+    const drops = Object.entries(byDrop).sort((a, b) => b[1].total - a[1].total);
+
+    el.innerHTML = drops.map(([drop, data]) => {
+        const share = totalAllDrops ? (data.total / totalAllDrops * 100).toFixed(1) : 0;
+        const grpChips = Object.entries(data.groups)
+            .sort((a, b) => b[1] - a[1])
+            .map(([grp, amt]) => {
+                const c = GRP_COLOR[grp] || GRP_COLOR.OPERATIONS;
+                return `<span style="background:${c.bg};color:${c.text};padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;margin-right:4px">${c.label} ${fmt(amt)}</span>`;
+            }).join('');
+        const barPct = totalAllDrops ? Math.round(data.total / totalAllDrops * 100) : 0;
+        const dropLink = `drop.html?drop=${encodeURIComponent(drop)}`;
+        const docsLink = `documents.html?drop=${encodeURIComponent(drop)}` +
+            (currentStart ? `&from=${currentStart}&to=${currentEnd}` : '');
+        return `
+        <div class="mb-4 pb-4 border-b border-slate-100 last:border-0">
+            <div class="flex items-center justify-between mb-1">
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-semibold text-slate-800">${drop}</span>
+                    <a href="${dropLink}" class="text-xs text-indigo-400 hover:text-indigo-600" title="Drop P&L"><i class="fas fa-layer-group"></i></a>
+                    <a href="${docsLink}" class="text-xs text-slate-400 hover:text-slate-600" title="View bills"><i class="fas fa-receipt"></i></a>
+                </div>
+                <span class="text-sm font-bold text-slate-900">${fmt(data.total)} <span class="text-xs font-normal text-slate-400">${share}%</span></span>
+            </div>
+            <div class="h-1.5 bg-slate-100 rounded mb-2 overflow-hidden">
+                <div class="h-full bg-indigo-500 rounded" style="width:${barPct}%"></div>
+            </div>
+            <div class="flex flex-wrap gap-1">${grpChips}</div>
+        </div>`;
+    }).join('');
+}
+
+// ── Tab switcher ──────────────────────────────────────────────────────────────
+const TABS = ['pl','section','gst','spend','trend','drops','variance','cm','ue'];
+function showTab(name) {
+    TABS.forEach(t => { document.getElementById('tab-' + t).classList.toggle('hidden', t !== name); });
+    document.querySelectorAll('.tab-btn').forEach((b, i) => { b.classList.toggle('active', TABS[i] === name); });
+    if (name === 'trend' && !trendLoaded) loadTrend();
+    if (name === 'variance' && !varianceLoaded) loadVariance();
+    if (name === 'cm' && !cmLoaded) loadCM();
+    if (name === 'ue' && !ueLoaded) loadUE();
+}
+
+// ── Trend chart ───────────────────────────────────────────────────────────────
+let trendLoaded = false;
+
+async function loadTrend() {
+    const el = document.getElementById('trendChart');
+    el.innerHTML = '<div class="text-center py-8 text-slate-400">Loading…</div>';
+    const months = document.getElementById('trendMonths')?.value || 6;
+    try {
+        const d = await fetch(`/api/reports/trend?months=${months}`, { credentials: 'include' }).then(r => r.json());
+        lastTrendData = d.months || [];
+        renderTrend(lastTrendData);
+        trendLoaded = true;
+    } catch (e) {
+        el.innerHTML = `<div class="text-center py-6 text-red-400">Failed to load: ${e.message}</div>`;
+    }
+}
+
+function renderTrend(months) {
+    const el = document.getElementById('trendChart');
+    if (!months.length) { el.innerHTML = '<div class="text-center py-8 text-slate-400">No data yet</div>'; return; }
+
+    const maxSales = Math.max(...months.map(m => m.net_sales), 1);
+
+    const bar = (val, max, color) => {
+        const pct = Math.max(0, Math.round(val / max * 100));
+        return `<div style="height:100%;width:${pct}%;background:${color};border-radius:3px;min-width:${val > 0 ? 2 : 0}px"></div>`;
+    };
+
+    const momDelta = (cur, prev) => {
+        if (!prev || prev === 0) return '';
+        const chg = ((cur - prev) / Math.abs(prev) * 100);
+        const sign = chg >= 0 ? '+' : '';
+        const color = chg >= 0 ? '#059669' : '#dc2626';
+        return `<span style="font-size:9px;font-weight:700;color:${color};margin-left:3px">${sign}${chg.toFixed(0)}%</span>`;
+    };
+
+    const bars = months.map((m, i) => {
+        const prev = i > 0 ? months[i - 1] : null;
+        const gp  = Math.max(0, m.gross_profit);
+        const cm1 = Math.max(0, m.cm1 ?? m.gross_profit);
+        const eb  = Math.max(0, m.ebitda);
+        // Show FY boundary marker when month is April (month index 3)
+        const monthNum = m.month ? parseInt(m.month.split('-')[1]) : 0;
+        const fyYear   = m.month ? (monthNum >= 4 ? parseInt(m.month.split('-')[0]) : parseInt(m.month.split('-')[0]) - 1) : null;
+        const fyMarker = (monthNum === 4 && i > 0)
+            ? `<div class="text-[9px] font-bold text-indigo-500 tracking-wide text-center mb-1" style="border-top:1px dashed #6366f1;padding-top:4px">FY ${fyYear}-${String(fyYear+1).slice(-2)}</div>`
+            : '';
+        return `${fyMarker}
+        <div class="flex items-center gap-2 mb-3">
+            <div class="text-xs text-slate-400 w-16 shrink-0 text-right">${m.label}</div>
+            <div class="flex-1 space-y-1">
+                <div class="flex items-center gap-2">
+                    <div class="w-16 text-xs text-slate-400 shrink-0">Sales</div>
+                    <div class="flex-1 h-3 bg-slate-100 rounded flex items-center overflow-hidden">
+                        ${bar(m.net_sales, maxSales, '#6366f1')}
+                    </div>
+                    <div class="text-xs font-semibold text-slate-700 w-28 text-right">${fmt(m.net_sales)}${momDelta(m.net_sales, prev?.net_sales)}</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-16 text-xs text-slate-400 shrink-0">GP</div>
+                    <div class="flex-1 h-3 bg-slate-100 rounded flex items-center overflow-hidden">
+                        ${bar(gp, maxSales, '#3b82f6')}
+                    </div>
+                    <div class="text-xs font-semibold text-blue-600 w-28 text-right">${fmt(m.gross_profit)} <span class="text-slate-400 font-normal">${m.gross_margin_pct}%</span></div>
+                </div>
+                ${m.cm1 != null ? `<div class="flex items-center gap-2">
+                    <div class="w-16 text-xs text-slate-400 shrink-0">CM1</div>
+                    <div class="flex-1 h-3 bg-slate-100 rounded flex items-center overflow-hidden">
+                        ${bar(cm1, maxSales, '#8b5cf6')}
+                    </div>
+                    <div class="text-xs font-semibold text-violet-600 w-28 text-right">${fmt(m.cm1)} <span class="text-slate-400 font-normal">${m.cm1_pct}%</span></div>
+                </div>` : ''}
+                <div class="flex items-center gap-2">
+                    <div class="w-16 text-xs text-slate-400 shrink-0">EBITDA</div>
+                    <div class="flex-1 h-3 bg-slate-100 rounded flex items-center overflow-hidden">
+                        ${bar(eb, maxSales, m.ebitda >= 0 ? '#059669' : '#dc2626')}
+                    </div>
+                    <div class="text-xs font-semibold w-28 text-right ${m.ebitda >= 0 ? 'text-emerald-600' : 'text-red-500'}">${fmt(m.ebitda)} <span class="text-slate-400 font-normal">${m.ebitda_pct}%</span></div>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+
+    // Summary table
+    const hasCM1 = months.some(m => m.cm1 != null);
+    const tableRows = months.map(m => `
+        <tr class="border-t border-slate-100">
+            <td class="px-3 py-2 text-xs text-slate-500">${m.label}</td>
+            <td class="px-3 py-2 text-xs text-right font-medium">${fmt(m.net_sales)}</td>
+            <td class="px-3 py-2 text-xs text-right text-blue-600">${fmt(m.gross_profit)}</td>
+            <td class="px-3 py-2 text-xs text-right text-slate-500">${m.gross_margin_pct}%</td>
+            ${hasCM1 ? `<td class="px-3 py-2 text-xs text-right text-violet-600">${fmt(m.cm1)}</td><td class="px-3 py-2 text-xs text-right text-slate-400">${m.cm1_pct}%</td>` : ''}
+            <td class="px-3 py-2 text-xs text-right ${m.ebitda >= 0 ? 'text-emerald-600' : 'text-red-500'} font-semibold">${fmt(m.ebitda)}</td>
+            <td class="px-3 py-2 text-xs text-right text-slate-400">${m.ebitda_pct}%</td>
+        </tr>`).join('');
+
+    el.innerHTML = `
+        ${bars}
+        <div class="mt-6 border-t border-slate-100 pt-4 overflow-x-auto">
+            <table class="rt w-full text-xs">
+                <thead><tr>
+                    <th class="px-3 py-2 text-left">Month</th>
+                    <th class="px-3 py-2 text-right">Net Sales</th>
+                    <th class="px-3 py-2 text-right">Gross Profit</th>
+                    <th class="px-3 py-2 text-right">GM%</th>
+                    ${hasCM1 ? '<th class="px-3 py-2 text-right">CM1</th><th class="px-3 py-2 text-right">CM1%</th>' : ''}
+                    <th class="px-3 py-2 text-right">EBITDA</th>
+                    <th class="px-3 py-2 text-right">EBITDA%</th>
+                </tr></thead>
+                <tbody>${tableRows}</tbody>
+            </table>
+        </div>`;
+}
+
+// ── Compare toggle ────────────────────────────────────────────────────────────
+let compareMode = false;
+let lastPriorData = null;
+
+function toggleCompare() {
+    compareMode = !compareMode;
+    const btn = document.getElementById('compare-btn');
+    if (btn) {
+        btn.classList.toggle('bg-indigo-50', compareMode);
+        btn.classList.toggle('border-indigo-300', compareMode);
+        btn.classList.toggle('text-indigo-700', compareMode);
+    }
+    if (lastPLData) renderPL(lastPLData);
+}
+
+// ── CSV Export ────────────────────────────────────────────────────────────────
+let lastPLData    = null;
+let lastTrendData = null;
+
+function exportCSV() {
+    if (!lastPLData || !lastPLData.success) {
+        alert('Load a P&L report first');
+        return;
+    }
+    const d = lastPLData;
+    const rows = [
+        ['NATI Collective — P&L Export', currentLabel],
+        [],
+        ['Line', 'Amount (₹)', '% of Net Sales'],
+        ['Gross Sales', d.gross_sales || 0, ''],
+        ['Less: Returns', -(d.returns || 0), ''],
+        ['Net Sales', d.net_sales || 0, '100%'],
+        [],
+        ['COGS', -(d.cogs?.total || 0), d.net_sales ? (-(d.cogs?.total||0)/d.net_sales*100).toFixed(1)+'%' : ''],
+        ['Gross Profit', d.gross_profit || 0, (d.gross_margin_pct || 0)+'%'],
+        [],
+        ['Fulfilment', -(d.fulfilment?.total || 0), ''],
+        ['CM1', d.cm1 || 0, (d.cm1_pct || 0)+'%'],
+        [],
+        ['Marketing', -(d.marketing?.total || 0), ''],
+        ['CM2', d.cm2 || 0, (d.cm2_pct || 0)+'%'],
+        [],
+        ['Operations (OpEx)', -(d.opex?.total || 0), ''],
+        ['EBITDA', d.ebitda || 0, (d.ebitda_pct || 0)+'%'],
+    ];
+
+    // Add bill detail lines
+    if ((d.cogs?.lines || []).length) {
+        rows.push([], ['--- COGS Detail ---']);
+        d.cogs.lines.forEach(l => rows.push([cap(l.category), -l.amount, '']));
+    }
+    if ((d.fulfilment?.lines || []).length) {
+        rows.push([], ['--- Fulfilment Detail ---']);
+        d.fulfilment.lines.forEach(l => rows.push([cap(l.category), -l.amount, '']));
+    }
+    if ((d.marketing?.lines || []).length) {
+        rows.push([], ['--- Marketing Detail ---']);
+        d.marketing.lines.forEach(l => rows.push([cap(l.category), -l.amount, '']));
+    }
+    if ((d.opex?.lines || []).length) {
+        rows.push([], ['--- Operations Detail ---']);
+        d.opex.lines.forEach(l => rows.push([cap(l.category), -l.amount, '']));
+    }
+
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nati-pl-${currentLabel.replace(/\s+/g,'-')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function exportTrendCSV() {
+    if (!lastTrendData || !lastTrendData.length) { alert('Load trend data first'); return; }
+    const rows = [
+        ['NATI Collective — P&L Trend Export'],
+        [],
+        ['Month', 'Net Sales (₹)', 'COGS (₹)', 'Gross Profit (₹)', 'GM%', 'CM1 (₹)', 'CM1%', 'EBITDA (₹)', 'EBITDA%'],
+        ...lastTrendData.map(m => [m.label, m.net_sales, m.cogs, m.gross_profit, m.gross_margin_pct, m.cm1 ?? '', m.cm1_pct ?? '', m.ebitda, m.ebitda_pct])
+    ];
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nati-trend-${lastTrendData.length}mo.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// ── Budget vs Actual (Variance) ───────────────────────────────────────────────
+let varianceLoaded = false;
+
+async function loadVariance() {
+    const el = document.getElementById('varianceContent');
+    el.innerHTML = '<div class="text-center py-8 text-slate-400">Loading…</div>';
+    try {
+        const params = currentStart ? `?start_date=${currentStart}&end_date=${currentEnd}` : '';
+        const d = await fetch(`/api/reports/drop-variance${params}`, { credentials: 'include' }).then(r => r.json());
+        renderVariance(d.rows || []);
+        varianceLoaded = true;
+    } catch (e) {
+        el.innerHTML = `<div class="text-center py-6 text-red-400">${e.message}</div>`;
+    }
+}
+
+function renderVariance(rows) {
+    const el = document.getElementById('varianceContent');
+    if (!rows.length) {
+        el.innerHTML = '<div class="text-center py-8 text-slate-400">No budget data. Set budgets from the Drop page.</div>';
+        return;
+    }
+    const grouped = {};
+    rows.forEach(r => {
+        if (!grouped[r.drop_name]) grouped[r.drop_name] = [];
+        grouped[r.drop_name].push(r);
+    });
+    const sections = Object.entries(grouped).map(([drop, items]) => {
+        const totalBudget  = items.reduce((s, i) => s + i.budget_amount, 0);
+        const totalActual  = items.reduce((s, i) => s + i.actual_amount, 0);
+        const totalVariance = totalBudget - totalActual;
+        const overallPct = totalBudget > 0 ? Math.round(totalActual / totalBudget * 100) : null;
+        const headerColor = totalVariance < 0 ? 'text-rose-600' : 'text-emerald-600';
+        const rows = items.map(i => {
+            const vColor = i.variance < 0 ? 'text-rose-600' : 'text-emerald-600';
+            const vIcon  = i.variance < 0 ? '▲' : '▼';
+            const pct    = i.budget_amount > 0 ? Math.round(i.actual_amount / i.budget_amount * 100) : null;
+            const bar    = pct != null ? `<div class="w-full bg-slate-100 rounded h-1.5 mt-1"><div class="h-1.5 rounded ${pct > 100 ? 'bg-rose-400' : 'bg-indigo-400'}" style="width:${Math.min(pct,100)}%"></div></div>` : '';
+            return `<tr class="border-t border-slate-50">
+                <td class="px-4 py-2 text-xs text-slate-500 capitalize">${(i.department||'—').replace(/_/g,' ')}</td>
+                <td class="px-4 py-2 text-xs text-right">${i.budget_amount > 0 ? fmt(i.budget_amount) : '—'}</td>
+                <td class="px-4 py-2 text-xs text-right">${fmt(i.actual_amount)}<div class="text-[10px] text-slate-400"><a href="documents.html?q=${encodeURIComponent(drop)}&filter_group=${encodeURIComponent(i.department||'')}" class="hover:underline text-indigo-400">${i.bill_count} bills</a></div>${bar}</td>
+                <td class="px-4 py-2 text-xs text-right font-semibold ${vColor}">${i.budget_amount > 0 ? (vIcon + ' ' + fmt(Math.abs(i.variance))) : '—'}</td>
+                <td class="px-4 py-2 text-xs text-right text-slate-400">${pct != null ? pct + '%' : '—'}</td>
+            </tr>`;
+        }).join('');
+        return `<div class="mb-4">
+            <div class="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                <span class="text-sm font-semibold"><a href="drop.html?drop=${encodeURIComponent(drop)}" class="text-indigo-700 hover:underline">${drop}</a></span>
+                <span class="text-xs ${headerColor} font-semibold">${overallPct != null ? overallPct + '% of budget used' : fmt(totalActual) + ' (no budget set)'}</span>
+            </div>
+            <table class="w-full text-sm">
+                <thead><tr class="text-[11px] text-slate-400 uppercase tracking-wide">
+                    <th class="px-4 py-1.5 text-left">Category</th>
+                    <th class="px-4 py-1.5 text-right">Budget</th>
+                    <th class="px-4 py-1.5 text-right">Actual</th>
+                    <th class="px-4 py-1.5 text-right">Variance</th>
+                    <th class="px-4 py-1.5 text-right">Utilisation</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+                <tfoot><tr class="border-t-2 border-slate-200 font-semibold">
+                    <td class="px-4 py-2 text-xs">Total</td>
+                    <td class="px-4 py-2 text-xs text-right">${totalBudget > 0 ? fmt(totalBudget) : '—'}</td>
+                    <td class="px-4 py-2 text-xs text-right">${fmt(totalActual)}</td>
+                    <td class="px-4 py-2 text-xs text-right ${headerColor}">${totalBudget > 0 ? fmt(Math.abs(totalVariance)) : '—'}</td>
+                    <td class="px-4 py-2 text-xs text-right">${overallPct != null ? overallPct + '%' : '—'}</td>
+                </tr></tfoot>
+            </table>
+        </div>`;
+    }).join('');
+    el.innerHTML = sections;
+}
+
+// ── Contribution Margin ────────────────────────────────────────────────────────
+let cmLoaded = false;
+
+async function loadCM() {
+    const el = document.getElementById('cmContent');
+    el.innerHTML = '<div class="text-center py-8 text-slate-400">Loading…</div>';
+    const dropId = document.getElementById('cmDropFilter').value;
+    try {
+        const params = dropId ? `?dropId=${dropId}` : '';
+        const d = await fetch(`/api/reports/contribution-margin${params}`, { credentials: 'include' }).then(r => r.json());
+        renderCM(d.data || []);
+        cmLoaded = true;
+    } catch (e) {
+        el.innerHTML = `<div class="text-center py-6 text-red-400">${e.message}</div>`;
+    }
+}
+
+function renderCM(skus) {
+    const el = document.getElementById('cmContent');
+    if (!skus.length) {
+        el.innerHTML = '<div class="text-center py-8 text-slate-400">No SKUs with pricing. Add SKUs in the <a href="sku-catalog.html" class="text-indigo-500 hover:underline">SKU Catalog</a>.</div>';
+        return;
+    }
+    const avg = skus.reduce((s, r) => s + r.contribution_margin_pct, 0) / skus.length;
+    const totalCM = skus.reduce((s, r) => s + r.contribution_margin, 0);
+    const rows = skus.map(s => {
+        const cmColor = s.contribution_margin_pct >= 40 ? 'text-emerald-600' : s.contribution_margin_pct >= 20 ? 'text-amber-600' : 'text-rose-600';
+        return `<tr class="border-t border-slate-100 hover:bg-slate-50">
+            <td class="px-4 py-2.5 font-mono text-xs font-semibold text-slate-700">
+                <a href="garment-economics.html?sku=${encodeURIComponent(s.sku_code)}" class="hover:text-indigo-600" title="View in Garment P&L">${s.sku_code}</a>
+            </td>
+            <td class="px-4 py-2.5 text-sm text-slate-600">${s.sku_name}</td>
+            <td class="px-4 py-2.5 text-sm text-right">${fmt(s.selling_price)}</td>
+            <td class="px-4 py-2.5 text-sm text-right text-slate-500">${s.total_cost > 0 ? fmt(s.total_cost) : '<span class="text-amber-500 text-xs">No costs</span>'}</td>
+            <td class="px-4 py-2.5 text-sm text-right font-semibold ${cmColor}">${fmt(s.contribution_margin)}</td>
+            <td class="px-4 py-2.5 text-right">
+                <span class="px-2 py-0.5 rounded-full text-xs font-bold ${cmColor} bg-current/10" style="background:${s.contribution_margin_pct>=40?'#d1fae5':s.contribution_margin_pct>=20?'#fef3c7':'#fee2e2'}">${s.contribution_margin_pct}%</span>
+            </td>
+        </tr>`;
+    }).join('');
+    el.innerHTML = `
+        <div class="flex items-center gap-4 mb-4 flex-wrap">
+            <div class="px-4 py-2 bg-slate-50 rounded-xl text-sm"><span class="text-slate-500">SKUs:</span> <span class="font-semibold">${skus.length}</span></div>
+            <div class="px-4 py-2 bg-emerald-50 rounded-xl text-sm"><span class="text-slate-500">Avg CM:</span> <span class="font-semibold text-emerald-700">${avg.toFixed(1)}%</span></div>
+            <div class="px-4 py-2 bg-indigo-50 rounded-xl text-sm"><span class="text-slate-500">Total CM pool:</span> <span class="font-semibold text-indigo-700">${fmt(totalCM)}</span></div>
+        </div>
+        <div class="overflow-auto">
+        <table class="w-full text-sm">
+            <thead><tr class="text-[11px] text-slate-400 uppercase tracking-wide bg-slate-50">
+                <th class="px-4 py-2 text-left">SKU</th>
+                <th class="px-4 py-2 text-left">Name</th>
+                <th class="px-4 py-2 text-right">Selling Price</th>
+                <th class="px-4 py-2 text-right">Total Cost</th>
+                <th class="px-4 py-2 text-right">CM / Unit</th>
+                <th class="px-4 py-2 text-right">CM %</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+        </div>`;
+}
+
+// ── Unit Economics ─────────────────────────────────────────────────────────────
+let ueLoaded = false;
+
+async function loadUE() {
+    const el = document.getElementById('ueContent');
+    el.innerHTML = '<div class="text-center py-8 text-slate-400">Loading…</div>';
+    const dropId = document.getElementById('ueDropFilter').value;
+    try {
+        const params = dropId ? `?dropId=${dropId}` : '';
+        const d = await fetch(`/api/reports/unit-economics${params}`, { credentials: 'include' }).then(r => r.json());
+        renderUE(d.data || {});
+        ueLoaded = true;
+    } catch (e) {
+        el.innerHTML = `<div class="text-center py-6 text-red-400">${e.message}</div>`;
+    }
+}
+
+function renderUE(data) {
+    const el = document.getElementById('ueContent');
+    const skus = data.per_sku || [];
+    if (!skus.length) {
+        el.innerHTML = '<div class="text-center py-8 text-slate-400">No SKUs with data. Add SKUs and cost layers in the <a href="sku-catalog.html" class="text-indigo-500 hover:underline">SKU Catalog</a>.</div>';
+        return;
+    }
+    const blendedCm = data.blended_cm || 0;
+    const blendedMaxCac = data.blended_max_cac || 0;
+    const blendedPrice = data.blended_price || 0;
+    const buffer = ((data.target_net_margin_buffer || 0) * 100).toFixed(0);
+    const flagCount = skus.filter(s => s.flags && Object.values(s.flags).some(Boolean)).length;
+
+    const summaryHtml = `
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            <div class="bg-slate-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-slate-400 uppercase tracking-wide">SKUs analysed</p>
+                <p class="text-xl font-bold text-slate-800 mt-1">${skus.length}</p>
+            </div>
+            <div class="bg-emerald-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-emerald-600 uppercase tracking-wide">Blended CM / unit</p>
+                <p class="text-xl font-bold text-emerald-700 mt-1">${fmt(blendedCm)}</p>
+            </div>
+            <div class="bg-indigo-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-indigo-600 uppercase tracking-wide">Max CAC (blended)</p>
+                <p class="text-xl font-bold text-indigo-700 mt-1">${fmt(blendedMaxCac)}</p>
+                <p class="text-[10px] text-indigo-400 mt-0.5">${buffer}% margin buffer</p>
+            </div>
+            <div class="bg-${flagCount > 0 ? 'amber' : 'slate'}-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-${flagCount > 0 ? 'amber' : 'slate'}-500 uppercase tracking-wide">Data gaps</p>
+                <p class="text-xl font-bold text-${flagCount > 0 ? 'amber' : 'slate'}-700 mt-1">${flagCount}</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">SKUs with warnings</p>
+            </div>
+        </div>`;
+
+    const rows = skus.map(s => {
+        const cmColor = s.cm_after_returns > 0 ? 'text-emerald-600' : 'text-rose-600';
+        const cacColor = s.max_cac > 0 ? 'text-indigo-600' : 'text-rose-600';
+        const flags = s.flags || {};
+        const flagHtml = [
+            flags.missing_price && '<span class="px-1 py-0.5 rounded text-[9px] bg-red-100 text-red-600">No price</span>',
+            flags.missing_cost && '<span class="px-1 py-0.5 rounded text-[9px] bg-red-100 text-red-600">No cost</span>',
+            flags.missing_assumptions && '<span class="px-1 py-0.5 rounded text-[9px] bg-amber-100 text-amber-600">No assumptions</span>',
+            flags.negative_cm && '<span class="px-1 py-0.5 rounded text-[9px] bg-rose-100 text-rose-700 font-semibold">Neg CM</span>',
+        ].filter(Boolean).join(' ');
+        return `<tr class="border-t border-slate-100 hover:bg-slate-50">
+            <td class="px-4 py-2.5 font-mono text-xs font-semibold text-slate-700"><a href="garment-economics.html?sku=${encodeURIComponent(s.sku_code)}" class="hover:text-indigo-600" title="View in Garment P&L">${s.sku_code}</a></td>
+            <td class="px-4 py-2.5 text-sm text-slate-600">${s.sku_name}</td>
+            <td class="px-4 py-2.5 text-sm text-right">${fmt(s.price)}</td>
+            <td class="px-4 py-2.5 text-sm text-right text-slate-500">${s.landed_cost > 0 ? fmt(s.landed_cost) : '<span class="text-amber-500 text-xs">—</span>'}</td>
+            <td class="px-4 py-2.5 text-sm text-right text-slate-400">${s.shipping_subsidy_avg > 0 ? fmt(s.shipping_subsidy_avg) : '—'}</td>
+            <td class="px-4 py-2.5 text-sm text-right font-semibold ${cmColor}">${fmt(s.cm_after_returns)}</td>
+            <td class="px-4 py-2.5 text-sm text-right font-bold ${cacColor}">${s.max_cac > 0 ? fmt(s.max_cac) : '—'}</td>
+            <td class="px-4 py-2.5 text-xs">${flagHtml || '<span class="text-emerald-500">✓</span>'}</td>
+        </tr>`;
+    }).join('');
+
+    el.innerHTML = summaryHtml + `
+        <div class="overflow-auto">
+        <table class="w-full text-sm">
+            <thead><tr class="text-[11px] text-slate-400 uppercase tracking-wide bg-slate-50">
+                <th class="px-4 py-2 text-left">SKU</th>
+                <th class="px-4 py-2 text-left">Name</th>
+                <th class="px-4 py-2 text-right">Price</th>
+                <th class="px-4 py-2 text-right">Landed Cost</th>
+                <th class="px-4 py-2 text-right">Shipping</th>
+                <th class="px-4 py-2 text-right">CM/unit</th>
+                <th class="px-4 py-2 text-right">Max CAC</th>
+                <th class="px-4 py-2 text-left">Flags</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table></div>
+        <p class="text-xs text-slate-400 mt-3">Max CAC = CM after returns − margin buffer (${buffer}% of price). Use this as your per-acquisition marketing budget ceiling.</p>`;
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function cap(str) {
+    return (str || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+(async () => {
+    // Apply URL params before building chips so first load uses them
+    const params = new URLSearchParams(window.location.search);
+    const dropParam    = params.get('drop');
+    const sectionParam = params.get('section');
+    const startParam   = params.get('start');
+    const endParam     = params.get('end');
+    const labelParam   = params.get('label');
+    if (sectionParam) document.getElementById('filterSection').value = sectionParam;
+    await loadDrops();
+    if (dropParam) {
+        const sel = document.getElementById('filterDrop');
+        if (sel) sel.value = dropParam;
+    }
+    if (startParam && endParam) {
+        // Deep-linked period — skip auto-select of current month chip
+        window._overrideStart = startParam;
+        window._overrideEnd   = endParam;
+        window._overrideLabel = labelParam || `${startParam} to ${endParam}`;
+    }
     buildMonthChips();
-    </script>
+})();
+</script>
 </body>
 </html>

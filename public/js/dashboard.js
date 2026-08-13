@@ -1,344 +1,344 @@
-const API_URL = '/api';
-const BRAIN_API = '/api/brain';
-const ALERT_LABELS = {
-    BUDGET_VARIANCE: 'Budget variance',
-    DOC_NEEDS_REVIEW_AGED: 'Needs review 24h+',
-    DOC_LOW_QUALITY: 'Low-quality OCR',
-    DOC_HIGH_VALUE_NEEDS_REVIEW: 'High-value needs review',
-    DOC_DUPLICATE_FILE: 'Duplicate file'
-};
+const API = '/api';
+const fmt = n => n == null ? '—' : '&#8377;' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+const fmtN = n => Number(n || 0).toLocaleString('en-IN');
 
-function authFetch(url, options = {}) {
-    const opts = Object.assign({ credentials: 'include' }, options);
-    return fetch(url, opts);
+function authFetch(url, opts = {}) {
+    return fetch(url, Object.assign({ credentials: 'include' }, opts));
 }
 
-function formatINR(value) {
-    if (value === null || value === undefined || Number.isNaN(Number(value))) return '—';
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
-}
-
-// Load dashboard data
-async function loadDashboard() {
-    try {
-        // Get health stats
-        const healthRes = await authFetch(`${API_URL}/health`);
-        const health = await healthRes.json();
-        
-        document.getElementById('total-docs').textContent = health.stats.documents;
-        
-        // Get all documents
-        const docsRes = await authFetch(`${API_URL}/documents`);
-        const docsData = await docsRes.json();
-        
-        if (docsData.success) {
-            const docs = docsData.documents;
-            
-            // Calculate this month count
-            const now = new Date();
-            const thisMonth = docs.filter(doc => {
-                const docDate = new Date(doc.uploaded_at);
-                return docDate.getMonth() === now.getMonth() && 
-                       docDate.getFullYear() === now.getFullYear();
-            }).length;
-            
-            document.getElementById('month-docs').textContent = thisMonth;
-            document.getElementById('pending-docs').textContent = docs.filter(d => d.status === 'uploaded').length;
-            
-            // Show recent documents
-            displayRecentDocuments(docs.slice(0, 5));
-        }
-
-        // Metrics summary
-        const metricsRes = await authFetch(`${API_URL}/metrics/summary`);
-        const metrics = await metricsRes.json();
-        if (metrics.success) {
-            renderMetrics(metrics);
-        }
-
-        await loadUnitEconomics();
-        await loadWatchdog(true);
-    } catch (error) {
-        console.error('Error loading dashboard:', error);
-        document.getElementById('recent-documents').innerHTML = `
-            <div class="text-center py-8 text-red-500">
-                <i class="fas fa-exclamation-triangle text-4xl mb-2"></i>
-                <p>Error loading data. Is the server running?</p>
-            </div>
-        `;
-    }
-}
-
-// Keyboard shortcuts
-document.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key.toLowerCase() === 'u') window.location.href = 'upload.html';
-    if (e.key.toLowerCase() === 'd') window.location.href = 'documents.html';
-});
-
+// ── Boot ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     if (window.sessionReady) {
-        window.sessionReady.then(() => loadDashboard()).catch(() => {});
+        window.sessionReady.then(loadDashboard).catch(loadDashboard);
     } else {
         loadDashboard();
     }
 });
-function displayRecentDocuments(documents) {
-    const container = document.getElementById('recent-documents');
-    
-    if (documents.length === 0) {
-        container.innerHTML = `
-            <div class="text-center py-8 text-gray-500">
-                <i class="fas fa-inbox text-4xl mb-2"></i>
-                <p>No documents yet</p>
-                <a href="upload.html" class="text-indigo-600 hover:text-indigo-700 text-sm mt-2 inline-block">
-                    Upload your first bill →
-                </a>
-            </div>
-        `;
+
+document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key.toLowerCase() === 'u') location.href = 'upload.html';
+    if (e.key.toLowerCase() === 'd') location.href = 'documents.html';
+    if (e.key.toLowerCase() === 'r') location.href = 'reports.html';
+});
+
+async function loadDashboard() {
+    const now  = new Date();
+    const mStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+    const mEnd   = now.toISOString().split('T')[0];
+
+    // Indian FY: April 1 → March 31
+    const fyYear  = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+    const fyStart = `${fyYear}-04-01`;
+
+    // Fire all requests in parallel
+    const [docsData, pl, ytdPL, payDash, drops, trend] = await Promise.all([
+        authFetch(`${API}/documents`).then(r => r.json()).catch(() => ({})),
+        authFetch(`${API}/reports/profit-loss?start_date=${mStart}&end_date=${mEnd}`).then(r => r.json()).catch(() => ({})),
+        authFetch(`${API}/reports/profit-loss?start_date=${fyStart}&end_date=${mEnd}`).then(r => r.json()).catch(() => ({})),
+        authFetch(`${API}/payments/dashboard`).then(r => r.json()).catch(() => ({})),
+        authFetch(`${API}/meta/drops`).then(r => r.json()).catch(() => ({})),
+        authFetch(`${API}/reports/trend?months=6`).then(r => r.json()).catch(() => ({})),
+    ]);
+
+    renderDocStats(docsData, mStart);
+    renderPLSnapshot(pl, mStart, mEnd, ytdPL, fyStart);
+    renderPayablesStrip(payDash);
+    renderRecentDocs(docsData);
+    renderDropStrip(drops);
+    renderMiniTrend(trend);
+    loadWatchdog();
+    loadQualitySummary();
+}
+
+// ── Doc stats ─────────────────────────────────────────────────────────────────
+function renderDocStats(data, mStart) {
+    const docs = data.documents || [];
+    const msDate = new Date(mStart);
+    const thisMonth = docs.filter(d => new Date(d.uploaded_at) >= msDate).length;
+    const pending   = docs.filter(d => d.status === 'uploaded' || d.status === 'manual_required').length;
+    setText('total-docs',   docs.length);
+    setText('month-docs',   thisMonth);
+    setText('pending-docs', pending);
+}
+
+// ── This-month P&L snapshot ───────────────────────────────────────────────────
+function renderPLSnapshot(d, start, end, ytd, fyStart) {
+    const label = new Date(start).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+    setText('pl-period', label);
+
+    if (!d.success) {
+        setText('pl-net-sales', '—');
+        setText('pl-gross-profit', '—');
+        setText('pl-cm1', '—');
+        setText('pl-ebitda', '—');
+        // Show YTD row even if month failed
+        renderYTD(ytd, fyStart);
         return;
     }
-    
-    container.innerHTML = documents.map(doc => `
-        <div class="flex items-center justify-between py-4 hover:bg-gray-50 px-4 rounded">
-            <div class="flex items-center flex-1">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-file-${getFileIcon(doc.file_type)} text-2xl ${getFileColor(doc.file_type)}"></i>
+
+    const ns     = d.net_sales     || 0;
+    const gp     = d.gross_profit  || 0;
+    const cm1    = d.cm1           || 0;
+    const ebitda = d.ebitda        || 0;
+
+    setHTML('pl-net-sales',    fmt(ns));
+    setHTML('pl-gross-profit', fmt(gp));
+    setHTML('pl-cm1',          fmt(cm1));
+    setHTML('pl-ebitda',       fmt(ebitda));
+
+    const gpPct  = ns ? (gp / ns * 100).toFixed(1) : null;
+    const cm1Pct = ns ? (cm1 / ns * 100).toFixed(1) : null;
+    const ebPct  = ns ? (ebitda / ns * 100).toFixed(1) : null;
+    setText('pl-gp-pct',     gpPct  ? gpPct  + '% GM' : '');
+    setText('pl-cm1-pct',    cm1Pct ? cm1Pct + '% CM' : '');
+    setText('pl-ebitda-pct', ebPct  ? ebPct  + '% margin' : '');
+
+    const badge = document.getElementById('pl-badge');
+    if (badge) {
+        if (ebitda >= 0) { badge.textContent = 'EBITDA +'; badge.className = 'px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700'; }
+        else             { badge.textContent = 'EBITDA −'; badge.className = 'px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-600'; }
+    }
+
+    // Spend breakdown bar
+    const cogsAmt  = d.cogs?.total        || 0;
+    const fulAmt   = d.fulfilment?.total  || 0;
+    const mktAmt   = d.marketing?.total   || 0;
+    const opexAmt  = d.opex?.total        || 0;
+    const totalExp = cogsAmt + fulAmt + mktAmt + opexAmt;
+
+    if (totalExp > 0) {
+        const bar = document.getElementById('spend-bar');
+        if (bar) {
+            const pct = v => Math.round(v / totalExp * 100);
+            bar.innerHTML = `
+                <div class="flex rounded-lg overflow-hidden h-3 w-full">
+                    <div class="bg-indigo-500" style="width:${pct(cogsAmt)}%" title="COGS ${fmt(cogsAmt)}"></div>
+                    <div class="bg-blue-400"   style="width:${pct(fulAmt)}%"  title="Fulfillment ${fmt(fulAmt)}"></div>
+                    <div class="bg-violet-400" style="width:${pct(mktAmt)}%"  title="Marketing ${fmt(mktAmt)}"></div>
+                    <div class="bg-slate-300"  style="width:${pct(opexAmt)}%" title="Operations ${fmt(opexAmt)}"></div>
                 </div>
-                <div class="ml-4 flex-1">
-                    <p class="font-medium text-gray-900">${doc.file_name}</p>
-                    <div class="flex items-center space-x-4 text-sm text-gray-500 mt-1">
-                        <span><i class="fas fa-tag mr-1"></i>${doc.document_category || 'uncategorized'}</span>
-                        <span><i class="fas fa-clock mr-1"></i>${formatDate(doc.uploaded_at)}</span>
-                        <span><i class="fas fa-hdd mr-1"></i>${formatBytes(doc.file_size)}</span>
-                    </div>
-                </div>
-            </div>
-            <div>
-                <span class="px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(doc.status)}">
-                    ${doc.status}
-                </span>
-            </div>
+                <div class="flex gap-4 mt-2 text-xs text-slate-500 flex-wrap">
+                    <span><span class="inline-block w-2 h-2 rounded-full bg-indigo-500 mr-1"></span>COGS ${fmt(cogsAmt)}</span>
+                    <span><span class="inline-block w-2 h-2 rounded-full bg-blue-400 mr-1"></span>Fulfilment ${fmt(fulAmt)}</span>
+                    <span><span class="inline-block w-2 h-2 rounded-full bg-violet-400 mr-1"></span>Marketing ${fmt(mktAmt)}</span>
+                    <span><span class="inline-block w-2 h-2 rounded-full bg-slate-300 mr-1"></span>Operations ${fmt(opexAmt)}</span>
+                </div>`;
+        }
+    }
+
+    renderYTD(ytd, fyStart);
+}
+
+function renderYTD(ytd, fyStart) {
+    const el = document.getElementById('ytd-strip');
+    if (!el || !ytd || !ytd.success) return;
+    const fyLabel = fyStart ? new Date(fyStart).toLocaleString('en-IN', { month: 'short', year: 'numeric' }) : 'FY';
+    const ns   = ytd.net_sales    || 0;
+    const gp   = ytd.gross_profit || 0;
+    const eb   = ytd.ebitda       || 0;
+    const gpPct = ns ? (gp / ns * 100).toFixed(1) : '—';
+    const ebPct = ns ? (eb / ns * 100).toFixed(1) : '—';
+    const cm1   = ytd.cm1    || 0;
+    const cm1Pct = ns ? (cm1 / ns * 100).toFixed(1) : '—';
+    el.innerHTML = `
+        <div class="flex items-center gap-1 text-[10px] text-slate-400 font-semibold uppercase tracking-wide mb-2">
+            <i class="fas fa-calendar-alt"></i> FY to date (from ${fyLabel})
         </div>
-    `).join('');
+        <div class="flex gap-4 flex-wrap">
+            <div><span class="text-xs text-slate-500">Net Sales</span><br><span class="text-sm font-bold text-slate-800">${fmt(ns)}</span></div>
+            <div><span class="text-xs text-slate-500">Gross Profit</span><br><span class="text-sm font-bold text-blue-600">${fmt(gp)}</span> <span class="text-xs text-slate-400">${gpPct}%</span></div>
+            <div><span class="text-xs text-slate-500">CM1</span><br><span class="text-sm font-bold text-violet-600">${fmt(cm1)}</span> <span class="text-xs text-slate-400">${cm1Pct}%</span></div>
+            <div><span class="text-xs text-slate-500">EBITDA</span><br><span class="text-sm font-bold ${eb >= 0 ? 'text-emerald-600' : 'text-red-500'}">${fmt(eb)}</span> <span class="text-xs text-slate-400">${ebPct}%</span></div>
+        </div>`;
+    el.classList.remove('hidden');
 }
 
-function getFileIcon(mimeType) {
-    if (mimeType.includes('pdf')) return 'pdf';
-    if (mimeType.includes('image')) return 'image';
-    return 'alt';
+// ── Payables strip ────────────────────────────────────────────────────────────
+function renderPayablesStrip(d) {
+    const overdue = (d.overdue || []).length;
+    const week    = d.forecast?.next_7_days  || 0;
+    const month   = d.forecast?.next_30_days || 0;
+    const total   = d.total_outstanding || d.forecast?.total_outstanding || 0;
+    setHTML('pay-overdue', overdue > 0 ? `<span class="text-red-600 font-bold">${overdue}</span>` : '0');
+    setHTML('pay-week',  fmt(week));
+    setHTML('pay-month', fmt(month));
+    setHTML('pay-total', fmt(total));
 }
 
-function getFileColor(mimeType) {
-    if (mimeType.includes('pdf')) return 'text-red-500';
-    if (mimeType.includes('image')) return 'text-blue-500';
-    return 'text-gray-500';
-}
+// ── Recent docs ───────────────────────────────────────────────────────────────
+function renderRecentDocs(data) {
+    const container = document.getElementById('recent-documents');
+    if (!container) return;
+    const docs = (data.documents || []).slice(0, 6);
 
-function getStatusColor(status) {
-    const colors = {
-        'uploaded': 'bg-yellow-100 text-yellow-800',
-        'processed': 'bg-green-100 text-green-800',
-        'manual_required': 'bg-orange-100 text-orange-800',
-        'error': 'bg-red-100 text-red-800'
+    if (!docs.length) {
+        container.innerHTML = `<div class="text-center py-8 text-slate-400"><i class="fas fa-inbox text-3xl mb-2"></i><p class="text-sm">No documents yet</p><a href="upload.html" class="text-indigo-600 text-sm mt-1 inline-block">Upload your first bill →</a></div>`;
+        return;
+    }
+
+    const GRP_CHIP = {
+        COGS:        '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-700">COGS</span>',
+        FULFILLMENT: '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700">Fulfil.</span>',
+        MARKETING:   '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-100 text-violet-700">Mktg</span>',
+        OPERATIONS:  '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">Ops</span>',
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    container.innerHTML = docs.map(doc => {
+        const vendor  = doc.bill_vendor_name || doc.vendor_name || doc.file_name || '—';
+        const grp     = (doc.bill_category_group || doc.category_group || '').toUpperCase();
+        const amount  = doc.total_amount || doc.bill_total_amount;
+        const amtStr  = amount ? fmt(amount) : '';
+        const grpChip = GRP_CHIP[grp] || '';
+        const uploadDate = doc.uploaded_at
+            ? new Date(doc.uploaded_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+            : '';
+        const STATUS_MAP = { uploaded: ['Pending', 'bg-amber-100 text-amber-700'], processed: ['Done', 'bg-emerald-100 text-emerald-700'], manual_required: ['Review', 'bg-orange-100 text-orange-700'], error: ['Error', 'bg-red-100 text-red-600'] };
+        const [statusLabel, statusCls] = STATUS_MAP[doc.status] || ['—', 'bg-slate-100 text-slate-500'];
+        const icon = doc.file_type?.includes('pdf') ? 'fa-file-pdf text-red-400' : 'fa-file-image text-blue-400';
+        return `
+        <div class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition cursor-pointer" onclick="location.href='documents.html?doc=${doc.document_id}'">
+            <i class="fas ${icon} text-lg w-5 shrink-0"></i>
+            <div class="flex-1 min-w-0">
+                <p class="font-medium text-slate-800 text-sm truncate">${vendor}</p>
+                <div class="flex items-center gap-1.5 flex-wrap text-xs text-slate-400 mt-0.5">
+                    ${grpChip}
+                    ${amtStr ? `<span class="font-semibold text-slate-700">${amtStr}</span>` : ''}
+                    ${uploadDate ? `<span class="text-slate-400">${uploadDate}</span>` : ''}
+                </div>
+            </div>
+            <span class="text-xs font-medium px-2 py-0.5 rounded-full ${statusCls} shrink-0">${statusLabel}</span>
+        </div>`;
+    }).join('');
 }
 
+// ── Drop strip ────────────────────────────────────────────────────────────────
+function renderDropStrip(data) {
+    const container = document.getElementById('drop-strip');
+    if (!container) return;
+    const drops = (data.drops || []).filter(d => d.is_active).slice(0, 4);
+    if (!drops.length) { container.innerHTML = '<p class="text-xs text-slate-400 col-span-4">No active drops</p>'; return; }
+    container.innerHTML = drops.map(d => `
+        <a href="drop.html?drop=${encodeURIComponent(d.drop_name)}" class="border border-slate-200 rounded-xl p-4 hover:border-indigo-300 hover:bg-indigo-50/50 transition block">
+            <div class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">Drop</div>
+            <div class="font-bold text-slate-900 text-sm truncate">${d.drop_name}</div>
+            ${d.launch_date ? `<div class="text-xs text-slate-400 mt-1"><i class="fas fa-calendar mr-1"></i>${new Date(d.launch_date).toLocaleDateString('en-IN', {day:'numeric',month:'short'})}</div>` : ''}
+        </a>`).join('');
+}
+
+// ── Mini trend sparkline ───────────────────────────────────────────────────────
+function renderMiniTrend(data) {
+    const months = data.months || [];
+    const wrap = document.getElementById('mini-trend');
+    const bars = document.getElementById('mini-trend-bars');
+    if (!bars || !months.length) return;
+    const maxSales = Math.max(...months.map(m => m.net_sales), 1);
+    bars.innerHTML = months.map(m => {
+        const pct = Math.round(m.net_sales / maxSales * 100);
+        const isPos = m.ebitda >= 0;
+        // Build the start/end dates for this month chip from the label (e.g. "Jul 2025")
+        const parsed = new Date(m.month || m.label);
+        const start = m.month ? m.month + '-01' : '';
+        const end   = m.month ? new Date(parsed.getFullYear(), parsed.getMonth() + 1, 0).toISOString().split('T')[0] : '';
+        const link  = start ? `reports.html?start=${start}&end=${end}&label=${encodeURIComponent(m.label)}` : 'reports.html';
+        return `<a href="${link}" class="flex flex-col items-center flex-1 gap-0.5 group" title="${m.label}: ${fmt(m.net_sales).replace(/&#8377;/,'₹')} sales · click to open report">
+            <div style="height:${pct}%;min-height:2px;width:100%;background:${isPos ? '#6366f1' : '#e2e8f0'};border-radius:2px 2px 0 0" class="group-hover:opacity-70 transition-opacity"></div>
+            <span class="text-[9px] text-slate-400 group-hover:text-indigo-500">${m.label.split(' ')[0]}</span>
+        </a>`;
+    }).join('');
+    wrap.classList.remove('hidden');
+}
+
+// ── Watchdog ──────────────────────────────────────────────────────────────────
 async function loadWatchdog(silent) {
     const container = document.getElementById('watchdog-list');
     if (!container) return;
-    if (!silent) {
-        container.innerHTML = `<div class="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-500">Running checks…</div>`;
-    }
+    if (!silent) container.innerHTML = `<div class="text-xs text-slate-400 px-3 py-2">Running checks…</div>`;
     try {
-        const [anomalyRes, alertsRes] = await Promise.all([
-            authFetch(`${BRAIN_API}/watchdog`),
-            authFetch(`${BRAIN_API}/alerts?status=open&limit=10`)
+        const [anomaly, alerts] = await Promise.all([
+            authFetch(`${API}/brain/watchdog`).then(r => r.json()),
+            authFetch(`${API}/brain/alerts?status=open&limit=8`).then(r => r.json()),
         ]);
-        if (!anomalyRes.ok) throw new Error('Failed to run watchdog');
-        if (!alertsRes.ok) throw new Error('Failed to load alerts');
-        const anomalyData = await anomalyRes.json();
-        const alertsData = await alertsRes.json();
-        renderWatchdog(anomalyData, alertsData.alerts || []);
+        renderWatchdog(anomaly, alerts.alerts || []);
     } catch (err) {
-        console.error('Watchdog error:', err);
-        container.innerHTML = `<div class="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">Watchdog error: ${err.message || 'Unable to check'}</div>`;
+        container.innerHTML = `<div class="text-xs text-red-400 px-3 py-2">Watchdog unavailable</div>`;
     }
 }
 
 async function refreshWatchdog() {
     const container = document.getElementById('watchdog-list');
-    if (container) {
-        container.innerHTML = `<div class="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-500">Re-running alerts…</div>`;
-    }
-    try {
-        await authFetch(`${BRAIN_API}/alerts/run`, { method: 'POST' });
-    } catch (err) {
-        console.error('Alert run error', err);
-    }
+    if (container) container.innerHTML = `<div class="text-xs text-slate-400 px-3 py-2">Re-running…</div>`;
+    try { await authFetch(`${API}/brain/alerts/run`, { method: 'POST' }); } catch (_) {}
     loadWatchdog(true);
-}
-
-function renderMetrics(metrics) {
-    // Docs by status summary
-    const statusText = (metrics.docs_by_status || [])
-        .map(s => `${s.status || 'unknown'}: ${s.count}`)
-        .join(' • ');
-    const statusEl = document.getElementById('docs-status');
-    if (statusEl) statusEl.textContent = statusText || 'No data';
-
-    // Top vendor
-    const topVendor = (metrics.spend_by_vendor || [])[0];
-    const topVendorEl = document.getElementById('top-vendor');
-    if (topVendorEl) {
-        if (topVendor) {
-            topVendorEl.textContent =
-                `${topVendor.vendor_name || 'N/A'} • ₹${Number(topVendor.total || 0).toLocaleString()}`;
-        } else {
-            topVendorEl.textContent = 'No data';
-        }
-    }
-}
-
-async function loadUnitEconomics() {
-    const blendedEl = document.getElementById('blended-max-cac');
-    const flagsEl = document.getElementById('cm-flags');
-    if (!blendedEl || !flagsEl) return;
-    try {
-        const res = await authFetch(`${API_URL}/reports/unit-economics`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        const econ = data?.data || {};
-        const perSku = econ.per_sku || [];
-        const blendedMaxCac = econ.blended_max_cac;
-        blendedEl.textContent = formatINR(blendedMaxCac);
-
-        const negativeCount = perSku.filter(p => p.flags?.negative_cm).length;
-        const missingCount = perSku.filter(p => p.flags?.missing_price || p.flags?.missing_cost || p.flags?.missing_assumptions).length;
-        const total = perSku.length;
-        if (total === 0) {
-            flagsEl.textContent = 'No SKU unit economics yet';
-        } else {
-            flagsEl.textContent = `Negative CM SKUs: ${negativeCount} • Missing data: ${missingCount}`;
-        }
-    } catch (err) {
-        console.error('Unit economics error:', err);
-        blendedEl.textContent = '—';
-        flagsEl.textContent = 'Unit economics unavailable';
-    }
 }
 
 function renderWatchdog(data, alerts) {
     const container = document.getElementById('watchdog-list');
     if (!container) return;
-    const anomalyRows = [
-        {
-            key: 'duplicates',
-            label: 'Duplicate bills',
-            icon: 'fa-copy',
-            items: (data.duplicates || []).slice(0, 2).map(d => {
-                if (d.is_file_duplicate) {
-                    return `${d.vendor_name || 'Vendor'} • ${d.file_name || 'Duplicate file'} (${d.count} copies)`;
-                }
-                return `${d.vendor_name || 'Vendor'} • #${d.bill_number || 'N/A'} (${d.count}x)`;
-            })
-        },
-        {
-            key: 'stale_manual',
-            label: 'Stale manual reviews',
-            icon: 'fa-hourglass-half',
-            items: (data.stale_manual || []).slice(0, 2).map(d => `${d.file_name || 'document'} • ${formatDate(d.uploaded_at)}`)
-        },
-        {
-            key: 'aged_unpaid',
-            label: 'Bills unpaid > 30d',
-            icon: 'fa-calendar-xmark',
-            items: (data.aged_unpaid || []).slice(0, 2).map(b => `${b.vendor_name || 'Vendor'} • ₹${Number(b.total_amount || 0).toLocaleString()}`)
-        },
-        {
-            key: 'oversized',
-            label: 'Spend spikes',
-            icon: 'fa-chart-line',
-            items: (data.oversized || []).slice(0, 2).map(o => `${o.vendor_name || 'Vendor'} • ₹${Number(o.total_amount || 0).toLocaleString()}`)
-        }
-    ];
-
     const summary = data.summary || {};
-    const anomalyHtml = anomalyRows.map(row => {
-        const count = summary[row.key] ?? (row.items?.length || 0);
-        const hasIssues = count > 0;
-        const list = row.items.length
-            ? row.items.map(item => `<div class="text-xs text-slate-500">${item}</div>`).join('')
-            : `<div class="text-xs text-slate-400">All clear</div>`;
-        return `
-            <div class="rounded-xl border border-slate-100 bg-white/70 p-3">
-                <div class="flex items-center justify-between text-sm font-semibold ${hasIssues ? 'text-rose-600' : 'text-emerald-600'}">
-                    <span><i class="fas ${row.icon} mr-2"></i>${row.label}</span>
-                    <span>${count}</span>
-                </div>
-                <div class="mt-1 space-y-1">${list}</div>
-            </div>
-        `;
+    const checks = [
+        { key: 'duplicates',    label: 'Duplicate bills',      icon: 'fa-copy',           href: 'documents.html',                        items: (data.duplicates    || []).slice(0,2).map(d => d.vendor_name || 'Vendor') },
+        { key: 'stale_manual',  label: 'Stale reviews 48h+',   icon: 'fa-hourglass-half', href: 'documents.html?status=manual_required', items: (data.stale_manual  || []).slice(0,2).map(d => d.file_name || 'Doc') },
+        { key: 'aged_unpaid',   label: 'Unpaid > 30d',         icon: 'fa-calendar-xmark', href: 'payables.html?filter=overdue',           items: (data.aged_unpaid   || []).slice(0,2).map(b => (b.vendor_name || 'Vendor') + ' · ' + fmt(b.total_amount)) },
+        { key: 'uncategorized', label: 'Uncategorised bills',   icon: 'fa-tag',            href: 'documents.html?flag=no-group',          items: (data.uncategorized || []).slice(0,2).map(b => (b.vendor_name || 'Vendor') + ' · ' + fmt(b.total_amount)) },
+    ];
+    const checksHtml = checks.map(c => {
+        const count = summary[c.key] ?? c.items.length;
+        const ok = count === 0;
+        const color = ok ? 'text-emerald-600' : 'text-rose-600';
+        const badge = ok ? '✓' : count;
+        const subItems = (!ok && c.items.length)
+            ? `<div class="mt-1 pl-5 space-y-0.5">${c.items.map(i => `<div class="text-[10px] text-slate-400 truncate">${i}</div>`).join('')}</div>`
+            : '';
+        const row = `<div class="py-2 border-b border-slate-100 last:border-0">
+            <div class="flex items-center justify-between">
+                <span class="text-xs text-slate-600"><i class="fas ${c.icon} w-4 text-slate-400 mr-1"></i>${c.label}</span>
+                <span class="text-xs font-bold ${color}">${badge}</span>
+            </div>${subItems}
+        </div>`;
+        return ok ? row : `<a href="${c.href}" class="block hover:bg-slate-50 rounded -mx-1 px-1 transition">${row}</a>`;
     }).join('');
+    const alertsHtml = alerts.length
+        ? alerts.map(a => `<div class="text-xs px-3 py-2 rounded-lg ${a.severity === 'critical' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'} mb-1">
+            <span class="font-semibold">${(a.alert_type||'').replace(/_/g,' ')}</span> — ${a.message || ''}
+          </div>`).join('')
+        : `<div class="text-xs text-emerald-600 px-1">All alerts cleared</div>`;
 
-    const alertHtml = (alerts || []).length
-        ? alerts.map(renderAlertCard).join('')
-        : `<div class="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-600">All alerts cleared</div>`;
-
-    container.innerHTML = `
-        <div class="space-y-2">
-            <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Anomaly scanners</p>
-            ${anomalyHtml}
-        </div>
-        <div class="space-y-2">
-            <p class="text-xs uppercase tracking-[0.3em] text-slate-500 mt-3">Alerts</p>
-            ${alertHtml}
-        </div>
-    `;
+    container.innerHTML = checksHtml + `<div class="pt-3 mt-1">${alertsHtml}</div>`;
 }
 
-function renderAlertCard(alert) {
-    const severityClass = alert.severity === 'critical'
-        ? 'border-rose-100 bg-rose-50 text-rose-700'
-        : 'border-amber-100 bg-amber-50 text-amber-700';
-    const label = ALERT_LABELS[alert.alert_type] || alert.alert_type.replace(/_/g, ' ');
-    const subtitle = alert.alert_type === 'BUDGET_VARIANCE'
-        ? `${alert.drop_name || 'Drop'} • ${alert.category_group || 'Group'}`
-        : (alert.document_id ? `Document #${String(alert.document_id).padStart(4, '0')}` : '');
-    return `
-        <div class="rounded-xl border ${severityClass} p-3">
-            <div class="flex items-center justify-between text-sm font-semibold">
-                <span><i class="fas fa-circle-info mr-2"></i>${label}</span>
-                <span>${alert.severity === 'critical' ? 'Critical' : 'Review'}</span>
-            </div>
-            ${subtitle ? `<div class="text-xs text-slate-500 mt-1">${subtitle}</div>` : ''}
-            <div class="mt-1 text-xs text-slate-600">${alert.message}</div>
-        </div>
-    `;
+// ── Quality summary ───────────────────────────────────────────────────────────
+async function loadQualitySummary() {
+    const el = document.getElementById('quality-summary');
+    if (!el) return;
+    try {
+        const d = await authFetch(`${API}/quality/summary`).then(r => r.json());
+        const s = d.summary || {};
+        const unpostedAmt = Number(s.unposted_amount || 0);
+        const docsUnposted = Number(s.documents_with_unposted || 0);
+        const missingCoa = Number(s.missing_coa_amount || 0);
+        const missingDrop = Number(s.missing_drop_amount || 0);
+        const allGood = docsUnposted === 0 && missingCoa === 0 && missingDrop === 0;
+        el.innerHTML = allGood
+            ? `<div class="text-xs text-emerald-600 font-medium"><i class="fas fa-circle-check mr-1"></i>All items posted — no gaps</div>`
+            : `<div class="space-y-2">
+                ${docsUnposted > 0 ? `<a href="documents.html?flag=unposted-postable" class="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-amber-50 hover:bg-amber-100 transition">
+                    <span class="text-amber-700"><i class="fas fa-inbox mr-1"></i>${docsUnposted} doc${docsUnposted!==1?'s':''} with unposted items</span>
+                    <span class="font-semibold text-amber-700">${fmt(unpostedAmt)}</span>
+                </a>` : ''}
+                ${missingCoa > 0 ? `<a href="documents.html?flag=missing-dims" class="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-rose-50 hover:bg-rose-100 transition">
+                    <span class="text-rose-600"><i class="fas fa-tag mr-1"></i>Missing COA account</span>
+                    <span class="font-semibold text-rose-600">${fmt(missingCoa)}</span>
+                </a>` : ''}
+                ${missingDrop > 0 ? `<a href="documents.html?flag=no-drop" class="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-rose-50 hover:bg-rose-100 transition">
+                    <span class="text-rose-600"><i class="fas fa-layer-group mr-1"></i>Missing drop assignment</span>
+                    <span class="font-semibold text-rose-600">${fmt(missingDrop)}</span>
+                </a>` : ''}
+              </div>`;
+    } catch (_) {
+        el.innerHTML = `<div class="text-xs text-slate-400">Quality data unavailable</div>`;
+    }
 }
 
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 60) return `${diffMins} min ago`;
-    if (diffHours < 24) return `${diffHours} hours ago`;
-    if (diffDays < 7) return `${diffDays} days ago`;
-    return date.toLocaleDateString();
-}
-
-function formatBytes(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-}
-
-// Load on page load
-loadDashboard();
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+function setHTML(id, val) { const el = document.getElementById(id); if (el) el.innerHTML = val; }

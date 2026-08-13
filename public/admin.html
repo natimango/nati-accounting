@@ -31,6 +31,8 @@
                                 <a href="upload.html" class="nati-nav-link"><i class="fas fa-upload"></i><span>Upload</span></a>
                                 <a href="drop.html" class="nati-nav-link"><i class="fas fa-layer-group"></i><span>Drop</span></a>
                                 <a href="reports.html" class="nati-nav-link"><i class="fas fa-chart-line"></i><span>Reports</span></a>
+                                <a href="sales.html" class="nati-nav-link"><i class="fas fa-store"></i><span>Sales Revenue</span></a>
+                                <a href="payables.html" class="nati-nav-link"><i class="fas fa-file-invoice-dollar"></i><span>Payables</span></a>
                                 <a href="admin.html" class="nati-nav-link is-active" id="nav-admin"><i class="fas fa-user-shield"></i><span>Admin</span></a>
                             </nav>
                         </div>
@@ -87,6 +89,165 @@
                 </div>
             </section>
 
+            <!-- System Health -->
+            <section class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-6 space-y-4">
+                <div class="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.2em] text-slate-500">System Health</p>
+                        <h2 class="text-2xl font-semibold text-slate-900">Data quality overview</h2>
+                        <p class="text-sm text-slate-500 mt-1">Quick checks on data completeness — keep these at zero.</p>
+                    </div>
+                    <button onclick="loadHealth()" class="text-xs text-indigo-600 hover:underline"><i class="fas fa-rotate mr-1"></i>Refresh</button>
+                </div>
+                <div id="health-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div class="border border-slate-100 rounded-xl p-4 text-center">
+                        <p class="text-xs text-slate-400 uppercase tracking-wide mb-1">Uncategorised</p>
+                        <p id="h-uncategorized" class="text-2xl font-bold text-slate-700">—</p>
+                        <a href="documents.html?flag=no-group" class="text-xs text-indigo-500 hover:underline">Fix →</a>
+                    </div>
+                    <div class="border border-slate-100 rounded-xl p-4 text-center">
+                        <p class="text-xs text-slate-400 uppercase tracking-wide mb-1">Needs Review</p>
+                        <p id="h-pending" class="text-2xl font-bold text-slate-700">—</p>
+                        <a href="documents.html?status=manual_required" class="text-xs text-indigo-500 hover:underline">Review →</a>
+                    </div>
+                    <div class="border border-slate-100 rounded-xl p-4 text-center">
+                        <p class="text-xs text-slate-400 uppercase tracking-wide mb-1">Overdue Bills</p>
+                        <p id="h-overdue" class="text-2xl font-bold text-slate-700">—</p>
+                        <a href="payables.html?filter=overdue" class="text-xs text-indigo-500 hover:underline">Pay →</a>
+                    </div>
+                    <div class="border border-slate-100 rounded-xl p-4 text-center">
+                        <p class="text-xs text-slate-400 uppercase tracking-wide mb-1">Duplicates</p>
+                        <p id="h-duplicates" class="text-2xl font-bold text-slate-700">—</p>
+                        <a href="documents.html" class="text-xs text-indigo-500 hover:underline">Review →</a>
+                    </div>
+                </div>
+                <!-- Invariants -->
+                <div class="mt-4 pt-4 border-t border-slate-100">
+                    <p class="text-xs uppercase tracking-[0.15em] text-slate-400 mb-2">Accounting Invariants</p>
+                    <div id="invariants-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div class="border border-slate-100 rounded-xl p-4 text-center">
+                            <p class="text-xs text-slate-400 uppercase tracking-wide mb-1">Posted w/ missing dims</p>
+                            <p id="inv-missing-dims" class="text-2xl font-bold text-slate-700">—</p>
+                            <a href="documents.html?flag=missing-dims" class="text-xs text-indigo-500 hover:underline">Fix →</a>
+                        </div>
+                        <div class="border border-slate-100 rounded-xl p-4 text-center">
+                            <p class="text-xs text-slate-400 uppercase tracking-wide mb-1">Unposted postable</p>
+                            <p id="inv-unposted" class="text-2xl font-bold text-slate-700">—</p>
+                            <a href="documents.html?flag=unposted-postable" class="text-xs text-indigo-500 hover:underline">Fix →</a>
+                        </div>
+                        <div class="border border-slate-100 rounded-xl p-4 text-center">
+                            <p class="text-xs text-slate-400 uppercase tracking-wide mb-1">Verified w/ unposted</p>
+                            <p id="inv-verified-unposted" class="text-2xl font-bold text-slate-700">—</p>
+                            <a href="documents.html?status=verified" class="text-xs text-indigo-500 hover:underline">Review →</a>
+                        </div>
+                        <div class="border border-slate-100 rounded-xl p-4 text-center">
+                            <p class="text-xs text-slate-400 uppercase tracking-wide mb-1">Duplicate hashes</p>
+                            <p id="inv-duplicates" class="text-2xl font-bold text-slate-700">—</p>
+                            <a href="documents.html" class="text-xs text-indigo-500 hover:underline">Review →</a>
+                        </div>
+                    </div>
+                </div>
+                <!-- Alert summary -->
+                <div class="mt-4 pt-4 border-t border-slate-100">
+                    <p class="text-xs uppercase tracking-[0.15em] text-slate-400 mb-2">Unposted Items Alert</p>
+                    <div id="alert-summary-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div class="border border-slate-100 rounded-xl p-4 text-center">
+                            <p class="text-xs text-slate-400 uppercase tracking-wide mb-1">Unposted docs</p>
+                            <p id="as-total-docs" class="text-2xl font-bold text-slate-700">—</p>
+                            <p id="as-total-amt" class="text-xs text-slate-400 mt-1">—</p>
+                            <a href="documents.html?flag=unposted-postable" class="text-xs text-indigo-500 hover:underline">Fix →</a>
+                        </div>
+                        <div class="border border-slate-100 rounded-xl p-4 text-center">
+                            <p class="text-xs text-slate-400 uppercase tracking-wide mb-1">Aged 24h+</p>
+                            <p id="as-aged" class="text-2xl font-bold text-slate-700">—</p>
+                            <a href="documents.html?flag=unposted-postable" class="text-xs text-indigo-500 hover:underline">Review →</a>
+                        </div>
+                        <div class="border border-slate-100 rounded-xl p-4 text-center">
+                            <p class="text-xs text-slate-400 uppercase tracking-wide mb-1">High-value unposted</p>
+                            <p id="as-hv" class="text-2xl font-bold text-slate-700">—</p>
+                            <p id="as-hv-amt" class="text-xs text-slate-400 mt-1">—</p>
+                            <a href="documents.html?flag=high-value" class="text-xs text-indigo-500 hover:underline">Review →</a>
+                        </div>
+                        <div class="border border-slate-100 rounded-xl p-4 text-center">
+                            <p class="text-xs text-slate-400 uppercase tracking-wide mb-1">Go-live unposted</p>
+                            <p id="as-golive" class="text-2xl font-bold text-slate-700">—</p>
+                            <p id="as-golive-amt" class="text-xs text-slate-400 mt-1">—</p>
+                            <a href="documents.html?flag=unposted-postable" class="text-xs text-indigo-500 hover:underline">Fix →</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Drop Management -->
+            <section class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-6 space-y-4">
+                <div class="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Drop management</p>
+                        <h2 class="text-2xl font-semibold text-slate-900">Drops &amp; collections</h2>
+                        <p class="text-sm text-slate-500 mt-1">Manage product drops. Archived drops are hidden from bills but all data is preserved.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="toggleShowArchived()" id="show-archived-btn" class="px-3 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 flex items-center gap-1.5">
+                            <i class="fas fa-archive"></i> Show archived
+                        </button>
+                        <button onclick="openNewDropModal()" class="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 flex items-center gap-1.5">
+                            <i class="fas fa-plus"></i> New drop
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-auto border border-slate-100 rounded-2xl">
+                    <table class="nati-table text-sm min-w-full">
+                        <thead>
+                            <tr>
+                                <th>Drop</th>
+                                <th>Season</th>
+                                <th>Launch date</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="drops-tbody">
+                            <tr><td colspan="5" class="px-4 py-6 text-center text-slate-500 text-sm">Loading drops…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- New/Edit Drop modal -->
+            <div id="drop-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+                <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 id="drop-modal-title" class="text-lg font-semibold text-slate-900">New drop</h3>
+                        <button onclick="closeDropModal()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Drop name *</label>
+                            <input type="text" id="dm-name" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" placeholder="FW25, SS26 Core, etc." autocomplete="off">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Season</label>
+                                <input type="text" id="dm-season" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" placeholder="FW25">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Launch date</label>
+                                <input type="date" id="dm-launch" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Description</label>
+                            <input type="text" id="dm-desc" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" placeholder="Optional description">
+                        </div>
+                    </div>
+                    <p id="dm-error" class="text-sm text-red-600 hidden"></p>
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button onclick="closeDropModal()" class="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50">Cancel</button>
+                        <button id="dm-submit" onclick="submitDropModal()" class="px-4 py-2 text-sm bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700">Create drop</button>
+                    </div>
+                </div>
+            </div>
+
             <section class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-6 space-y-4">
                 <div>
                     <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Create user</p>
@@ -123,6 +284,153 @@
                     </div>
                 </form>
             </section>
+
+            <!-- Budget Alerts -->
+            <section class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-6 space-y-4">
+                <div class="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Budget alerts</p>
+                        <h2 class="text-2xl font-semibold text-slate-900">Active alerts</h2>
+                        <p class="text-sm text-slate-500 mt-1">Budget overspend and watchdog warnings — address these to keep spend on track.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="runBudgetAlerts()" class="px-3 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 flex items-center gap-1.5">
+                            <i class="fas fa-bolt"></i> Run checks
+                        </button>
+                        <button onclick="loadAlerts()" class="text-xs text-indigo-600 hover:underline"><i class="fas fa-rotate mr-1"></i>Refresh</button>
+                    </div>
+                </div>
+                <div id="alerts-list" class="space-y-2">
+                    <p class="text-sm text-slate-400">Loading alerts…</p>
+                </div>
+            </section>
+
+            <!-- ── Ingest Data ── -->
+            <section class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-6 space-y-5">
+                <div>
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Ingest Data</p>
+                    <h2 class="text-2xl font-semibold text-slate-900">Record external spend</h2>
+                    <p class="text-sm text-slate-500 mt-1">Log marketing spend or shipment costs that aren't captured via document upload.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Marketing Spend -->
+                    <div class="border border-slate-100 rounded-xl p-4 space-y-3">
+                        <h3 class="text-sm font-semibold text-slate-800"><i class="fas fa-bullhorn text-violet-500 mr-1.5"></i>Marketing Spend</h3>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Channel *</label>
+                                <select id="mkt-channel" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                                    <option value="meta">Meta (FB/IG)</option>
+                                    <option value="google">Google</option>
+                                    <option value="influencer">Influencer</option>
+                                    <option value="email">Email</option>
+                                    <option value="sms">SMS</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Amount (₹) *</label>
+                                <input type="number" id="mkt-amount" min="1" step="0.01" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm" placeholder="e.g. 5000">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Date *</label>
+                                <input type="date" id="mkt-date" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Drop</label>
+                                <select id="mkt-drop" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                                    <option value="">All / Unassigned</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Campaign / notes</label>
+                            <input type="text" id="mkt-campaign" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm" placeholder="Campaign name or UTM label">
+                        </div>
+                        <button onclick="ingestMarketing()" class="w-full px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-semibold hover:bg-violet-700">
+                            <i class="fas fa-plus mr-1"></i>Record Marketing Spend
+                        </button>
+                        <p id="mkt-msg" class="text-xs text-slate-400 hidden"></p>
+                    </div>
+
+                    <!-- Shipment Cost -->
+                    <div class="border border-slate-100 rounded-xl p-4 space-y-3">
+                        <h3 class="text-sm font-semibold text-slate-800"><i class="fas fa-truck text-blue-500 mr-1.5"></i>Shipment Cost</h3>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Carrier</label>
+                                <select id="ship-carrier" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                                    <option value="delhivery">Delhivery</option>
+                                    <option value="shiprocket">Shiprocket</option>
+                                    <option value="bluedart">Blue Dart</option>
+                                    <option value="dtdc">DTDC</option>
+                                    <option value="ecomexpress">Ecom Express</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Charge (₹) *</label>
+                                <input type="number" id="ship-amount" min="0.01" step="0.01" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm" placeholder="e.g. 75">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Order ID</label>
+                                <input type="text" id="ship-order" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm" placeholder="ORD-12345">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Tracking #</label>
+                                <input type="text" id="ship-tracking" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm" placeholder="Optional">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Drop</label>
+                                <select id="ship-drop" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                                    <option value="">All / Unassigned</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">SKU Code</label>
+                                <input type="text" id="ship-sku" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm" placeholder="Optional">
+                            </div>
+                        </div>
+                        <button onclick="ingestShipment()" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
+                            <i class="fas fa-plus mr-1"></i>Record Shipment Cost
+                        </button>
+                        <p id="ship-msg" class="text-xs text-slate-400 hidden"></p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ── Finance Overview ── -->
+            <section class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-5 space-y-4">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Finance Overview</p>
+                        <h2 class="text-xl font-semibold text-slate-900 mt-1">Spend breakdown</h2>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select id="finance-days" onchange="loadFinanceSummary()" class="text-sm border border-slate-300 rounded-lg px-3 py-2">
+                            <option value="30">Last 30 days</option>
+                            <option value="60">Last 60 days</option>
+                            <option value="90" selected>Last 90 days</option>
+                            <option value="180">Last 180 days</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="finance-totals">
+                    <div class="text-center text-xs text-slate-400 col-span-4 py-4">Loading…</div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-600 mb-2">Top drops by spend</p>
+                        <div id="finance-drops" class="space-y-1 text-xs text-slate-400">—</div>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-600 mb-2">Top vendors by spend</p>
+                        <div id="finance-vendors" class="space-y-1 text-xs text-slate-400">—</div>
+                    </div>
+                </div>
+            </section>
+
             </div>
         </main>
     </div>

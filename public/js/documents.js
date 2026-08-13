@@ -1,4 +1,63 @@
 const API_URL = '/api';
+
+const CATEGORY_GROUPS = {
+    COGS: [
+        { value: 'fabric',          label: 'Fabric & Raw Materials' },
+        { value: 'manufacturing',   label: 'Manufacturing / Job Work' },
+        { value: 'embroidery',      label: 'Embroidery & Embellishment' },
+        { value: 'washing',         label: 'Washing & Finishing' },
+        { value: 'trims',           label: 'Trims & Accessories' },
+        { value: 'packaging',       label: 'Packaging' },
+        { value: 'quality',         label: 'Quality Inspection' },
+        { value: 'quality check',   label: 'Quality Inspection' },
+        { value: 'inbound_freight', label: 'Inbound Freight' },
+        { value: 'inbound freight', label: 'Inbound Freight' },
+    ],
+    FULFILLMENT: [
+        { value: 'shipping',         label: 'Shipping & Courier' },
+        { value: 'logistics',        label: 'Shipping & Courier' },
+        { value: 'warehousing',      label: 'Warehousing & Storage' },
+        { value: 'returns',          label: 'Returns & Reverse Logistics' },
+        { value: 'commission',       label: 'Marketplace Commission' },
+        { value: 'gateway',          label: 'Payment Gateway' },
+        { value: 'payment gateway',  label: 'Payment Gateway' },
+        { value: 'cod',              label: 'COD Charges' },
+    ],
+    MARKETING: [
+        { value: 'marketing',        label: 'Digital Ads (Meta / Google)' },
+        { value: 'ads',              label: 'Digital Ads (Meta / Google)' },
+        { value: 'influencer',       label: 'Influencer & Gifting' },
+        { value: 'content',          label: 'Content & Photography' },
+        { value: 'content creation', label: 'Content & Photography' },
+        { value: 'platform_fees',    label: 'Platform Fees / Shopify' },
+        { value: 'platform fees',    label: 'Platform Fees / Shopify' },
+        { value: 'pr',               label: 'PR & Events' },
+        { value: 'affiliate',        label: 'Affiliate' },
+    ],
+    OPERATIONS: [
+        { value: 'rent',             label: 'Rent & Workspace' },
+        { value: 'salary',           label: 'Salaries & Wages' },
+        { value: 'contractor',       label: 'Contractor / Freelancer' },
+        { value: 'software',         label: 'Software & Subscriptions' },
+        { value: 'travel',           label: 'Travel & Conveyance' },
+        { value: 'bank_charges',     label: 'Bank Charges' },
+        { value: 'bank charges',     label: 'Bank Charges' },
+        { value: 'legal',            label: 'Legal & Professional' },
+        { value: 'compliance',       label: 'GST Filing & Compliance' },
+        { value: 'insurance',        label: 'Insurance' },
+        { value: 'utilities',        label: 'Utilities & Electricity' },
+        { value: 'food_meals',       label: 'Food & Meals' },
+        { value: 'food',             label: 'Food & Meals' },
+        { value: 'misc',             label: 'Miscellaneous' },
+    ],
+};
+
+const GROUP_LABELS = {
+    COGS:        'COGS / Purchase',
+    FULFILLMENT: 'Fulfilment',
+    MARKETING:   'Marketing',
+    OPERATIONS:  'Operations',
+};
 const VERIFICATION_FILTER_OPTIONS = [
     { key: 'all', label: 'All', countKey: 'total' },
     { key: 'needs_review', label: 'Needs review', countKey: 'needs_review' },
@@ -20,15 +79,79 @@ let calendarCursor = new Date();
 let filtersCollapsed = false;
 let calendarCollapsed = false;
 let useBillDateMode = true; // true = bill_date, false = uploaded_at
-let showUnpostedOnly = true;
-let metaCache = { coa: null, departments: null, drops: null };
 let currentDocumentDetail = null;
 let currentBillItems = [];
 const bus = window.store || { subscribe: () => {}, emit: () => {}, EVENTS: { DATA_CHANGED: 'DATA_CHANGED' } };
 
+// ── Meta cache for line-item editing ────────────────────────────────────────
+let _metaCoa   = null;   // [{coa_account_id, account_code, account_name}]
+let _metaDepts = null;   // [{department_id, department_name}]
+let _metaDrops = null;   // [{drop_id, drop_name}]
+let _allTags   = null;   // [{tag_id, tag_name, tag_group, color}]
+
+async function _ensureMeta() {
+    const needed = [];
+    if (!_metaCoa)   needed.push(authFetch('/api/meta/coa_accounts').then(r => r.json()).then(d => { _metaCoa   = d.accounts || []; }));
+    if (!_metaDepts) needed.push(authFetch('/api/meta/departments').then(r => r.json()).then(d => { _metaDepts = d.departments || []; }));
+    if (!_metaDrops) needed.push(authFetch('/api/meta/drops?all=1').then(r => r.json()).then(d => { _metaDrops = d.drops || []; }));
+    if (!_allTags)   needed.push(authFetch('/api/tags').then(r => r.json()).then(d => { _allTags   = d.tags || []; }));
+    if (needed.length) await Promise.all(needed);
+}
+
 function authFetch(url, options = {}) {
     const opts = Object.assign({ credentials: 'include' }, options);
     return fetch(url, opts);
+}
+
+async function saveLineItemField(itemId, payload) {
+    try {
+        const r = await authFetch(`/api/bill-items/${itemId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error || 'Save failed');
+        // Refresh quality badge on item row
+        _refreshItemStatusBadge(itemId, d.item);
+        return d;
+    } catch (e) {
+        console.error('saveLineItemField', e);
+        alert('Could not save: ' + e.message);
+    }
+}
+
+function _refreshItemStatusBadge(itemId, item) {
+    const row = document.querySelector(`tr[data-item-id="${itemId}"]`);
+    if (!row) return;
+    const badge = row.querySelector('.item-status-badge');
+    if (badge) badge.outerHTML = _postingBadge(item);
+}
+
+function _postingBadge(item) {
+    if (!item.is_postable) return `<span class="item-status-badge text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Non-postable</span>`;
+    if (item.posting_status === 'posted') return `<span class="item-status-badge text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Posted</span>`;
+    const missingDims = !item.coa_account_id || !item.department_id || !item.drop_id;
+    if (missingDims) return `<span class="item-status-badge text-xs px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">Missing dims</span>`;
+    return `<span class="item-status-badge text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Pending post</span>`;
+}
+
+async function saveTagsForBill(billId) {
+    const checkboxes = document.querySelectorAll('#bill-tags-wrap input[type=checkbox]:checked');
+    const tag_ids = Array.from(checkboxes).map(c => parseInt(c.value, 10));
+    try {
+        const r = await authFetch(`/api/tags/bill/${billId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tag_ids })
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error);
+        const wrap = document.getElementById('tags-save-indicator');
+        if (wrap) { wrap.textContent = 'Saved'; wrap.className = 'text-xs text-emerald-600 ml-2'; setTimeout(() => { if(wrap) wrap.textContent = ''; }, 2000); }
+    } catch (e) {
+        alert('Could not save tags: ' + e.message);
+    }
 }
 
 function getCategory(doc) {
@@ -40,7 +163,7 @@ function getCategory(doc) {
 }
 
 function getCategoryGroup(doc) {
-    return doc.category_group || doc.gemini_data?.category_group || null;
+    return doc.bill_category_group || doc.category_group || doc.gemini_data?.category_group || null;
 }
 
 function getVerificationStatus(doc) {
@@ -195,6 +318,13 @@ async function loadDocuments() {
         if (data.success) {
             allDocuments = data.documents;
             filteredDocuments = allDocuments;
+            populateFilterDropdowns(allDocuments);
+            // Apply pending drop filter from URL param (set before data loaded)
+            if (window._pendingDropFilter) {
+                const el = document.getElementById('filter-drop');
+                if (el) el.value = window._pendingDropFilter;
+                window._pendingDropFilter = null;
+            }
             displayDocuments(filteredDocuments);
             await loadVerificationSummary();
             updateDocCount();
@@ -244,25 +374,6 @@ function setVerificationFilter(key) {
 function getVerificationFilterLabel(key) {
     const option = VERIFICATION_FILTER_OPTIONS.find((opt) => opt.key === key);
     return option ? option.label : key;
-}
-
-async function ensureMetaLoaded() {
-    if (metaCache.coa && metaCache.departments && metaCache.drops) return metaCache;
-    try {
-        const [coaRes, deptRes, dropRes] = await Promise.all([
-            window.apiFetch ? window.apiFetch('/api/meta/coa_accounts', { method: 'GET' }) : authFetch('/api/meta/coa_accounts').then(r => r.json()),
-            window.apiFetch ? window.apiFetch('/api/meta/departments', { method: 'GET' }) : authFetch('/api/meta/departments').then(r => r.json()),
-            window.apiFetch ? window.apiFetch('/api/meta/drops', { method: 'GET' }) : authFetch('/api/meta/drops').then(r => r.json())
-        ]);
-        metaCache = {
-            coa: coaRes.accounts || [],
-            departments: deptRes.departments || [],
-            drops: dropRes.drops || []
-        };
-    } catch (err) {
-        console.error('Failed to load meta options', err);
-    }
-    return metaCache;
 }
 
 function displayDocuments(documents) {
@@ -396,43 +507,81 @@ function showToast(msg) {
     t._timer = setTimeout(() => { t.style.display = 'none'; }, 5000);
 }
 
+function payStatusBadge(status) {
+    if (!status || status === '—') return '<span class="text-xs text-slate-400">—</span>';
+    const map = {
+        paid:    'bg-green-100 text-green-700',
+        pending: 'bg-amber-100 text-amber-700',
+        advance: 'bg-blue-100 text-blue-700'
+    };
+    const labels = { paid: 'Paid', pending: 'Unpaid', advance: 'Advance' };
+    const cls = map[status] || 'bg-slate-100 text-slate-600';
+    return `<span class="px-1.5 py-0.5 rounded text-xs font-medium ${cls}">${labels[status] || status}</span>`;
+}
+
+function sectionChip(section) {
+    if (!section) return '<span class="text-xs text-slate-300">—</span>';
+    const map = { Regulars: 'bg-indigo-100 text-indigo-700', Artwear: 'bg-purple-100 text-purple-700', Collectibles: 'bg-rose-100 text-rose-700' };
+    return `<span class="px-1.5 py-0.5 rounded text-xs font-medium ${map[section] || 'bg-slate-100 text-slate-600'}">${section}</span>`;
+}
+
+function groupChip(grp) {
+    const map = {
+        COGS:        'bg-orange-100 text-orange-700',
+        FULFILLMENT: 'bg-blue-100 text-blue-700',
+        MARKETING:   'bg-violet-100 text-violet-700',
+        OPERATIONS:  'bg-slate-100 text-slate-600',
+    };
+    const short = { COGS: 'COGS', FULFILLMENT: 'Fulfil.', MARKETING: 'Mktg', OPERATIONS: 'Ops' };
+    const key = (grp || '').toUpperCase();
+    if (!key || !map[key]) return '<span class="text-xs text-slate-300">—</span>';
+    return `<span class="px-1.5 py-0.5 rounded text-xs font-medium ${map[key]}">${short[key]}</span>`;
+}
+
 function renderTable(documents) {
     const body = document.getElementById('documents-table-body');
     if (!body) return;
     if (documents.length === 0) {
-        body.innerHTML = `<tr><td colspan="7" class="px-3 py-4 text-center text-gray-500">No documents found</td></tr>`;
+        body.innerHTML = `<tr><td colspan="10" class="px-3 py-4 text-center text-gray-500">No documents found</td></tr>`;
         return;
     }
     body.innerHTML = documents.map((doc, idx) => {
-        const status = getStatusBadge(doc.status);
-        const vendor = doc.vendor_name || doc.gemini_data?.vendor_name || '—';
-        const total = doc.total_amount || doc.gemini_data?.amounts?.total || 0;
+        const vendor = doc.bill_vendor_name || doc.vendor_name || doc.gemini_data?.vendor_name || '—';
+        const total = doc.total_amount || doc.bill_total_amount || doc.gemini_data?.amounts?.total || 0;
         const billDate = getDocDate(doc);
-        const providerInfo = getProviderInfo(doc.gemini_data);
         const paymentRaw = (getPayment(doc) || '').toUpperCase();
-        const paymentMethod = paymentRaw && paymentRaw !== 'UNSPECIFIED'
-            ? formatLabel(paymentRaw.toLowerCase())
-            : '—';
+        const paymentMethod = paymentRaw && paymentRaw !== 'UNSPECIFIED' ? formatLabel(paymentRaw.toLowerCase()) : '—';
         const categoryValue = formatLabel(getCategory(doc));
-        const categoryGroup = getCategoryGroup(doc);
-        const categoryDisplay = categoryGroup
-            ? `${formatLabel(categoryGroup)} • ${categoryValue}`
-            : categoryValue;
-        const fileNumber = doc.document_id
-            ? `#${String(doc.document_id).padStart(4, '0')}`
-            : `#${String(idx + 1).padStart(4, '0')}`;
-        const dateDisplay = formatDateDisplay(billDate);
-        const verificationCell = verificationBadge(doc);
+        const grp = getCategoryGroup(doc);
+        const fileNumber = `#${String(doc.document_id || idx + 1).padStart(4, '0')}`;
+        const section = doc.bill_section || doc.section || null;
+        const drop = doc.bill_drop_name || doc.drop_name || null;
+        const payStatus = doc.bill_payment_status || doc.payment_status || null;
+        const docStatus = getStatusBadge(doc.status);
+        const isOverdue = payStatus === 'pending' && doc.bill_payment_due_date && new Date(doc.bill_payment_due_date) < new Date();
+        const rowCls = isOverdue ? 'bg-red-50' : 'hover:bg-slate-50';
+        const rowBillId = doc.bill_id || doc.document_id;
+        const isChecked = bulkSelected.has(rowBillId);
         return `
-            <tr class="hover:bg-gray-50 cursor-pointer" data-id="${doc.document_id}" onclick="openBillModal(${doc.document_id})">
-                <td class="px-3 py-2 text-sm text-gray-700">${fileNumber}</td>
-                <td class="px-3 py-2 text-sm text-gray-900">${vendor}</td>
-                <td class="px-3 py-2 text-sm text-gray-700">${categoryDisplay}</td>
-                <td class="px-3 py-2 text-sm text-gray-700">${paymentMethod}</td>
-                <td class="px-3 py-2 text-xs">${status}</td>
-                <td class="px-3 py-2 text-xs">${verificationCell}</td>
-                <td class="px-3 py-2 text-right text-sm font-semibold">₹${Number(total || 0).toLocaleString()}</td>
-                <td class="px-3 py-2 text-xs text-gray-700">${dateDisplay}</td>
+            <tr class="${rowCls} cursor-pointer border-t border-slate-100" onclick="openBillModal(${doc.document_id})">
+                <td class="px-3 py-2 text-center" onclick="event.stopPropagation()">
+                    <input type="checkbox" class="row-cb rounded border-slate-300 accent-indigo-600" ${isChecked ? 'checked' : ''} onchange="toggleRowSelect(${rowBillId}, this.checked)">
+                </td>
+                <td class="px-3 py-2 text-xs text-slate-500">${fileNumber}</td>
+                <td class="px-3 py-2 text-sm font-medium text-slate-900">${vendor}</td>
+                <td class="px-3 py-2 text-xs text-slate-600">
+                    <div class="flex items-center gap-1 flex-wrap">
+                        ${groupChip(grp)}
+                        ${categoryValue !== '—' ? `<span class="text-slate-500">${categoryValue}</span>` : ''}
+                    </div>
+                </td>
+                <td class="px-3 py-2 text-xs">${sectionChip(section)}</td>
+                <td class="px-3 py-2 text-xs text-slate-500">${drop || '—'}</td>
+                <td class="px-3 py-2 text-xs text-slate-600">${paymentMethod}</td>
+                <td class="px-3 py-2 text-xs">${payStatusBadge(payStatus)}</td>
+                <td class="px-3 py-2 text-xs">${docStatus}</td>
+                <td class="px-3 py-2 text-right text-sm font-semibold text-slate-900">₹${Number(total || 0).toLocaleString('en-IN')}</td>
+                <td class="px-3 py-2 text-xs text-slate-500">${formatDateDisplay(billDate)}</td>
             </tr>
         `;
     }).join('');
@@ -444,6 +593,78 @@ function selectDocument(id) {
     const doc = filteredDocuments.find(d => d.document_id === id);
     renderDetail(doc);
 }
+
+// ── Bulk selection ────────────────────────────────────────────────────────────
+const bulkSelected = new Set();
+
+function toggleRowSelect(billId, checked) {
+    if (checked) bulkSelected.add(billId);
+    else bulkSelected.delete(billId);
+    updateBulkBar();
+}
+
+function toggleSelectAll(checked) {
+    bulkSelected.clear();
+    if (checked) {
+        filteredDocuments.forEach(d => {
+            const id = d.bill_id || d.document_id;
+            if (id) bulkSelected.add(id);
+        });
+    }
+    document.querySelectorAll('.row-cb').forEach(cb => { cb.checked = checked; });
+    updateBulkBar();
+}
+
+function clearSelection() {
+    bulkSelected.clear();
+    document.querySelectorAll('.row-cb').forEach(cb => { cb.checked = false; });
+    const allCb = document.getElementById('select-all-cb');
+    if (allCb) allCb.checked = false;
+    updateBulkBar();
+}
+
+function updateBulkBar() {
+    const bar = document.getElementById('bulk-bar');
+    const countEl = document.getElementById('bulk-count');
+    if (!bar) return;
+    if (bulkSelected.size > 0) {
+        bar.classList.remove('hidden');
+        countEl.textContent = `${bulkSelected.size} selected`;
+    } else {
+        bar.classList.add('hidden');
+    }
+}
+
+async function applyBulkMeta() {
+    const group    = document.getElementById('bulk-group')?.value;
+    const dropName = document.getElementById('bulk-drop')?.value;
+    if (!group && !dropName) { showToast('Select a group or drop first'); return; }
+    if (!bulkSelected.size)  { showToast('No bills selected'); return; }
+    const body = { bill_ids: Array.from(bulkSelected) };
+    if (group)    body.department = group;
+    if (dropName) body.drop_name  = dropName;
+    try {
+        const r = await authFetch('/api/bills/bulk-meta', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        }).then(r => r.json());
+        if (r.success) {
+            const parts = [];
+            if (group)    parts.push(group);
+            if (dropName) parts.push(dropName);
+            showToast(`Updated ${r.updated} bill${r.updated !== 1 ? 's' : ''} → ${parts.join(', ')}`);
+            clearSelection();
+            await loadDocuments();
+        } else {
+            showToast('Error: ' + (r.error || 'unknown'));
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message);
+    }
+}
+
+function applyBulkGroup() { return applyBulkMeta(); }
 
 
 async function openBillModal(id) {
@@ -458,413 +679,452 @@ async function openBillModal(id) {
     modal.classList.add('flex');
     titleEl.textContent = 'Loading…';
     subEl.textContent = '';
-    body.innerHTML = `<div class="p-6 text-sm text-slate-600">Loading document…</div>`;
+    body.innerHTML = `<div class="p-8 text-sm text-slate-500 text-center"><i class="fas fa-spinner fa-spin mr-2"></i>Loading bill…</div>`;
 
     try {
         const detailResp = window.apiFetch
             ? await window.apiFetch(`${API_URL}/documents/${id}`, { method: 'GET' })
             : await authFetch(`${API_URL}/documents/${id}`).then(r => r.json());
         if (!detailResp || detailResp.success === false) {
-            body.innerHTML = `<p class="text-red-600 text-sm">Failed to load document.</p>`;
+            body.innerHTML = `<p class="text-red-600 text-sm p-4">Failed to load document.</p>`;
             return;
         }
         currentDocumentDetail = detailResp.document || doc;
         currentBillItems = Array.isArray(currentDocumentDetail.line_items) ? currentDocumentDetail.line_items : [];
-        await ensureMetaLoaded();
+        const d = { ...doc, ...currentDocumentDetail };
+        const gemData = d.gemini_data || {};
 
-        const fullDoc = { ...doc, ...currentDocumentDetail };
-        const providerInfo = getProviderInfo(fullDoc.gemini_data);
-        const total = fullDoc.total_amount || fullDoc.gemini_data?.amounts?.total || 0;
-        const billNo = fullDoc.bill_number || fullDoc.gemini_data?.bill_number || '—';
-        const billDate = getDocDate(fullDoc);
-        const vendor = fullDoc.vendor_name || fullDoc.gemini_data?.vendor_name || '—';
-        const status = getStatusBadge(fullDoc.status);
-        const canProcess = fullDoc.can_process !== false;
-        const canManual = fullDoc.can_manual !== false;
-        const canDeleteDoc = fullDoc.can_delete !== false;
-        const categoryValue = formatLabel(getCategory(fullDoc));
-        const categoryGroup = getCategoryGroup(fullDoc);
-        const categoryLabel = categoryGroup
-            ? `${formatLabel(categoryGroup)} • ${categoryValue}`
-            : categoryValue;
-        const previewButton = canPreviewFile(fullDoc.file_type)
-            ? `<button onclick="actionPreview(${fullDoc.document_id}, '${fullDoc.file_name?.replace('"','') || ''}', '${fullDoc.file_type}')" class="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm"><i class='fas fa-eye mr-1'></i>Preview</button>`
+        // ── Core fields ──────────────────────────────────────────────────
+        const vendor      = d.bill_vendor_name || d.vendor_name || gemData.vendor_name || '—';
+        const billNo      = d.bill_number || gemData.bill_number || '—';
+        const billDate    = formatDateDisplay(getDocDate(d));
+        const subtotal    = Number(d.bill_subtotal || gemData.amounts?.subtotal || 0);
+        const tax         = Number(d.bill_tax_amount || gemData.amounts?.tax || 0);
+        const total       = Number(d.bill_total_amount || d.total_amount || gemData.amounts?.total || 0);
+        const category    = getCategory(d);
+        const grp         = getCategoryGroup(d) || '';
+        const grpLabel    = GROUP_LABELS[grp.toUpperCase()] || grp;
+        const catLabel    = category && category !== '—'
+            ? category.replace(/_/g, ' ').replace(/\b\w/g, x => x.toUpperCase())
+            : '—';
+        const drop        = d.bill_drop_name || d.drop_name || '—';
+        const section     = d.bill_section || d.section || '—';
+        const payMethod   = d.bill_payment_method || d.payment_method || '—';
+        const payStatus   = d.bill_payment_status || '—';
+        const notes       = d.notes || '';
+        const fileName    = d.file_name || '';
+
+        // ── Payment status badge ─────────────────────────────────────────
+        const payStatusBadge = () => {
+            const s = (payStatus || '').toLowerCase();
+            if (s === 'paid')    return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700"><i class="fas fa-check-circle"></i> Paid</span>`;
+            if (s === 'advance') return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700"><i class="fas fa-clock"></i> Advance Paid</span>`;
+            if (s === 'pending') return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-700"><i class="fas fa-exclamation-circle"></i> Unpaid</span>`;
+            return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">${payStatus}</span>`;
+        };
+
+        // ── AI extraction status ─────────────────────────────────────────
+        const extractionStatus = () => {
+            if (d.status === 'processed') return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-emerald-50 text-emerald-700"><i class="fas fa-robot"></i> AI Extracted</span>`;
+            if (d.status === 'processing') return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-700"><i class="fas fa-spinner fa-spin"></i> Processing</span>`;
+            return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-slate-100 text-slate-500"><i class="fas fa-file"></i> Uploaded</span>`;
+        };
+
+        // ── Line items ───────────────────────────────────────────────────
+        const lineItemsHtml = currentBillItems.length
+            ? `<div class="overflow-auto rounded-xl border border-slate-200">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
+                        <tr>
+                            <th class="px-4 py-2 text-left">Description</th>
+                            <th class="px-4 py-2 text-left">SKU</th>
+                            <th class="px-4 py-2 text-right">Amount</th>
+                            <th class="px-4 py-2 text-center">Status</th>
+                            <th class="px-4 py-2 text-center">Post</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100" id="line-items-tbody">
+                        ${currentBillItems.map(item => `
+                            <tr class="hover:bg-slate-50" data-item-id="${item.item_id}">
+                                <td class="px-4 py-2 max-w-[180px] truncate" title="${escapeHTML(item.description || '')}">${escapeHTML(item.description || '—')}</td>
+                                <td class="px-4 py-2 text-slate-500 text-xs">${escapeHTML(item.sku_code || '—')}</td>
+                                <td class="px-4 py-2 text-right font-medium">₹${Number(item.amount || 0).toLocaleString('en-IN')}</td>
+                                <td class="px-4 py-2 text-center">${_postingBadge(item)}</td>
+                                <td class="px-4 py-2 text-center">
+                                    ${item.is_postable ? `<button onclick="openItemPostModal(${item.item_id})" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium"><i class="fas fa-edit"></i></button>` : ''}
+                                </td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>
+               </div>`
             : '';
-        const processButton = fullDoc.status !== 'processed'
-            ? (canProcess
-                ? `<button onclick="actionProcessAI(${fullDoc.document_id})" class="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm"><i class='fas a-robot mr-1'></i>Process AI</button>`
-                : `<span class="px-3 py-2 bg-slate-100 text-slate-500 rounded-lg text-xs inline-flex items-center gap-1"><i class="fas fa-lock"></i>Manager required</span>`)
-            : `<button onclick="actionViewData(${fullDoc.document_id})" class="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm"><i class='fas fa-eye mr-1'></i>View Data</button>`;
-        const manualButton = canManual
-            ? `<button onclick="actionManual(${fullDoc.document_id})" class="px-3 py-2 bg-orange-500 text-white rounded-lg text-sm"><i class='fas fa-hand-paper mr-1'></i>Manual</button>`
-            : '';
-        const deleteButton = canDeleteDoc
-            ? `<button onclick="actionDelete(${fullDoc.document_id}, ${fullDoc.bill_id || 'null'})" class="px-3 py-2 bg-red-600 text-white rounded-lg text-sm"><i class='fas fa-trash mr-1'></i>Delete</button>`
-            : '';
+
+        // ── Actions ──────────────────────────────────────────────────────
+        const canPreview = canPreviewFile(d.file_type);
+        const needsMarkPaid = d.bill_id && payStatus && payStatus !== 'paid';
+        const notYetProcessed = d.status !== 'processed';
 
         titleEl.textContent = vendor;
-        subEl.textContent = `Bill: ${billNo} • ${formatDateDisplay(billDate)}`;
-
-        const verificationInfo = fullDoc.verification || null;
-        const qualityScoreLabel = docQualityScore(fullDoc);
-        const verificationPanel = verificationInfo ? `
-                <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm text-slate-700">
-                    <div class="flex items-center justify-between gap-2">
-                        ${verificationBadge(fullDoc)}
-                        ${qualityScoreLabel != null ? `<span class="text-xs text-slate-500">Quality ${qualityScoreLabel}/100</span>` : ''}
-                    </div>
-                    ${verificationInfo.reason ? `<p class="text-xs text-amber-600 mt-2">${escapeHTML(verificationInfo.reason)}</p>` : ''}
-                    ${verificationInfo.bill_date_evidence ? `<p class="text-[11px] text-slate-500 mt-2">Date evidence: ${escapeHTML(verificationInfo.bill_date_evidence)}</p>` : ''}
-                    ${verificationInfo.total_evidence ? `<p class="text-[11px] text-slate-500">Total evidence: ${escapeHTML(verificationInfo.total_evidence)}</p>` : ''}
-                    ${(verificationInfo.bill_date_locked || verificationInfo.total_locked) ? `<p class="text-[11px] text-slate-500 mt-2"><i class="fas fa-lock mr-1"></i>Locked fields won’t be overwritten</p>` : ''}
-                    ${verificationInfo.status === 'needs_review' ? `
-                        <div class="flex flex-wrap gap-2 mt-3">
-                            <button onclick="actionRetry(${fullDoc.document_id})" class="px-3 py-2 bg-purple-600 text-white rounded-lg text-xs flex items-center gap-1"><i class="fas fa-robot"></i><span>Re-run AI</span></button>
-                            <button onclick="actionManual(${fullDoc.document_id})" class="px-3 py-2 bg-orange-500 text-white rounded-lg text-xs flex items-center gap-1"><i class="fas fa-pen"></i><span>Fix now</span></button>
-                        </div>
-                    ` : ''}
-                </div>
-            ` : '';
-
-        const leftPane = `
-            <div class="space-y-3">
-                <div class="flex items-start justify-between gap-3">
-                    <div>
-                        <p class="text-sm text-gray-500">${status}${providerInfo ? ` <span class='text-xs text-gray-500 ml-1'>${providerInfo}</span>` : ''}</p>
-                        <p class="text-xs text-gray-500">${fullDoc.file_name || ''}</p>
-                    </div>
-                    <div class="text-sm text-gray-700 flex items-center gap-2">
-                        <span class="inline-flex items-center px-2 py-1 bg-gray-100 rounded text-xs text-gray-700"><i class="fas fa-money-bill-wave mr-1 text-green-600"></i>₹${Number(total||0).toLocaleString()}</span>
-                        ${categoryLabel && categoryLabel !== '—' ? `<span class="inline-flex items-center px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs"><i class="fas fa-tag mr-1"></i>${categoryLabel}</span>` : ''}
-                    </div>
-                </div>
-                ${verificationPanel}
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-700">
-                    <div><span class="text-gray-500">Bill No:</span> ${billNo}</div>
-                    <div><span class="text-gray-500">Date:</span> ${formatDateDisplay(billDate)}</div>
-                    <div><span class="text-gray-500">Doc Type:</span> ${fullDoc.file_type || '—'}</div>
-                    <div><span class="text-gray-500">File:</span> ${fullDoc.file_name || '—'}</div>
-                </div>
-                <div class="flex flex-wrap gap-2 pt-2">
-                    ${previewButton}
-                    ${processButton}
-                    ${manualButton}
-                    ${deleteButton}
-                    <button onclick="actionDownload(${fullDoc.document_id})" class="px-3 py-2 bg-green-600 text-white rounded-lg text-sm"><i class='fas fa-download mr-1'></i>Download</button>
-                </div>
-            </div>
-        `;
+        subEl.textContent = `${billNo !== '—' ? 'Bill #' + billNo + ' · ' : ''}${billDate}`;
 
         body.innerHTML = `
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div class="space-y-3">${leftPane}</div>
-                <div id="posting-panel" class="bg-slate-50 border border-slate-200 rounded-lg p-3"></div>
+        <div class="space-y-5 p-1">
+
+            <!-- Header strip: amount + status badges -->
+            <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                <div>
+                    <p class="text-3xl font-bold text-slate-900">₹${total.toLocaleString('en-IN', {maximumFractionDigits:0})}</p>
+                    <p class="text-xs text-slate-500 mt-1">${subtotal > 0 ? `Subtotal ₹${subtotal.toLocaleString('en-IN')} + Tax ₹${tax.toLocaleString('en-IN')}` : 'Total amount'}</p>
+                </div>
+                <div class="flex flex-wrap gap-2 items-center">
+                    ${payStatusBadge()}
+                    ${extractionStatus()}
+                </div>
             </div>
-        `;
-        renderPostingPanel();
+
+            <!-- Two-column detail grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+                <div class="flex justify-between border-b border-slate-50 pb-2">
+                    <span class="text-slate-500">Vendor</span>
+                    <span class="font-medium text-slate-900 text-right">${escapeHTML(vendor)}</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-50 pb-2">
+                    <span class="text-slate-500">Bill number</span>
+                    <span class="font-medium text-slate-900">${escapeHTML(billNo)}</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-50 pb-2">
+                    <span class="text-slate-500">Bill date</span>
+                    <span class="font-medium text-slate-900">${billDate}</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-50 pb-2">
+                    <span class="text-slate-500">Payment method</span>
+                    <span class="font-medium text-slate-900">${escapeHTML(payMethod)}</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-50 pb-2">
+                    <span class="text-slate-500">Category group</span>
+                    <span class="font-medium text-slate-900">${escapeHTML(grpLabel || '—')}</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-50 pb-2">
+                    <span class="text-slate-500">Category</span>
+                    <span class="font-medium text-slate-900">${escapeHTML(catLabel)}</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-50 pb-2">
+                    <span class="text-slate-500">Drop</span>
+                    <span class="font-medium text-slate-900">${escapeHTML(drop)}</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-50 pb-2">
+                    <span class="text-slate-500">Section</span>
+                    <span class="font-medium text-slate-900">${escapeHTML(section)}</span>
+                </div>
+                ${notes ? `
+                <div class="flex justify-between border-b border-slate-50 pb-2 sm:col-span-2">
+                    <span class="text-slate-500">Notes</span>
+                    <span class="font-medium text-slate-900 text-right max-w-xs">${escapeHTML(notes)}</span>
+                </div>` : ''}
+                <div class="flex justify-between border-b border-slate-50 pb-2 sm:col-span-2">
+                    <span class="text-slate-500">Source file</span>
+                    <span class="text-slate-600 text-xs">${escapeHTML(fileName)}</span>
+                </div>
+            </div>
+
+            <!-- Quick Edit (only for bills) -->
+            ${d.bill_id ? `<div>
+                <button onclick="toggleQuickEdit()" class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-indigo-600 transition-colors">
+                    <i id="qe-chevron" class="fas fa-chevron-right text-[10px]"></i> Quick Edit
+                </button>
+                <div id="quick-edit-panel" class="hidden mt-3 space-y-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Drop</label>
+                            <input id="qe-drop" type="text" list="qe-drop-list" value="${escapeHTML(drop !== '—' ? drop : '')}" placeholder="e.g. Drop 4"
+                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                            <datalist id="qe-drop-list"></datalist>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Category group</label>
+                            <select id="qe-dept" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                                <option value="">— keep current —</option>
+                                <option value="COGS" ${grp === 'COGS' ? 'selected' : ''}>COGS / Purchase</option>
+                                <option value="FULFILLMENT" ${grp === 'FULFILLMENT' ? 'selected' : ''}>Fulfilment</option>
+                                <option value="MARKETING" ${grp === 'MARKETING' ? 'selected' : ''}>Marketing</option>
+                                <option value="OPERATIONS" ${grp === 'OPERATIONS' ? 'selected' : ''}>Operations</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Category</label>
+                            <input id="qe-cat" type="text" value="${escapeHTML(category !== '—' ? category : '')}" placeholder="e.g. fabric"
+                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Channel</label>
+                            <input id="qe-channel" type="text" value="${escapeHTML(d.channel || d.bill_channel || '')}" placeholder="e.g. instagram"
+                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs text-slate-500 mb-1">Notes</label>
+                            <input id="qe-notes" type="text" value="${escapeHTML(notes)}" placeholder="Internal notes…"
+                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="submitQuickEdit(${d.bill_id})" class="px-4 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">Save changes</button>
+                        <span id="qe-status" class="text-xs text-emerald-600"></span>
+                    </div>
+                </div>
+            </div>` : ''}
+
+            <!-- Tags (only for bills) -->
+            ${d.bill_id ? `<div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-2">
+                    Tags
+                    <span id="tags-save-indicator" class="text-xs text-emerald-600"></span>
+                </p>
+                <div id="bill-tags-wrap" class="text-sm text-slate-400 italic">Loading tags…</div>
+                <button onclick="saveTagsForBill(${d.bill_id})" class="mt-2 px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Save tags</button>
+            </div>` : ''}
+
+            <!-- Line items (if any) -->
+            ${lineItemsHtml ? `<div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Line Items</p>
+                ${lineItemsHtml}
+            </div>` : ''}
+
+            <!-- Actions -->
+            <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+                ${canPreview ? `<button onclick="actionPreview(${d.document_id}, '${(fileName).replace(/'/g,'')}', '${d.file_type}')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2"><i class="fas fa-eye"></i>View Document</button>` : ''}
+                <button onclick="actionManual(${d.document_id})" class="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-900 flex items-center gap-2"><i class="fas fa-pen"></i>Edit Bill</button>
+                ${needsMarkPaid ? `<button onclick="actionMarkPaid(${d.bill_id}, '${(vendor).replace(/'/g,'')}', ${total})" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 flex items-center gap-2"><i class="fas fa-check"></i>Mark Paid</button>` : ''}
+                ${notYetProcessed && d.can_process !== false ? `<button onclick="actionProcessAI(${d.document_id})" class="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 flex items-center gap-2"><i class="fas fa-robot"></i>Extract with AI</button>` : ''}
+                <button onclick="actionDownload(${d.document_id})" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 flex items-center gap-2"><i class="fas fa-download"></i>Download</button>
+                ${d.can_delete !== false ? `<button onclick="actionDelete(${d.document_id}, ${d.bill_id || 'null'})" class="ml-auto px-4 py-2 bg-rose-50 text-rose-600 rounded-lg text-sm font-medium hover:bg-rose-100 flex items-center gap-2"><i class="fas fa-trash"></i>Delete</button>` : ''}
+            </div>
+        </div>`;
+
+        // Load tags and populate asynchronously
+        if (d.bill_id) _loadBillTags(d.bill_id);
+        // Populate drop datalist for quick-edit
+        if (d.bill_id) _populateQeDropList();
+
     } catch (err) {
         console.error('Load detail failed', err);
-        body.innerHTML = `<p class="text-sm text-red-600">Failed to load document.</p>`;
+        body.innerHTML = `<p class="text-sm text-red-600 p-4">Failed to load document.</p>`;
     }
 }
 
-function getCoaLabel(id) {
-    if (!metaCache.coa) return '—';
-    const match = metaCache.coa.find((c) => String(c.id) === String(id));
-    if (!match) return '—';
-    const parts = [match.code, match.name].filter(Boolean);
-    return parts.join(' • ') || '—';
-}
-
-function getDeptLabel(id) {
-    if (!metaCache.departments) return '—';
-    const match = metaCache.departments.find((c) => String(c.id) === String(id));
-    return match?.name || '—';
-}
-
-function getDropLabel(id) {
-    if (!metaCache.drops) return '—';
-    const match = metaCache.drops.find((c) => String(c.id) === String(id));
-    return match?.name || '—';
-}
-
-function isUnposted(item) {
-    return item && item.is_postable !== false && item.posting_status !== 'posted';
-}
-
-async function refreshDocumentDetail(documentId) {
+async function _loadBillTags(billId) {
     try {
-        const detailResp = window.apiFetch
-            ? await window.apiFetch(`${API_URL}/documents/${documentId}`, { method: 'GET' })
-            : await authFetch(`${API_URL}/documents/${documentId}`).then(r => r.json());
-        if (detailResp && detailResp.document) {
-            currentDocumentDetail = detailResp.document;
-            currentBillItems = Array.isArray(currentDocumentDetail.line_items) ? currentDocumentDetail.line_items : [];
+        await _ensureMeta();
+        const billTagsResp = await authFetch(`/api/tags/bill/${billId}`).then(r => r.json());
+        const billTagIds = new Set((billTagsResp.tags || []).map(t => t.tag_id));
+        const wrap = document.getElementById('bill-tags-wrap');
+        if (!wrap) return;
+
+        if (!_allTags || _allTags.length === 0) {
+            wrap.innerHTML = '<span class="text-slate-400">No tags configured</span>';
+            return;
         }
-    } catch (err) {
-        console.error('Failed to refresh document detail', err);
+
+        // Group by tag_group
+        const groups = {};
+        _allTags.forEach(t => {
+            if (!groups[t.tag_group]) groups[t.tag_group] = [];
+            groups[t.tag_group].push(t);
+        });
+
+        wrap.innerHTML = Object.entries(groups).map(([grp, tags]) => `
+            <div class="mb-2">
+                <p class="text-xs text-slate-400 uppercase tracking-wide mb-1">${escapeHTML(grp)}</p>
+                <div class="flex flex-wrap gap-2">
+                    ${tags.map(t => `
+                        <label class="flex items-center gap-1.5 cursor-pointer">
+                            <input type="checkbox" value="${t.tag_id}" ${billTagIds.has(t.tag_id) ? 'checked' : ''}
+                                class="rounded border-slate-300 text-indigo-600">
+                            <span class="text-sm" style="color:${t.color || '#64748b'}">${escapeHTML(t.tag_name)}</span>
+                        </label>`).join('')}
+                </div>
+            </div>`).join('');
+    } catch (e) {
+        console.error('_loadBillTags', e);
     }
 }
 
-function buildOptions(arr, placeholder, valueKey = 'id', labelFn = (item) => item.name || item.code || item.id) {
-    const opts = [`<option value="">${placeholder}</option>`];
-    (arr || []).forEach((item) => {
-        const val = item[valueKey];
-        const label = labelFn(item);
-        opts.push(`<option value="${val}">${escapeHTML(label)}</option>`);
-    });
-    return opts.join('');
-}
-
-function getSelectedBillItemIds() {
-    const panel = document.getElementById('posting-panel');
-    if (!panel) return [];
-    const checkboxes = panel.querySelectorAll('.posting-row-select:checked');
-    return Array.from(checkboxes).map((cb) => Number(cb.dataset.id));
-}
-
-function setSelectAllState() {
-    const panel = document.getElementById('posting-panel');
+// ── Quick-edit bill meta ─────────────────────────────────────────────────────
+function toggleQuickEdit() {
+    const panel = document.getElementById('quick-edit-panel');
+    const chevron = document.getElementById('qe-chevron');
     if (!panel) return;
-    const selectAll = panel.querySelector('#posting-select-all');
-    if (!selectAll) return;
-    const rows = panel.querySelectorAll('.posting-row-select');
-    if (!rows.length) {
-        selectAll.checked = false;
-        return;
-    }
-    const allChecked = Array.from(rows).every((cb) => cb.checked);
-    selectAll.checked = allChecked;
+    const open = panel.classList.toggle('hidden');
+    if (chevron) chevron.className = open ? 'fas fa-chevron-right text-[10px]' : 'fas fa-chevron-down text-[10px]';
 }
 
-async function applyPostingChanges(markPosted = false) {
-    const panel = document.getElementById('posting-panel');
-    if (!panel) return;
-    const errorEl = panel.querySelector('#posting-error');
-    const progressEl = panel.querySelector('#posting-progress');
-    if (errorEl) errorEl.textContent = '';
-    if (progressEl) progressEl.textContent = '';
+async function _populateQeDropList() {
+    await _ensureMeta();
+    const dl = document.getElementById('qe-drop-list');
+    if (!dl || !_metaDrops) return;
+    dl.innerHTML = _metaDrops.map(d => `<option value="${escapeHTML(d.drop_name)}">`).join('');
+}
 
-    const ids = getSelectedBillItemIds();
-    if (!ids.length) {
-        if (errorEl) errorEl.textContent = 'Select at least one line item.';
-        return;
-    }
+async function submitQuickEdit(billId) {
+    const drop    = (document.getElementById('qe-drop')?.value || '').trim();
+    const dept    = (document.getElementById('qe-dept')?.value || '').trim();
+    const cat     = (document.getElementById('qe-cat')?.value || '').trim();
+    const channel = (document.getElementById('qe-channel')?.value || '').trim();
+    const notes   = (document.getElementById('qe-notes')?.value || '').trim();
+    const status  = document.getElementById('qe-status');
 
     const payload = {};
-    const coaVal = panel.querySelector('#bulk-coa')?.value || '';
-    const deptVal = panel.querySelector('#bulk-dept')?.value || '';
-    const dropVal = panel.querySelector('#bulk-drop')?.value || '';
-    const goLiveEl = panel.querySelector('#bulk-go-live');
-    const goLiveChecked = goLiveEl?.checked;
-    const costNature = panel.querySelector('#bulk-cost-nature')?.value || '';
-    const costStage = panel.querySelector('#bulk-cost-stage')?.value || '';
+    if (drop)    payload.drop_name   = drop;
+    if (dept)    payload.department  = dept;
+    if (cat)     payload.category    = cat;
+    if (channel) payload.channel     = channel;
+    if (notes)   payload.notes       = notes;
 
-    if (coaVal) payload.coa_account_id = Number(coaVal);
-    if (deptVal) payload.department_id = Number(deptVal);
-    if (dropVal) payload.drop_id = Number(dropVal);
-    if (costNature) payload.cost_nature = costNature;
-    if (costStage) payload.cost_stage = costStage;
-    if (goLiveEl && goLiveEl.dataset.touched === 'true') payload.go_live_eligible = Boolean(goLiveChecked);
-
-    if (!markPosted && Object.keys(payload).length === 0) {
-        if (errorEl) errorEl.textContent = 'Select a COA, department, drop, or go-live tag to apply.';
+    if (!Object.keys(payload).length) {
+        if (status) { status.textContent = 'Nothing to save'; setTimeout(() => { status.textContent = ''; }, 2000); }
         return;
     }
 
     try {
-        let processed = 0;
-        for (const id of ids) {
-            const item = currentBillItems.find((it) => Number(it.item_id) === Number(id));
-            if (!item) continue;
-
-            const body = { ...payload };
-            if (markPosted) {
-                const effectiveCoa = body.coa_account_id ?? item.coa_account_id;
-                const effectiveDept = body.department_id ?? item.department_id;
-                const effectiveDrop = body.drop_id ?? item.drop_id;
-                if (!effectiveCoa || !effectiveDept || !effectiveDrop) {
-                    throw new Error('COA, Department, and Drop are required to mark as posted.');
-                }
-                body.coa_account_id = effectiveCoa;
-                body.department_id = effectiveDept;
-                body.drop_id = effectiveDrop;
-                body.posting_status = 'posted';
+        const r = await authFetch(`/api/bills/${billId}/meta`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const data = await r.json();
+        if (r.ok && data.success) {
+            if (status) { status.textContent = 'Saved ✓'; setTimeout(() => { status.textContent = ''; }, 2000); }
+            // Refresh local document data
+            const doc = allDocuments.find(d => d.bill_id === billId);
+            if (doc) {
+                if (drop)    { doc.drop_name = drop; doc.bill_drop_name = drop; }
+                if (dept)    { doc.department = dept; doc.category_group = dept.toUpperCase(); }
+                if (cat)     { doc.category = cat; doc.document_category = cat; }
+                if (channel) { doc.channel = channel; }
+                if (notes)   { doc.notes = notes; }
             }
-
-            if (progressEl) progressEl.textContent = `${markPosted ? 'Posting' : 'Applying'} ${processed + 1}/${ids.length}…`;
-            await window.apiFetch(`${API_URL}/bill-items/${id}`, {
-                method: 'PATCH',
-                body: JSON.stringify(body)
-            });
-            processed += 1;
+        } else {
+            if (status) { status.textContent = data.error || 'Error saving'; status.className = 'text-xs text-rose-600'; }
         }
-
-        await refreshDocumentDetail(currentDocumentDetail.document_id);
-        renderPostingPanel();
-        loadDocuments();
-        if (bus && bus.emit) {
-            bus.emit(bus.EVENTS.DATA_CHANGED, { source: 'bill-items', document_id: currentDocumentDetail.document_id });
-        }
-        if (progressEl) progressEl.textContent = 'Done.';
-    } catch (err) {
-        console.error('Posting change failed', err);
-        if (errorEl) errorEl.textContent = err.message || 'Failed to update items.';
+    } catch (e) {
+        console.error('submitQuickEdit', e);
+        if (status) { status.textContent = 'Network error'; status.className = 'text-xs text-rose-600'; }
     }
 }
 
-function renderPostingPanel() {
-    const panel = document.getElementById('posting-panel');
-    if (!panel) return;
-    const unpostedItems = currentBillItems.filter(isUnposted);
-    const filteredItems = showUnpostedOnly ? unpostedItems : currentBillItems;
-    const unpostedAmount = unpostedItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-    const allSelectedDefault = showUnpostedOnly;
+// Item posting modal state
+let _editingItemId = null;
 
-    const selectRow = (itemsHtml) => `
-        <div class="flex items-center justify-between mb-3">
-            <div>
-                <p class="text-sm font-semibold text-slate-800">Posting Panel</p>
-                <p class="text-xs text-slate-600">Unposted ₹${unpostedAmount.toLocaleString()} • ${unpostedItems.length} items</p>
-            </div>
-            <button id="toggle-unposted" class="text-xs px-3 py-1 rounded-full border ${showUnpostedOnly ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-slate-50 border-slate-200 text-slate-700'}">
-                ${showUnpostedOnly ? 'Show all items' : 'Show unposted only'}
-            </button>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
-            <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">COA Account</label>
-                <select id="bulk-coa" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
-                    ${buildOptions(metaCache.coa || [], 'Select COA', 'id', (c) => `${c.code || ''} ${c.name || ''}`.trim())}
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Department</label>
-                <select id="bulk-dept" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
-                    ${buildOptions(metaCache.departments || [], 'Select department')}
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Drop</label>
-                <select id="bulk-drop" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
-                    ${buildOptions(metaCache.drops || [], 'Select drop')}
-                </select>
-            </div>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-            <div class="flex items-center gap-2">
-                <input type="checkbox" id="bulk-go-live" class="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
-                <label for="bulk-go-live" class="text-sm text-slate-700">Go-Live eligible</label>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Cost nature</label>
-                <select id="bulk-cost-nature" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
-                    <option value="">—</option>
-                    <option value="setup">Setup</option>
-                    <option value="recurring">Recurring</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Cost stage</label>
-                <select id="bulk-cost-stage" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
-                    <option value="">—</option>
-                    <option value="product_build">Product build</option>
-                    <option value="content">Content</option>
-                    <option value="systems">Systems/Tools</option>
-                    <option value="legal">Legal/Compliance</option>
-                    <option value="ops_setup">Ops setup</option>
-                    <option value="prelaunch_marketing">Pre-launch marketing</option>
-                    <option value="other">Other</option>
-                </select>
-            </div>
-        </div>
-        <div class="flex flex-wrap gap-2 mb-3">
-            <button id="apply-dims-btn" class="px-3 py-2 bg-slate-800 text-white rounded-lg text-sm"><i class="fas fa-check mr-1"></i>Apply to selected</button>
-            <button id="mark-posted-btn" class="px-3 py-2 bg-green-600 text-white rounded-lg text-sm"><i class="fas fa-clipboard-check mr-1"></i>Mark selected posted</button>
-        </div>
-        <div class="border border-slate-200 rounded-lg overflow-hidden">
-            <table class="min-w-full text-sm">
-                <thead class="bg-slate-100 text-slate-700">
-                    <tr>
-                        <th class="px-3 py-2 w-10 text-center"><input type="checkbox" id="posting-select-all" class="w-4 h-4 text-indigo-600 border-slate-300 rounded"></th>
-                        <th class="px-3 py-2 text-left">Description</th>
-                        <th class="px-3 py-2 text-right">Amount</th>
-                        <th class="px-3 py-2 text-left">Dims</th>
-                        <th class="px-3 py-2 text-left">Go-Live</th>
-                        <th class="px-3 py-2 text-left">Status</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                    ${itemsHtml}
-                </tbody>
-            </table>
-        </div>
-        <p id="posting-error" class="text-xs text-red-600 mt-2"></p>
-        <p id="posting-progress" class="text-xs text-slate-600 mt-1"></p>
-    `;
+async function openItemPostModal(itemId) {
+    _editingItemId = itemId;
+    const item = currentBillItems.find(i => i.item_id === itemId);
+    if (!item) return;
 
-    const itemsRows = filteredItems.map((item) => {
-        const dimsLabel = [
-            getCoaLabel(item.coa_account_id),
-            getDeptLabel(item.department_id),
-            getDropLabel(item.drop_id)
-        ].join(' • ');
-        const goLiveLabel = item.go_live_eligible ? `<span class="inline-flex items-center px-2 py-1 bg-amber-50 text-amber-700 rounded text-[11px]">Go-live</span>` : '—';
-        const statusBadge = item.posting_status === 'posted'
-            ? `<span class="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 rounded text-[11px]">Posted</span>`
-            : `<span class="inline-flex items-center px-2 py-1 bg-amber-100 text-amber-800 rounded text-[11px]">Unposted</span>`;
-        const isChecked = allSelectedDefault && isUnposted(item);
-        return `
-            <tr class="hover:bg-slate-50">
-                <td class="px-3 py-2 text-center">
-                    <input type="checkbox" class="posting-row-select w-4 h-4 text-indigo-600 border-slate-300 rounded" data-id="${item.item_id}" ${isChecked ? 'checked' : ''}>
-                </td>
-                <td class="px-3 py-2">
-                    <div class="font-medium text-slate-800">${escapeHTML(item.description || 'Line item')}</div>
-                    <div class="text-xs text-slate-500">SKU: ${escapeHTML(item.sku_code || '—')}</div>
-                </td>
-                <td class="px-3 py-2 text-right font-semibold text-slate-800">₹${Number(item.amount || 0).toLocaleString()}</td>
-                <td class="px-3 py-2 text-slate-700 text-xs">${dimsLabel}</td>
-                <td class="px-3 py-2 text-xs text-slate-700">${goLiveLabel}</td>
-                <td class="px-3 py-2 text-xs text-slate-700">${statusBadge}</td>
-            </tr>
-        `;
-    }).join('') || `<tr><td colspan="6" class="px-3 py-4 text-center text-slate-500 text-sm">No line items found.</td></tr>`;
+    await _ensureMeta();
 
-    panel.innerHTML = selectRow(itemsRows);
+    const coaOpts = _metaCoa.map(c => `<option value="${c.coa_account_id}" ${c.coa_account_id == item.coa_account_id ? 'selected' : ''}>${escapeHTML(c.account_code + ' – ' + c.account_name)}</option>`).join('');
+    const deptOpts = _metaDepts.map(d => `<option value="${d.department_id}" ${d.department_id == item.department_id ? 'selected' : ''}>${escapeHTML(d.department_name)}</option>`).join('');
+    const dropOpts = _metaDrops.map(d => `<option value="${d.drop_id}" ${d.drop_id == item.drop_id ? 'selected' : ''}>${escapeHTML(d.drop_name)}</option>`).join('');
 
-    const toggleBtn = panel.querySelector('#toggle-unposted');
-    if (toggleBtn) {
-        toggleBtn.addEventListener('click', () => {
-            showUnpostedOnly = !showUnpostedOnly;
-            renderPostingPanel();
-        });
+    const COST_NATURES = ['direct','indirect','fixed','variable','mixed'];
+    const COST_STAGES  = ['pre_production','production','post_production','fulfillment','marketing','overhead'];
+
+    let modal = document.getElementById('item-post-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'item-post-modal';
+        modal.className = 'fixed inset-0 bg-black/40 flex items-center justify-center z-50';
+        document.body.appendChild(modal);
     }
 
-    const selectAll = panel.querySelector('#posting-select-all');
-    if (selectAll) {
-        selectAll.addEventListener('change', (e) => {
-            const rows = panel.querySelectorAll('.posting-row-select');
-            rows.forEach((cb) => { cb.checked = e.target.checked; });
-        });
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-800">Edit Posting — Line Item</h3>
+                <button onclick="document.getElementById('item-post-modal').remove()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
+            </div>
+            <p class="text-xs text-slate-500 truncate">${escapeHTML(item.description || '—')} · ₹${Number(item.amount || 0).toLocaleString('en-IN')}</p>
+
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs text-slate-500 mb-1">CoA Account</label>
+                    <select id="ipm-coa" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                        <option value="">— Not assigned —</option>${coaOpts}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-500 mb-1">Department</label>
+                    <select id="ipm-dept" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                        <option value="">— Not assigned —</option>${deptOpts}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-500 mb-1">Drop</label>
+                    <select id="ipm-drop" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                        <option value="">— Not assigned —</option>${dropOpts}
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-500 mb-1">Cost nature</label>
+                        <select id="ipm-nature" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                            <option value="">—</option>
+                            ${COST_NATURES.map(n => `<option value="${n}" ${item.cost_nature===n?'selected':''}>${n}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500 mb-1">Cost stage</label>
+                        <select id="ipm-stage" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                            <option value="">—</option>
+                            ${COST_STAGES.map(s => `<option value="${s}" ${item.cost_stage===s?'selected':''}>${s.replace(/_/g,' ')}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 pt-1">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="ipm-golive" ${item.go_live_eligible ? 'checked' : ''} class="rounded border-slate-300 text-indigo-600">
+                        <span class="text-xs text-slate-600">Go-live eligible</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="ipm-posted" ${item.posting_status === 'posted' ? 'checked' : ''} class="rounded border-slate-300 text-emerald-600">
+                        <span class="text-xs text-slate-600">Mark as posted</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex gap-2 pt-2">
+                <button onclick="_submitItemPost()" class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">Save</button>
+                <button onclick="document.getElementById('item-post-modal').remove()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200">Cancel</button>
+            </div>
+        </div>`;
+    modal.classList.remove('hidden');
+}
+
+async function _submitItemPost() {
+    const coa_account_id  = document.getElementById('ipm-coa')?.value    || null;
+    const department_id   = document.getElementById('ipm-dept')?.value   || null;
+    const drop_id         = document.getElementById('ipm-drop')?.value   || null;
+    const cost_nature     = document.getElementById('ipm-nature')?.value || null;
+    const cost_stage      = document.getElementById('ipm-stage')?.value  || null;
+    const go_live_eligible= document.getElementById('ipm-golive')?.checked ?? false;
+    const isPosted        = document.getElementById('ipm-posted')?.checked ?? false;
+
+    const payload = {
+        coa_account_id:   coa_account_id  ? parseInt(coa_account_id, 10)  : null,
+        department_id:    department_id   ? parseInt(department_id, 10)   : null,
+        drop_id:          drop_id         ? parseInt(drop_id, 10)         : null,
+        cost_nature:      cost_nature     || null,
+        cost_stage:       cost_stage      || null,
+        go_live_eligible,
+        posting_status:   isPosted ? 'posted' : 'unposted'
+    };
+
+    const result = await saveLineItemField(_editingItemId, payload);
+    if (result?.success) {
+        // Update currentBillItems in memory
+        const idx = currentBillItems.findIndex(i => i.item_id === _editingItemId);
+        if (idx >= 0) currentBillItems[idx] = { ...currentBillItems[idx], ...result.item };
+        document.getElementById('item-post-modal')?.remove();
     }
-    panel.querySelectorAll('.posting-row-select').forEach((cb) => {
-        cb.addEventListener('change', setSelectAllState);
-    });
-
-    const goLiveEl = panel.querySelector('#bulk-go-live');
-    if (goLiveEl) {
-        goLiveEl.addEventListener('change', () => {
-            goLiveEl.dataset.touched = 'true';
-        });
-    }
-
-    const applyBtn = panel.querySelector('#apply-dims-btn');
-    if (applyBtn) applyBtn.addEventListener('click', () => applyPostingChanges(false));
-    const postBtn = panel.querySelector('#mark-posted-btn');
-    if (postBtn) postBtn.addEventListener('click', () => applyPostingChanges(true));
-
-    setSelectAllState();
 }
 
 function closeBillModal() {
@@ -874,8 +1134,6 @@ function closeBillModal() {
         modal.classList.remove('flex');
     }
 }
-function renderDetail(doc) { return; }
-
 function toggleSection(bodyId, btnId) {
     const body = document.getElementById(bodyId);
     const btn = document.getElementById(btnId);
@@ -1168,19 +1426,95 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         closePreview();
         closeAIModal();
+        closeBillModal();
+    }
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+    if (e.key.toLowerCase() === 'u') location.href = 'upload.html';
+    if (e.key.toLowerCase() === 'r') location.href = 'reports.html';
+    if (e.key.toLowerCase() === 'p') location.href = 'payables.html';
+    if (e.key === '/') {
+        e.preventDefault();
+        const sb = document.getElementById('search-box');
+        if (sb) { sb.focus(); sb.select(); }
     }
 });
 
+function populateCategoryDropdown(selectedGroup) {
+    const catSel = document.getElementById('filter-category');
+    if (!catSel) return;
+    const currentVal = catSel.value;
+
+    // Deduplicate by value within a group
+    const dedup = (cats) => {
+        const seen = new Set();
+        return cats.filter(c => { if (seen.has(c.value)) return false; seen.add(c.value); return true; });
+    };
+
+    if (selectedGroup && CATEGORY_GROUPS[selectedGroup]) {
+        // Show only categories for selected group
+        const cats = dedup(CATEGORY_GROUPS[selectedGroup]);
+        catSel.innerHTML = '<option value="">All categories</option>' +
+            cats.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+    } else {
+        // Show all groups with optgroups
+        let html = '<option value="">All categories</option>';
+        Object.keys(CATEGORY_GROUPS).forEach(grp => {
+            const cats = dedup(CATEGORY_GROUPS[grp]);
+            html += `<optgroup label="${GROUP_LABELS[grp]}">`;
+            html += cats.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+            html += '</optgroup>';
+        });
+        catSel.innerHTML = html;
+    }
+
+    // Restore previous selection if still valid
+    if (currentVal) catSel.value = currentVal;
+}
+
+function populateFilterDropdowns(docs) {
+    // Category dropdown — static canonical map, cascades from group filter
+    const groupSel = document.getElementById('filter-group');
+    populateCategoryDropdown(groupSel ? groupSel.value : '');
+
+    // Drop — built from actual document data
+    const dropSel = document.getElementById('filter-drop');
+    const bulkDropSel = document.getElementById('bulk-drop');
+    if (dropSel || bulkDropSel) {
+        const drops = new Set();
+        docs.forEach(doc => {
+            const d = doc.bill_drop_name || doc.drop_name;
+            if (d && d !== 'Unassigned') drops.add(d);
+        });
+        const sortedDrops = [...drops].sort();
+        if (dropSel) {
+            let dropHTML = '<option value="">All drops</option>';
+            sortedDrops.forEach(d => { dropHTML += `<option value="${d}">${d}</option>`; });
+            if (drops.size) dropHTML += '<option value="Unassigned">Unassigned</option>';
+            dropSel.innerHTML = dropHTML;
+        }
+        if (bulkDropSel) {
+            let html = '<option value="">Set drop…</option>';
+            sortedDrops.forEach(d => { html += `<option value="${d}">${d}</option>`; });
+            bulkDropSel.innerHTML = html;
+        }
+    }
+}
+
 function filterDocuments() {
-    const dateFrom = document.getElementById('date-from').value;
-    const dateTo = document.getElementById('date-to').value;
-    const category = document.getElementById('filter-category').value;
-    const searchTerm = document.getElementById('search-box').value.toLowerCase();
-    const paymentFilter = document.getElementById('filter-payment').value.toLowerCase();
-    const statusFilter = document.getElementById('filter-status').value;
-    
+    const dateFrom    = document.getElementById('date-from').value;
+    const dateTo      = document.getElementById('date-to').value;
+    const category    = document.getElementById('filter-category').value;
+    const groupFilter = document.getElementById('filter-group')?.value || '';
+    const sectionFilter = document.getElementById('filter-section')?.value || '';
+    const dropFilter  = document.getElementById('filter-drop')?.value || '';
+    const searchTerm  = document.getElementById('search-box').value.toLowerCase();
+    const paymentFilter    = document.getElementById('filter-payment').value;
+    const payStatusFilter  = document.getElementById('filter-pay-status')?.value || '';
+    const statusFilter     = document.getElementById('filter-status').value;
+    const flagFilter       = document.getElementById('filter-flag')?.value || '';
+
     let filtered = allDocuments;
-    
+
     if (dateFrom) {
         const fromDate = new Date(dateFrom);
         fromDate.setHours(0, 0, 0, 0);
@@ -1190,33 +1524,88 @@ function filterDocuments() {
             return docDate >= fromDate;
         });
     }
-    
+
     if (dateTo) {
         const toDate = new Date(dateTo);
         toDate.setHours(23, 59, 59, 999);
         filtered = filtered.filter(doc => new Date(getDocDate(doc)) <= toDate);
     }
-    
+
+    if (groupFilter) {
+        filtered = filtered.filter(doc => {
+            const grp = (getCategoryGroup(doc) || '').toUpperCase();
+            const norm = grp === 'OPERATING' ? 'OPERATIONS' : grp;
+            if (groupFilter === 'none') return !norm;
+            return norm === groupFilter;
+        });
+    }
+
     if (category) {
         filtered = filtered.filter(doc => (getCategory(doc) || '').toLowerCase() === category.toLowerCase());
+    }
+
+    if (sectionFilter) {
+        filtered = filtered.filter(doc => (doc.bill_section || doc.section || '') === sectionFilter);
+    }
+
+    if (dropFilter) {
+        filtered = filtered.filter(doc => (doc.bill_drop_name || doc.drop_name || '') === dropFilter);
     }
 
     if (statusFilter) {
         filtered = filtered.filter(doc => (doc.status || '') === statusFilter);
     }
+
     if (paymentFilter) {
-        filtered = filtered.filter(doc => (getPayment(doc) || '').toLowerCase() === paymentFilter);
+        filtered = filtered.filter(doc => (getPayment(doc) || '').toUpperCase() === paymentFilter.toUpperCase());
     }
-    
+
+    if (payStatusFilter) {
+        filtered = filtered.filter(doc => (doc.bill_payment_status || doc.payment_status || '') === payStatusFilter);
+    }
+
     if (searchTerm) {
-        filtered = filtered.filter(doc => 
-            doc.file_name.toLowerCase().includes(searchTerm) ||
-            (doc.notes && doc.notes.toLowerCase().includes(searchTerm))
-        );
+        filtered = filtered.filter(doc => {
+            const vendor   = (doc.bill_vendor_name || doc.vendor_name || doc.gemini_data?.vendor_name || '').toLowerCase();
+            const fname    = (doc.file_name || '').toLowerCase();
+            const notes    = (doc.notes || '').toLowerCase();
+            const category = (getCategory(doc) || '').toLowerCase();
+            const billNum  = (doc.bill_number || '').toLowerCase();
+            return vendor.includes(searchTerm) || fname.includes(searchTerm) || notes.includes(searchTerm) || category.includes(searchTerm) || billNum.includes(searchTerm);
+        });
     }
 
     filtered = filtered.filter(doc => docMatchesVerificationFilter(doc));
-    
+
+    if (flagFilter === 'no-date') {
+        filtered = filtered.filter(doc => !docHasBillDate(doc));
+    } else if (flagFilter === 'no-group') {
+        filtered = filtered.filter(doc => !getCategoryGroup(doc));
+    } else if (flagFilter === 'no-drop') {
+        filtered = filtered.filter(doc => !(doc.bill_drop_name || doc.drop_name));
+    } else if (flagFilter === 'overdue') {
+        const now = new Date();
+        filtered = filtered.filter(doc => {
+            const due = doc.bill_payment_due_date;
+            const payStatus = doc.bill_payment_status || doc.payment_status || '';
+            return due && new Date(due) < now && payStatus !== 'paid';
+        });
+    } else if (flagFilter === 'high-value') {
+        filtered = filtered.filter(doc => Number(doc.total_amount || doc.bill_total_amount || 0) >= 10000);
+    } else if (flagFilter === 'missing-dims') {
+        // Bills with posted line items that have missing COA, dept, or drop
+        filtered = filtered.filter(doc => {
+            const items = doc.line_items || [];
+            return items.some(i => i.posting_status === 'posted' && (!i.coa_account_id || !i.department_id || !i.drop_id));
+        });
+    } else if (flagFilter === 'unposted-postable') {
+        // Bills with line items that are postable but not yet posted
+        filtered = filtered.filter(doc => {
+            const items = doc.line_items || [];
+            return items.some(i => i.is_postable && i.posting_status !== 'posted');
+        });
+    }
+
     filteredDocuments = filtered;
     displayDocuments(filteredDocuments);
     updateDocCount();
@@ -1251,11 +1640,10 @@ function setDateFilter(period) {
 }
 
 function clearFilters() {
-    document.getElementById('date-from').value = '';
-    document.getElementById('date-to').value = '';
-    document.getElementById('filter-category').value = '';
-    document.getElementById('filter-payment').value = '';
-    document.getElementById('search-box').value = '';
+    ['date-from','date-to','filter-category','filter-group','filter-section',
+     'filter-drop','filter-payment','filter-pay-status','filter-status','search-box','filter-flag']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    populateCategoryDropdown('');
     verificationFilter = 'all';
     renderVerificationFilters();
     filterDocuments();
@@ -1265,19 +1653,15 @@ function sortDocuments() {
     const sortBy = document.getElementById('sort-by').value;
     let sorted = [...filteredDocuments];
     
+    const getAmount = d => Number(d.total_amount || d.bill_total_amount || d.gemini_data?.amounts?.total || 0);
+    const getVendor = d => (d.bill_vendor_name || d.vendor_name || d.gemini_data?.vendor_name || d.file_name || '').toLowerCase();
     switch(sortBy) {
-        case 'date-desc':
-            sorted.sort((a, b) => new Date(getDocDate(b)) - new Date(getDocDate(a)));
-            break;
-        case 'date-asc':
-            sorted.sort((a, b) => new Date(getDocDate(a)) - new Date(getDocDate(b)));
-            break;
-        case 'name-asc':
-            sorted.sort((a, b) => a.file_name.localeCompare(b.file_name));
-            break;
-        case 'name-desc':
-            sorted.sort((a, b) => b.file_name.localeCompare(a.file_name));
-            break;
+        case 'date-desc':    sorted.sort((a, b) => new Date(getDocDate(b)) - new Date(getDocDate(a))); break;
+        case 'date-asc':     sorted.sort((a, b) => new Date(getDocDate(a)) - new Date(getDocDate(b))); break;
+        case 'amount-desc':  sorted.sort((a, b) => getAmount(b) - getAmount(a)); break;
+        case 'amount-asc':   sorted.sort((a, b) => getAmount(a) - getAmount(b)); break;
+        case 'name-asc':     sorted.sort((a, b) => getVendor(a).localeCompare(getVendor(b))); break;
+        case 'name-desc':    sorted.sort((a, b) => getVendor(b).localeCompare(getVendor(a))); break;
     }
     
     displayDocuments(sorted);
@@ -1286,9 +1670,11 @@ function sortDocuments() {
 function updateDocCount() {
     const total = allDocuments.length;
     const showing = filteredDocuments.length;
+    const totalSpend = filteredDocuments.reduce((s, d) => s + Number(d.bill_total_amount || d.total_amount || 0), 0);
     const docCountEl = document.getElementById('doc-count');
     if (docCountEl) {
-        docCountEl.textContent = showing < total ? `(${showing} of ${total})` : `(${total})`;
+        const spendStr = totalSpend > 0 ? ` · ₹${totalSpend.toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : '';
+        docCountEl.textContent = showing < total ? `(${showing} of ${total}${spendStr})` : `(${total}${spendStr})`;
     }
     const heroEl = document.getElementById('doc-count-hero');
     if (heroEl) {
@@ -1304,19 +1690,29 @@ function updateDocCount() {
 }
 
 function updateFilterSummary() {
-    const dateFrom = document.getElementById('date-from').value;
-    const dateTo = document.getElementById('date-to').value;
-    const category = document.getElementById('filter-category').value;
-    const searchTerm = document.getElementById('search-box').value;
-    const paymentFilter = document.getElementById('filter-payment').value;
-    
+    const dateFrom      = document.getElementById('date-from').value;
+    const dateTo        = document.getElementById('date-to').value;
+    const category      = document.getElementById('filter-category').value;
+    const groupFilter   = document.getElementById('filter-group')?.value;
+    const sectionFilter = document.getElementById('filter-section')?.value;
+    const dropFilter    = document.getElementById('filter-drop')?.value;
+    const searchTerm    = document.getElementById('search-box').value;
+    const paymentFilter     = document.getElementById('filter-payment').value;
+    const payStatusFilter   = document.getElementById('filter-pay-status')?.value;
+    const statusFilter      = document.getElementById('filter-status').value;
+
     const activeFilters = [];
-    if (dateFrom && dateTo) activeFilters.push(`${formatDateDisplay(dateFrom)} to ${formatDateDisplay(dateTo)}`);
+    if (dateFrom && dateTo) activeFilters.push(`${formatDateDisplay(dateFrom)} → ${formatDateDisplay(dateTo)}`);
     else if (dateFrom) activeFilters.push(`From ${formatDateDisplay(dateFrom)}`);
     else if (dateTo) activeFilters.push(`Until ${formatDateDisplay(dateTo)}`);
+    if (groupFilter) activeFilters.push(`Group: ${groupFilter}`);
     if (category) activeFilters.push(`Category: ${category}`);
-    if (paymentFilter) activeFilters.push(`Payment: ${paymentFilter}`);
-    if (searchTerm) activeFilters.push(`Search: "${searchTerm}"`);
+    if (sectionFilter) activeFilters.push(`Section: ${sectionFilter}`);
+    if (dropFilter) activeFilters.push(`Drop: ${dropFilter}`);
+    if (paymentFilter) activeFilters.push(`Method: ${paymentFilter}`);
+    if (payStatusFilter) activeFilters.push(`Pay status: ${payStatusFilter}`);
+    if (statusFilter) activeFilters.push(`Doc status: ${statusFilter}`);
+    if (searchTerm) activeFilters.push(`"${searchTerm}"`);
     if (verificationFilter !== 'all') activeFilters.push(`Verification: ${getVerificationFilterLabel(verificationFilter)}`);
     
     const filterContainer = document.getElementById('active-filters');
@@ -1596,12 +1992,32 @@ function populateManualForm(doc, billLineItems) {
     const due = mergedTerms.due_date ? mergedTerms.due_date.split('T')[0] : '';
     document.getElementById('manual-due-date').value = due;
     document.getElementById('manual-notes').value = doc.notes || '';
-    setSelectValue('manual-department', doc.department || '', '');
+    setSelectValue('manual-department', doc.bill_category_group || doc.category_group || doc.department || '', '');
+    setSelectValue('manual-section', doc.bill_section || doc.section || '', '');
+    loadManualDropList(doc.bill_drop_name || doc.drop_name || '');
     document.getElementById('manual-error').textContent = '';
     syncManualPaymentFields();
     updateManualAdvanceSummary();
     renderLineItems();
     document.getElementById('manual-modal').classList.remove('hidden');
+}
+
+async function loadManualDropList(currentDrop) {
+    const sel = document.getElementById('manual-drop');
+    if (!sel) return;
+    try {
+        const r = await authFetch('/api/meta/drops');
+        const data = await r.json();
+        const drops = data.drops || [];
+        sel.innerHTML = '<option value="">- select drop -</option><option value="Unassigned">Unassigned</option>';
+        drops.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.drop_name;
+            opt.textContent = d.drop_name;
+            sel.appendChild(opt);
+        });
+        if (currentDrop) sel.value = currentDrop;
+    } catch (e) { /* keep defaults */ }
 }
 
 function syncManualPaymentFields() {
@@ -1710,6 +2126,8 @@ async function submitManual(event) {
         bill_date: document.getElementById('manual-bill-date').value || null,
         category: document.getElementById('manual-category').value || 'misc',
         department: document.getElementById('manual-department').value || null,
+        drop_name: document.getElementById('manual-drop').value || null,
+        section: document.getElementById('manual-section').value || null,
         subtotal: parseFloat(document.getElementById('manual-subtotal').value || 0),
         tax_amount: parseFloat(document.getElementById('manual-tax').value || 0),
         total_amount: parseFloat(document.getElementById('manual-total').value || 0),
@@ -1788,14 +2206,6 @@ function actionProcessAI(documentId) {
     return processWithAI(documentId);
 }
 
-function actionRetry(documentId) {
-    return retryAI(documentId);
-}
-
-function actionViewData(documentId) {
-    return viewExtractedData(documentId);
-}
-
 function actionManual(documentId) {
     return openManualModal(documentId);
 }
@@ -1805,15 +2215,162 @@ function actionDelete(documentId, billId) {
     return deleteDocument(documentId);
 }
 
+function actionMarkPaid(billId, vendor, outstanding) {
+    // Inline quick-pay modal
+    const existing = document.getElementById('quick-pay-modal');
+    if (existing) existing.remove();
+
+    const today = new Date().toISOString().split('T')[0];
+    const modal = document.createElement('div');
+    modal.id = 'quick-pay-modal';
+    modal.className = 'fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="font-semibold text-slate-900">Record Payment</h3>
+                <button onclick="document.getElementById('quick-pay-modal').remove()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 space-y-3">
+                <div class="p-3 bg-slate-50 rounded-lg text-sm">
+                    <strong>${vendor}</strong> — outstanding: <strong>₹${Number(outstanding).toLocaleString()}</strong>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Amount Paid (₹) *</label>
+                    <input type="number" id="qp-amount" value="${outstanding}" min="1" step="0.01" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Payment Date *</label>
+                    <input type="date" id="qp-date" value="${today}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Payment Method</label>
+                    <select id="qp-method" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                        <option value="CASH">Cash</option>
+                        <option value="UPI" selected>UPI</option>
+                        <option value="BANK_TRANSFER">Bank Transfer</option>
+                        <option value="CHEQUE">Cheque</option>
+                        <option value="OTHER">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Reference / Notes</label>
+                    <input type="text" id="qp-notes" placeholder="UTR no., cheque no., etc." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+            </div>
+            <div class="px-5 py-4 border-t border-slate-100 flex gap-3 justify-end">
+                <button onclick="document.getElementById('quick-pay-modal').remove()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm hover:bg-slate-200">Cancel</button>
+                <button id="qp-submit" onclick="submitQuickPay(${billId})" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">
+                    <i class="fas fa-check mr-1"></i>Record Payment
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+}
+
+async function submitQuickPay(billId) {
+    const amount = parseFloat(document.getElementById('qp-amount').value);
+    const date = document.getElementById('qp-date').value;
+    const method = document.getElementById('qp-method').value;
+    const notes = document.getElementById('qp-notes').value;
+    if (!amount || !date) { showToast('Amount and date are required'); return; }
+
+    const btn = document.getElementById('qp-submit');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    try {
+        const res = await authFetch(`${API_URL}/payments/record-simple`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bill_id: billId, amount, payment_date: date, payment_method: method, notes })
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('quick-pay-modal').remove();
+            showToast('Payment recorded — bill marked paid');
+            await loadDocuments();
+        } else {
+            showToast('Error: ' + (data.error || 'Unknown'));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check mr-1"></i>Record Payment';
+        }
+    } catch (e) {
+        showToast('Network error, please retry');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check mr-1"></i>Record Payment';
+    }
+}
+
 function actionDownload(documentId) {
     return downloadDocument(documentId);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Apply URL query params as initial filters
+    const urlParams = new URLSearchParams(window.location.search);
+    const qGroup   = urlParams.get('filter_group');
+    const qStatus  = urlParams.get('status');
+    const qDrop    = urlParams.get('drop');
+    const qSection = urlParams.get('section');
+    const qFrom    = urlParams.get('from');
+    const qTo      = urlParams.get('to');
+    if (qGroup) {
+        const el = document.getElementById('filter-group');
+        if (el) el.value = qGroup;
+    }
+    if (qStatus) {
+        const el = document.getElementById('filter-status');
+        if (el) el.value = qStatus;
+    }
+    if (qDrop) {
+        window._pendingDropFilter = qDrop;
+    }
+    if (qSection) {
+        const el = document.getElementById('filter-section');
+        if (el) el.value = qSection;
+    }
+    if (qFrom) {
+        const el = document.getElementById('date-from');
+        if (el) el.value = qFrom;
+    }
+    if (qTo) {
+        const el = document.getElementById('date-to');
+        if (el) el.value = qTo;
+    }
+    const qFlag = urlParams.get('flag');
+    if (qFlag) {
+        const el = document.getElementById('filter-flag');
+        if (el) el.value = qFlag;
+    }
+    const qSearch = urlParams.get('q');
+    if (qSearch) {
+        const el = document.getElementById('search-box');
+        if (el) el.value = qSearch;
+    }
+
+    const qDoc  = urlParams.get('doc');
+    const qBill = urlParams.get('bill');
+
+    const afterLoad = () => {
+        if (qDoc) {
+            const docId = parseInt(qDoc, 10);
+            if (docId) setTimeout(() => openManualModal(docId), 300);
+        } else if (qBill) {
+            // Find document by bill_id and open its detail panel
+            const billId = parseInt(qBill, 10);
+            if (billId) {
+                setTimeout(() => {
+                    const match = allDocuments.find(d => d.bill_id === billId);
+                    if (match) selectDocument(match.document_id);
+                }, 300);
+            }
+        }
+    };
+
     if (window.sessionReady) {
-        window.sessionReady.then(() => loadDocuments()).catch(() => {});
+        window.sessionReady.then(() => loadDocuments().then(afterLoad)).catch(() => {});
     } else {
-        loadDocuments();
+        loadDocuments().then(afterLoad);
     }
     if (bus && bus.subscribe) {
         bus.subscribe(bus.EVENTS.DATA_CHANGED, () => loadDocuments());

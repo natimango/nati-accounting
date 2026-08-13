@@ -3,195 +3,238 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NATI Accounting - Dashboard</title>
+    <title>Dashboard — NATI Accounting</title>
     <link rel="stylesheet" href="css/tailwind.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/theme.css">
 </head>
 <body class="nati-page bg-gradient-to-br from-slate-50 via-slate-100 to-white text-slate-900">
-    <div class="min-h-screen flex flex-col">
-        <header class="nati-hero bg-gradient-to-r from-indigo-700 via-blue-700 to-slate-900 text-white shadow">
-            <div class="nati-shell">
-                <div class="flex flex-wrap items-center gap-4 justify-between py-5">
-                    <div class="flex items-center gap-3">
-                        <a href="index.html" class="block">
-                            <img src="logo.jpg" alt="NATI logo" class="h-16 w-16 rounded-2xl border border-white/40 bg-white object-cover shadow">
-                        </a>
+<div class="min-h-screen flex flex-col">
+
+    <header class="nati-hero bg-gradient-to-r from-indigo-700 via-blue-700 to-slate-900 text-white shadow">
+        <div class="nati-shell">
+            <div class="flex flex-wrap items-center gap-4 justify-between py-5">
+                <div class="flex items-center gap-3">
+                    <a href="index.html"><img src="logo.jpg" alt="NATI" class="h-16 w-16 rounded-2xl border border-white/40 bg-white object-cover shadow"></a>
                     <div>
-                        <p class="text-xs uppercase tracking-[0.2em] text-white/70">NATI ACCOUNTING</p>
+                        <p class="text-xs uppercase tracking-[.2em] text-white/70">NATI Collective</p>
+                        <h1 class="text-2xl font-semibold">Finance Dashboard</h1>
                     </div>
                 </div>
-                    <div class="flex items-center gap-4">
-                        <div class="nati-nav-wrapper">
-                            <button class="nati-nav-toggle" onclick="toggleNav('nav-index')"><i class="fas fa-bars"></i><span>Menu</span></button>
-                            <nav class="nati-nav" id="nav-index">
-                                <a href="index.html" class="nati-nav-link is-active"><i class="fas fa-gauge"></i><span>Dashboard</span></a>
-                                <a href="documents.html" class="nati-nav-link"><i class="fas fa-folder-open"></i><span>Documents</span></a>
-                                <a href="upload.html" class="nati-nav-link"><i class="fas fa-upload"></i><span>Upload</span></a>
-                                <a href="drop.html" class="nati-nav-link"><i class="fas fa-layer-group"></i><span>Drop</span></a>
-                                <a href="reports.html" class="nati-nav-link"><i class="fas fa-chart-line"></i><span>Reports</span></a>
-                            <a href="sales.html" class="nati-nav-link"><i class="fas fa-store"></i><span>Sales Revenue</span></a>
-                            <a href="admin.html" class="nati-nav-link hidden" id="nav-admin"><i class="fas fa-user-shield"></i><span>Admin</span></a>
-                            </nav>
+                <div class="flex items-center gap-4">
+                    <div class="nati-nav-wrapper">
+                        <button class="nati-nav-toggle" onclick="toggleNav('nav-index')"><i class="fas fa-bars"></i><span>Menu</span></button>
+                        <nav class="nati-nav" id="nav-index">
+                            <a href="index.html"     class="nati-nav-link is-active"><i class="fas fa-gauge"></i><span>Dashboard</span></a>
+                            <a href="documents.html" class="nati-nav-link"><i class="fas fa-folder-open"></i><span>Documents</span></a>
+                            <a href="upload.html"    class="nati-nav-link"><i class="fas fa-upload"></i><span>Upload</span></a>
+                            <a href="drop.html"      class="nati-nav-link"><i class="fas fa-layer-group"></i><span>Drop</span></a>
+                            <a href="reports.html"   class="nati-nav-link"><i class="fas fa-chart-line"></i><span>Reports</span></a>
+                            <a href="sales.html"     class="nati-nav-link"><i class="fas fa-store"></i><span>Sales</span></a>
+                            <a href="payables.html"  class="nati-nav-link"><i class="fas fa-file-invoice-dollar"></i><span>Payables</span></a>
+                            <a href="admin.html"     class="nati-nav-link hidden" id="nav-admin"><i class="fas fa-user-shield"></i><span>Admin</span></a>
+                        </nav>
+                    </div>
+                    <div id="user-pill" class="hidden sm:flex items-center gap-2 px-3 py-2 rounded-2xl border border-white/30 bg-white/10 backdrop-blur">
+                        <div>
+                            <p id="user-name" class="text-sm font-semibold leading-tight">—</p>
+                            <p id="user-role" class="text-[11px] tracking-[.2em] text-white/70 uppercase">—</p>
+                        </div>
+                    </div>
+                    <button id="logout-btn" class="hidden px-3 py-2 bg-white/15 hover:bg-white/25 text-sm font-semibold rounded-2xl flex items-center gap-2 transition">
+                        <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 py-6">
+        <div class="nati-shell space-y-5">
+
+            <!-- ── Top action bar ── -->
+            <div class="flex flex-wrap items-center gap-3">
+                <button onclick="location.href='upload.html'" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 flex items-center gap-2 shadow-sm">
+                    <i class="fas fa-bolt"></i> Upload Bill
+                </button>
+                <button onclick="location.href='documents.html'" class="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 flex items-center gap-2">
+                    <i class="fas fa-list text-slate-400"></i> Work Queue
+                </button>
+                <button onclick="location.href='reports.html'" class="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 flex items-center gap-2">
+                    <i class="fas fa-chart-column text-slate-400"></i> Reports
+                </button>
+                <div class="ml-auto text-xs text-slate-400 hidden sm:block">
+                    Shortcuts: <kbd class="px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 font-mono">U</kbd> upload &nbsp;
+                    <kbd class="px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 font-mono">D</kbd> documents &nbsp;
+                    <kbd class="px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 font-mono">R</kbd> reports
+                </div>
+            </div>
+
+            <!-- ── Doc stat pills ── -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <a href="documents.html" class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm block hover:border-indigo-300 transition">
+                    <p class="text-xs text-slate-400 uppercase tracking-wide">Total bills</p>
+                    <p id="total-docs" class="text-3xl font-bold text-indigo-700 mt-1">—</p>
+                </a>
+                <a href="documents.html" class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm block hover:border-indigo-300 transition">
+                    <p class="text-xs text-slate-400 uppercase tracking-wide">This month</p>
+                    <p id="month-docs" class="text-3xl font-bold mt-1">—</p>
+                    <p class="text-xs text-slate-400 mt-0.5">Ingested</p>
+                </a>
+                <a href="documents.html?status=manual_required" class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm block hover:border-amber-300 transition">
+                    <p class="text-xs text-amber-500 uppercase tracking-wide font-semibold">Needs review</p>
+                    <p id="pending-docs" class="text-3xl font-bold text-amber-600 mt-1">—</p>
+                    <p class="text-xs text-slate-400 mt-0.5">Click to review →</p>
+                </a>
+                <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                    <p class="text-xs text-slate-400 uppercase tracking-wide">Overdue bills</p>
+                    <p id="pay-overdue" class="text-3xl font-bold text-red-600 mt-1">—</p>
+                    <p class="text-xs text-slate-400 mt-0.5"><a href="payables.html" class="text-indigo-500 hover:underline">View payables →</a></p>
+                </div>
+            </div>
+
+            <!-- ── P&L snapshot + Payables ── -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+                <!-- P&L this month -->
+                <div class="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <p class="text-xs text-slate-400 uppercase tracking-wide">P&amp;L Snapshot</p>
+                            <h3 class="font-semibold text-slate-900" id="pl-period">This month</h3>
                         </div>
                         <div class="flex items-center gap-2">
-                            <div id="user-pill" class="hidden sm:flex items-center gap-2 px-3 py-2 rounded-2xl border border-white/30 bg-white/10 backdrop-blur">
-                                <div>
-                                    <p id="user-name" class="text-sm font-semibold leading-tight">—</p>
-                                    <p id="user-role" class="text-[11px] tracking-[0.2em] text-white/70 uppercase">—</p>
-                                </div>
-                            </div>
-                            <button id="logout-btn" class="hidden px-3 py-2 bg-white/15 hover:bg-white/25 text-sm font-semibold rounded-2xl flex items-center gap-2 transition">
-                                <i class="fas fa-sign-out-alt"></i>
-                                <span>Logout</span>
-                            </button>
+                            <span id="pl-badge" class="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-400">—</span>
+                            <a href="reports.html" class="text-xs text-indigo-600 hover:underline">Full report →</a>
                         </div>
+                    </div>
+
+                    <!-- Milestone row -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                        <div class="rounded-xl bg-slate-50 p-3 text-center">
+                            <p class="text-[11px] text-slate-400 uppercase tracking-wide">Net Sales</p>
+                            <p id="pl-net-sales" class="text-xl font-bold text-slate-800 mt-1">—</p>
+                        </div>
+                        <div class="rounded-xl bg-blue-50 p-3 text-center">
+                            <p class="text-[11px] text-blue-500 uppercase tracking-wide">Gross Profit</p>
+                            <p id="pl-gross-profit" class="text-xl font-bold text-blue-700 mt-1">—</p>
+                            <p id="pl-gp-pct" class="text-xs text-blue-400 mt-0.5"></p>
+                        </div>
+                        <div class="rounded-xl bg-violet-50 p-3 text-center">
+                            <p class="text-[11px] text-violet-500 uppercase tracking-wide">CM1</p>
+                            <p id="pl-cm1" class="text-xl font-bold text-violet-700 mt-1">—</p>
+                            <p id="pl-cm1-pct" class="text-xs text-violet-400 mt-0.5"></p>
+                        </div>
+                        <div class="rounded-xl bg-indigo-50 p-3 text-center">
+                            <p class="text-[11px] text-indigo-500 uppercase tracking-wide">EBITDA</p>
+                            <p id="pl-ebitda" class="text-xl font-bold text-indigo-700 mt-1">—</p>
+                            <p id="pl-ebitda-pct" class="text-xs text-indigo-400 mt-0.5"></p>
+                        </div>
+                    </div>
+
+                    <!-- Spend bar -->
+                    <div id="spend-bar"></div>
+                    <!-- FY to date strip -->
+                    <div id="ytd-strip" class="mt-4 pt-4 border-t border-slate-100 hidden"></div>
+                    <!-- 6-month mini trend -->
+                    <div id="mini-trend" class="mt-4 hidden">
+                        <p class="text-xs text-slate-400 uppercase tracking-wide mb-2">6-Month Net Sales</p>
+                        <div id="mini-trend-bars" class="flex items-end gap-1.5 h-12"></div>
+                    </div>
+                </div>
+
+                <!-- Payables + Quick links -->
+                <div class="space-y-4">
+                    <!-- Payables -->
+                    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+                        <p class="text-xs text-slate-400 uppercase tracking-wide mb-3">Payables Forecast</p>
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-slate-600">Due next 7 days</span>
+                                <span id="pay-week" class="text-sm font-bold text-amber-700">—</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-slate-600">Due next 30 days</span>
+                                <span id="pay-month" class="text-sm font-bold text-slate-700">—</span>
+                            </div>
+                            <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                                <span class="text-xs text-slate-500">Total outstanding</span>
+                                <span id="pay-total" class="text-sm font-bold text-slate-800">—</span>
+                            </div>
+                        </div>
+                        <a href="payables.html" class="mt-4 w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-700 transition">
+                            <i class="fas fa-file-invoice-dollar"></i> Manage Payables
+                        </a>
+                    </div>
+
+                    <!-- Quick actions -->
+                    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-2">
+                        <p class="text-xs text-slate-400 uppercase tracking-wide mb-1">Quick Actions</p>
+                        <a href="upload.html"    class="flex items-center justify-between px-3 py-2.5 border border-slate-100 rounded-xl hover:border-indigo-200 hover:bg-indigo-50/50 transition text-sm font-medium text-slate-700"><span><i class="fas fa-upload text-indigo-400 mr-2"></i>Upload bills</span><i class="fas fa-chevron-right text-slate-300 text-xs"></i></a>
+                        <a href="sales.html"     class="flex items-center justify-between px-3 py-2.5 border border-slate-100 rounded-xl hover:border-indigo-200 hover:bg-indigo-50/50 transition text-sm font-medium text-slate-700"><span><i class="fas fa-store text-indigo-400 mr-2"></i>Record sales</span><i class="fas fa-chevron-right text-slate-300 text-xs"></i></a>
+                        <a href="drop.html"      class="flex items-center justify-between px-3 py-2.5 border border-slate-100 rounded-xl hover:border-indigo-200 hover:bg-indigo-50/50 transition text-sm font-medium text-slate-700"><span><i class="fas fa-layer-group text-indigo-400 mr-2"></i>Drop overview</span><i class="fas fa-chevron-right text-slate-300 text-xs"></i></a>
+                        <a href="documents.html" class="flex items-center justify-between px-3 py-2.5 border border-slate-100 rounded-xl hover:border-indigo-200 hover:bg-indigo-50/50 transition text-sm font-medium text-slate-700"><span><i class="fas fa-folder-open text-indigo-400 mr-2"></i>Documents queue</span><i class="fas fa-chevron-right text-slate-300 text-xs"></i></a>
                     </div>
                 </div>
             </div>
-        </header>
 
-        <main class="flex-1 py-8">
-            <div class="nati-shell space-y-6">
-            <section class="nati-card bg-white/90 backdrop-blur border border-slate-200 rounded-2xl shadow">
-                <div class="px-6 py-5 border-b border-slate-100 flex flex-wrap items-start gap-4 justify-between">
-                    <div>
-                        <p class="text-xs text-slate-500 uppercase tracking-[0.2em]">Snapshot</p>
-                        <h2 class="text-2xl font-semibold text-slate-900">Finance control room</h2>
-                        <p class="text-sm text-slate-500 mt-1">All bills structured, categorized, and ready for CFO analytics.</p>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                        <button onclick="window.location.href='upload.html'" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition flex items-center gap-2 shadow">
-                            <i class="fas fa-bolt"></i><span>Upload bill</span>
-                        </button>
-                        <button onclick="window.location.href='documents.html'" class="px-4 py-2 bg-slate-100 text-slate-800 rounded-lg text-sm hover:bg-slate-200 transition flex items-center gap-2">
-                            <i class="fas fa-list"></i><span>Work queue</span>
-                        </button>
-                        <button onclick="window.location.href='reports.html'" class="px-4 py-2 bg-slate-100 text-slate-800 rounded-lg text-sm hover:bg-slate-200 transition flex items-center gap-2">
-                            <i class="fas fa-chart-column"></i><span>Reports</span>
-                        </button>
-                    </div>
-                </div>
+            <!-- ── Active drops + Recent docs ── -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-                <div class="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <div class="rounded-2xl border border-slate-100 p-4 bg-gradient-to-br from-indigo-50 to-white shadow-sm">
-                        <p class="text-xs uppercase tracking-wide text-indigo-500">Total documents</p>
-                        <p id="total-docs" class="text-3xl font-semibold mt-2 text-indigo-900">0</p>
-                        <p class="text-xs text-indigo-600 mt-1">Across all drops</p>
+                <!-- Recent docs -->
+                <div class="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <h3 class="font-semibold text-slate-900">Recent Documents</h3>
+                        <a href="documents.html" class="text-xs text-indigo-600 hover:underline">View all →</a>
                     </div>
-                    <div class="rounded-2xl border border-slate-100 p-4 bg-white shadow-sm">
-                        <p class="text-xs uppercase tracking-wide text-slate-500">This month</p>
-                        <p id="month-docs" class="text-3xl font-semibold mt-2">0</p>
-                        <p class="text-xs text-slate-500 mt-1">Bills ingested</p>
-                    </div>
-                    <div class="rounded-2xl border border-slate-100 p-4 bg-white shadow-sm">
-                        <p class="text-xs uppercase tracking-wide text-slate-500">Manual attention</p>
-                        <p id="pending-docs" class="text-3xl font-semibold mt-2">0</p>
-                        <p class="text-xs text-slate-500 mt-1">Awaiting review</p>
-                    </div>
-                    <div class="rounded-2xl border border-slate-100 p-4 bg-white shadow-sm">
-                        <p class="text-xs uppercase tracking-wide text-slate-500">Status mix</p>
-                        <p id="docs-status" class="text-sm font-semibold mt-3 text-slate-800 min-h-[32px] flex items-center">-</p>
-                    </div>
-                    <div class="rounded-2xl border border-slate-100 p-4 bg-white shadow-sm">
-                        <p class="text-xs uppercase tracking-wide text-emerald-600">Blended Max CAC</p>
-                        <p id="blended-max-cac" class="text-3xl font-semibold mt-2 text-emerald-800">—</p>
-                        <p id="cm-flags" class="text-xs text-slate-500 mt-1">Loading unit economics…</p>
-                    </div>
-                </div>
-            </section>
-
-            <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-5 space-y-4 lg:col-span-2">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-lg font-semibold text-slate-900">Recent documents</h3>
-                            <p class="text-xs text-slate-500">Latest uploads needing review</p>
-                        </div>
-                        <a href="documents.html" class="text-xs text-indigo-600 hover:text-indigo-700">View all</a>
-                    </div>
-                    <div id="recent-documents" class="space-y-3">
-                        <div class="text-center py-8 text-slate-500">
+                    <div id="recent-documents" class="py-2">
+                        <div class="text-center py-8 text-slate-400">
                             <i class="fas fa-circle-notch animate-spin text-2xl mb-2"></i>
-                            <p>Fetching recent bills...</p>
+                            <p class="text-sm">Loading…</p>
                         </div>
                     </div>
                 </div>
-                <div class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-5 space-y-4">
-                    <div>
-                        <h3 class="text-lg font-semibold text-slate-900">Workboard</h3>
-                        <p class="text-xs text-slate-500">Keyboard shortcuts: U upload • D documents</p>
-                    </div>
-                    <div class="space-y-3">
-                        <button onclick="window.location.href='upload.html'" class="w-full flex items-center justify-between px-4 py-3 border border-indigo-200 rounded-xl text-left hover:border-indigo-400 transition">
-                            <div>
-                                <p class="font-semibold">Upload bills</p>
-                                <p class="text-xs text-slate-500">OCR + AI with manual override</p>
-                            </div>
-                            <i class="fas fa-arrow-right text-indigo-600"></i>
-                        </button>
-                        <button onclick="window.location.href='documents.html'" class="w-full flex items-center justify-between px-4 py-3 border border-slate-200 rounded-xl text-left hover:border-slate-400 transition">
-                            <div>
-                                <p class="font-semibold">Documents queue</p>
-                                <p class="text-xs text-slate-500">Filter, calendar, manual mode</p>
-                            </div>
-                            <i class="fas fa-arrow-right text-slate-500"></i>
-                        </button>
-                        <button onclick="window.location.href='reports.html'" class="w-full flex items-center justify-between px-4 py-3 border border-slate-200 rounded-xl text-left hover:border-slate-400 transition">
-                            <div>
-                                <p class="font-semibold">CFO dashboards</p>
-                                <p class="text-xs text-slate-500">P&L, COGS, payment pipeline</p>
-                            </div>
-                            <i class="fas fa-arrow-right text-slate-500"></i>
-                        </button>
-                        <button onclick="window.location.href='drop.html'" class="w-full flex items-center justify-between px-4 py-3 border border-slate-200 rounded-xl text-left hover:border-slate-400 transition">
-                            <div>
-                                <p class="font-semibold">Drop overview</p>
-                                <p class="text-xs text-slate-500">Cost-to-market, vendor mix</p>
-                            </div>
-                            <i class="fas fa-arrow-right text-slate-500"></i>
-                        </button>
-                    </div>
-                    <div class="border-t border-slate-100 pt-4 space-y-2">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-semibold text-slate-900">Finance watchdog</p>
-                                <p class="text-xs text-slate-500">Duplicate invoices, stale bills, unpaid > 30d</p>
-                        </div>
-                        <button onclick="refreshWatchdog()" class="text-xs px-3 py-1 rounded-lg bg-slate-900/5 text-slate-700 hover:bg-slate-900/10 transition"><i class="fas fa-rotate mr-1"></i>Refresh</button>
-                        </div>
-                        <div id="watchdog-list" class="grid grid-cols-1 gap-2 text-sm text-slate-600">
-                            <div class="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                                Running checks…
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
 
-            <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-5">
-                    <p class="text-xs uppercase tracking-[0.2em] text-slate-500">1. capture</p>
-                    <h4 class="text-lg font-semibold text-slate-900 mt-1">Upload → OCR → AI</h4>
-                    <p class="text-sm text-slate-500 mt-2">Every bill starts from the document. OCR extracts raw text, AI parses and tags, manual mode polishes the edge cases.</p>
+                <!-- Watchdog + Active drops -->
+                <div class="space-y-4">
+                    <!-- Active drops -->
+                    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-slate-400 uppercase tracking-wide">Active Drops</p>
+                            <a href="drop.html" class="text-xs text-indigo-600 hover:underline">All →</a>
+                        </div>
+                        <div id="drop-strip" class="grid grid-cols-2 gap-2"></div>
+                    </div>
+
+                    <!-- Watchdog -->
+                    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-slate-400 uppercase tracking-wide">Finance Watchdog</p>
+                            <button onclick="refreshWatchdog()" class="text-xs text-indigo-600 hover:underline"><i class="fas fa-rotate mr-1"></i>Refresh</button>
+                        </div>
+                        <div id="watchdog-list">
+                            <div class="text-xs text-slate-400">Running checks…</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-slate-400 uppercase tracking-wide">Data Quality</p>
+                            <a href="documents.html" class="text-xs text-indigo-600 hover:underline">View docs</a>
+                        </div>
+                        <div id="quality-summary">
+                            <div class="text-xs text-slate-400">Loading…</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-5">
-                    <p class="text-xs uppercase tracking-[0.2em] text-slate-500">2. classify</p>
-                    <h4 class="text-lg font-semibold text-slate-900 mt-1">CFO taxonomy</h4>
-                    <p class="text-sm text-slate-500 mt-2">Category groups (COGS, Operating, Marketing) and drops/SKUs are enforced so analytics stay crisp.</p>
-                </div>
-                <div class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-5">
-                    <p class="text-xs uppercase tracking-[0.2em] text-slate-500">3. analyze</p>
-                    <h4 class="text-lg font-semibold text-slate-900 mt-1">Live insights</h4>
-                    <p class="text-sm text-slate-500 mt-2">Reports and drop pages give cost-to-market, payment pipeline, and vendor mix at a glance.</p>
-                </div>
-            </section>
             </div>
-        </main>
-    </div>
 
-    <script src="js/session.js" defer></script>
-    <script src="js/nav.js" defer></script>
-    <script src="js/dashboard.js" defer></script>
+        </div>
+    </main>
+</div>
+
+<script src="js/session.js" defer></script>
+<script src="js/nav.js" defer></script>
+<script src="js/dashboard.js" defer></script>
 </body>
 </html>

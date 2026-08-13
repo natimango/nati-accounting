@@ -32,6 +32,7 @@
                                 <a href="drop.html" class="nati-nav-link"><i class="fas fa-layer-group"></i><span>Drop</span></a>
                                 <a href="reports.html" class="nati-nav-link"><i class="fas fa-chart-line"></i><span>Reports</span></a>
                             <a href="sales.html" class="nati-nav-link"><i class="fas fa-store"></i><span>Sales Revenue</span></a>
+                            <a href="payables.html" class="nati-nav-link"><i class="fas fa-file-invoice-dollar"></i><span>Payables</span></a>
                             <a href="admin.html" class="nati-nav-link hidden" id="nav-admin"><i class="fas fa-user-shield"></i><span>Admin</span></a>
                             </nav>
                         </div>
@@ -125,21 +126,29 @@
                             <input type="date" id="date-to" onchange="filterDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
                         </div>
                         <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Category Group</label>
+                            <select id="filter-group" onchange="populateCategoryDropdown(this.value); filterDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
+                                <option value="">All groups</option>
+                                <option value="COGS">COGS / Purchase</option>
+                                <option value="FULFILLMENT">Fulfilment</option>
+                                <option value="MARKETING">Marketing</option>
+                                <option value="OPERATIONS">Operations</option>
+                                <option value="none">⚠ Uncategorised</option>
+                            </select>
+                        </div>
+                        <div>
                             <label class="block text-xs font-medium text-slate-600 mb-1">Category</label>
                             <select id="filter-category" onchange="filterDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
-                                <option value="">All</option>
-                                <option value="fabric">Fabric</option>
-                                <option value="manufacturing">Manufacturing</option>
-                                <option value="packaging">Packaging</option>
-                                <option value="logistics">Logistics</option>
-                                <option value="vendor">Vendor</option>
-                                <option value="food">Food</option>
-                                <option value="travel">Travel</option>
-                                <option value="rent">Rent</option>
-                                <option value="tech">Tech</option>
-                                <option value="marketing">Marketing</option>
-                                <option value="salary">Salary</option>
-                                <option value="misc">Misc</option>
+                                <option value="">All categories</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Section</label>
+                            <select id="filter-section" onchange="filterDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
+                                <option value="">All sections</option>
+                                <option value="Regulars">Regulars</option>
+                                <option value="Artwear">Artwear</option>
+                                <option value="Collectibles">Collectibles</option>
                             </select>
                         </div>
                         <div>
@@ -159,24 +168,56 @@
                             <label class="block text-xs font-medium text-slate-600 mb-1">Payment Method</label>
                             <select id="filter-payment" onchange="filterDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
                                 <option value="">All</option>
-                                <option value="cash">Cash</option>
-                                <option value="upi">UPI</option>
-                                <option value="bank_transfer">Bank Transfer</option>
-                                <option value="cheque">Cheque</option>
-                                <option value="other">Other</option>
+                                <option value="CASH">Cash</option>
+                                <option value="UPI">UPI</option>
+                                <option value="BANK_TRANSFER">Bank Transfer</option>
+                                <option value="CHEQUE">Cheque</option>
+                                <option value="OTHER">Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Payment Status</label>
+                            <select id="filter-pay-status" onchange="filterDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
+                                <option value="">All</option>
+                                <option value="paid">Paid</option>
+                                <option value="pending">Unpaid / Due</option>
+                                <option value="advance">Advance Paid</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Drop</label>
+                            <select id="filter-drop" onchange="filterDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
+                                <option value="">All drops</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-600 mb-1">Search</label>
-                            <input type="text" id="search-box" onkeyup="filterDocuments()" placeholder="Search filename or notes..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
+                            <input type="text" id="search-box" onkeyup="filterDocuments()" placeholder="Vendor, notes, filename…" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
                         </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-slate-600 mb-1">Sort</label>
                             <select id="sort-by" onchange="sortDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
-                                <option value="date-desc">Newest</option>
-                                <option value="date-asc">Oldest</option>
-                                <option value="name-asc">Name A→Z</option>
-                                <option value="name-desc">Name Z→A</option>
+                                <option value="date-desc">Newest first</option>
+                                <option value="date-asc">Oldest first</option>
+                                <option value="amount-desc">Highest amount</option>
+                                <option value="amount-asc">Lowest amount</option>
+                                <option value="name-asc">Vendor A→Z</option>
+                                <option value="name-desc">Vendor Z→A</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Quick flag</label>
+                            <select id="filter-flag" onchange="filterDocuments()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
+                                <option value="">All bills</option>
+                                <option value="no-date">⚠ Missing bill date</option>
+                                <option value="no-drop">⚠ No drop assigned</option>
+                                <option value="no-group">⚠ Uncategorized (no group)</option>
+                                <option value="overdue">🔴 Overdue payment</option>
+                                <option value="high-value">💰 High value (>₹10k)</option>
+                                <option value="missing-dims">⚠ Posted w/ missing dims</option>
+                                <option value="unposted-postable">⚠ Unposted postable items</option>
                             </select>
                         </div>
                     </div>
@@ -220,17 +261,36 @@
                         <span id="doc-count" class="text-xs text-slate-500">(0)</span>
                     </div>
                 </div>
+                <!-- Bulk action bar — shown when rows are selected -->
+                <div id="bulk-bar" class="hidden px-5 py-3 bg-indigo-50 border-b border-indigo-100 flex flex-wrap items-center gap-3">
+                    <span id="bulk-count" class="text-sm font-semibold text-indigo-700">0 selected</span>
+                    <select id="bulk-group" class="px-2 py-1 border border-indigo-300 rounded-lg text-sm bg-white">
+                        <option value="">Set group…</option>
+                        <option value="COGS">COGS</option>
+                        <option value="FULFILLMENT">Fulfillment</option>
+                        <option value="MARKETING">Marketing</option>
+                        <option value="OPERATIONS">Operations</option>
+                    </select>
+                    <select id="bulk-drop" class="px-2 py-1 border border-indigo-300 rounded-lg text-sm bg-white">
+                        <option value="">Set drop…</option>
+                    </select>
+                    <button onclick="applyBulkMeta()" class="px-3 py-1 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700">Apply</button>
+                    <button onclick="clearSelection()" class="px-3 py-1 text-sm text-slate-500 hover:text-slate-700 ml-auto">Clear selection</button>
+                </div>
                 <div class="overflow-auto">
                     <table class="nati-table min-w-full text-sm">
                         <thead class="bg-slate-50 text-slate-600">
                             <tr>
-                                <th class="px-4 py-2 text-left">File #</th>
+                                <th class="px-3 py-2 text-left w-8"><input type="checkbox" id="select-all-cb" onchange="toggleSelectAll(this.checked)" class="rounded border-slate-300 accent-indigo-600"></th>
+                                <th class="px-4 py-2 text-left">#</th>
                                 <th class="px-4 py-2 text-left">Vendor</th>
                                 <th class="px-4 py-2 text-left">Category</th>
+                                <th class="px-4 py-2 text-left">Section</th>
+                                <th class="px-4 py-2 text-left">Drop</th>
                                 <th class="px-4 py-2 text-left">Payment</th>
-                                <th class="px-4 py-2 text-left">Status</th>
-                                <th class="px-4 py-2 text-left">Verification</th>
-                                <th class="px-4 py-2 text-right">Total</th>
+                                <th class="px-4 py-2 text-left">Pay Status</th>
+                                <th class="px-4 py-2 text-left">Doc Status</th>
+                                <th class="px-4 py-2 text-right">Amount</th>
                                 <th class="px-4 py-2 text-right">Bill Date</th>
                             </tr>
                         </thead>
@@ -282,8 +342,8 @@
         <div class="nati-modal-panel bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 my-8">
             <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
                 <div>
-                    <h3 class="text-lg font-semibold">Manual Bill Entry</h3>
-                    <p class="text-xs text-slate-500">Use when AI parsing is insufficient</p>
+                    <h3 class="text-lg font-semibold">Edit Bill</h3>
+                    <p class="text-xs text-slate-500">Correct or complete the bill details below</p>
                 </div>
                 <button onclick="closeManualModal()" class="text-slate-500 hover:text-slate-800"><i class="fas fa-times"></i></button>
             </div>
@@ -308,18 +368,44 @@
                         <label class="block text-sm font-medium text-slate-700 mb-1">Category *</label>
                         <select id="manual-category" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" required>
                             <option value="">Select...</option>
-                            <option value="fabric">Fabric</option>
-                            <option value="manufacturing">Manufacturing</option>
-                            <option value="packaging">Packaging</option>
-                            <option value="logistics">Logistics</option>
-                            <option value="vendor">Vendor</option>
-                            <option value="food">Food & Meals</option>
-                            <option value="travel">Travel & Transportation</option>
-                            <option value="marketing">Marketing</option>
-                            <option value="tech">Tech</option>
-                            <option value="rent">Rent & Utilities</option>
-                            <option value="salary">Salary</option>
-                            <option value="misc">Misc</option>
+                            <optgroup label="COGS / Purchase">
+                                <option value="fabric">Fabric & Raw Materials</option>
+                                <option value="manufacturing">Manufacturing / Job Work</option>
+                                <option value="embroidery">Embroidery & Embellishment</option>
+                                <option value="washing">Washing & Finishing</option>
+                                <option value="trims">Trims & Accessories</option>
+                                <option value="packaging">Packaging</option>
+                                <option value="quality check">Quality Inspection</option>
+                                <option value="inbound freight">Inbound Freight</option>
+                            </optgroup>
+                            <optgroup label="Fulfillment">
+                                <option value="logistics">Shipping & Courier</option>
+                                <option value="warehousing">Warehousing & Storage</option>
+                                <option value="returns">Returns & Reverse Logistics</option>
+                                <option value="commission">Marketplace Commission</option>
+                                <option value="payment gateway">Payment Gateway</option>
+                                <option value="cod">COD Charges</option>
+                            </optgroup>
+                            <optgroup label="Marketing">
+                                <option value="marketing">Digital Ads (Meta / Google)</option>
+                                <option value="influencer">Influencer & Gifting</option>
+                                <option value="content creation">Content & Photography</option>
+                                <option value="platform fees">Platform Fees / Shopify</option>
+                                <option value="pr">PR & Events</option>
+                            </optgroup>
+                            <optgroup label="Operations">
+                                <option value="rent">Rent & Workspace</option>
+                                <option value="salary">Salaries & Wages</option>
+                                <option value="contractor">Contractor / Freelancer</option>
+                                <option value="software">Software & Subscriptions</option>
+                                <option value="travel">Travel & Conveyance</option>
+                                <option value="bank charges">Bank Charges</option>
+                                <option value="legal">Legal & Professional</option>
+                                <option value="gst">GST Filing & Compliance</option>
+                                <option value="utilities">Utilities & Electricity</option>
+                                <option value="food">Food & Meals</option>
+                                <option value="misc">Miscellaneous</option>
+                            </optgroup>
                         </select>
                     </div>
                     <div>
@@ -368,14 +454,31 @@
                         <p id="manual-balance-note" class="text-xs text-slate-500 mt-1"></p>
                     </div>
                     <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Drop / Collection</label>
+                        <select id="manual-drop" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            <option value="">— select drop —</option>
+                            <option value="Unassigned">Unassigned</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Section</label>
+                        <select id="manual-section" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            <option value="">— not applicable —</option>
+                            <option value="Regulars">Regulars</option>
+                            <option value="Artwear">Artwear</option>
+                            <option value="Collectibles">Collectibles</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">Department</label>
                         <select id="manual-department" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500">
-                            <option value="">Select</option>
-                            <option value="COGS">COGS</option>
-                            <option value="Marketing">Marketing</option>
-                            <option value="Ops">Operations</option>
-                            <option value="Admin">Admin</option>
-                            <option value="Misc">Misc</option>
+                            <option value="">— auto from category —</option>
+                            <option value="COGS">COGS / Purchase</option>
+                            <option value="FULFILLMENT">Fulfillment</option>
+                            <option value="MARKETING">Marketing</option>
+                            <option value="OPERATIONS">Operations</option>
                         </select>
                     </div>
                 </div>

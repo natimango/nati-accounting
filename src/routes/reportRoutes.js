@@ -2,10 +2,8 @@ const express = require('express');
 const router = express.Router();
 const {
   getProfitLoss,
-  getTrialBalance,
+  getPLTrend,
   getBalanceSheet,
-  getJournalEntries,
-  getChartOfAccounts,
   getDimensionSpend,
   upsertDropBudget,
   getDropBudgets,
@@ -22,17 +20,17 @@ const {
   ingestShipmentCost,
   getSalesEntries,
   createSalesEntry,
-  deleteSalesEntry
+  updateSalesEntry,
+  deleteSalesEntry,
+  getJournalEntries
 } = require('../controllers/reportsController');
 const { authorize } = require('../middleware/auth');
 
 router.use(authorize('uploader', 'manager', 'admin'));
 
 router.get('/reports/profit-loss', getProfitLoss);
-router.get('/reports/trial-balance', getTrialBalance);
+router.get('/reports/trend', getPLTrend);
 router.get('/reports/balance-sheet', getBalanceSheet);
-router.get('/reports/journal-entries', getJournalEntries);
-router.get('/reports/chart-of-accounts', getChartOfAccounts);
 router.get('/reports/spend-dimensions', getDimensionSpend);
 router.post('/reports/drop-budgets', authorize('admin'), upsertDropBudget);
 router.get('/reports/drop-budgets', getDropBudgets);
@@ -49,6 +47,8 @@ router.post('/ingest/marketing', authorize('admin'), ingestMarketingSpend);
 router.post('/ingest/shipment', authorize('admin'), ingestShipmentCost);
 router.get('/reports/sales', getSalesEntries);
 router.post('/reports/sales', authorize('manager', 'admin'), createSalesEntry);
+router.put('/reports/sales/:id', authorize('manager', 'admin'), updateSalesEntry);
 router.delete('/reports/sales/:id', authorize('admin'), deleteSalesEntry);
+router.get('/reports/journal-entries', getJournalEntries);
 
 module.exports = router;
