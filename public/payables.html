@@ -58,25 +58,25 @@
 
                 <!-- Summary tiles -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div class="nati-card bg-red-50 border border-red-200 rounded-2xl p-4">
+                    <div class="nati-card bg-red-50 border border-red-200 rounded-2xl p-4 cursor-pointer hover:border-red-400 transition" onclick="setPayFilter('overdue')" title="Show overdue bills">
                         <p class="text-xs text-red-600 uppercase tracking-wide font-medium">Overdue</p>
                         <p id="tile-overdue" class="text-2xl font-bold text-red-700 mt-1">—</p>
-                        <p class="text-xs text-red-500 mt-1">past due date</p>
+                        <p class="text-xs text-red-500 mt-1">past due date →</p>
                     </div>
-                    <div class="nati-card bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                    <div class="nati-card bg-amber-50 border border-amber-200 rounded-2xl p-4 cursor-pointer hover:border-amber-400 transition" onclick="setPayFilter('week')" title="Show bills due this week">
                         <p class="text-xs text-amber-600 uppercase tracking-wide font-medium">Due this week</p>
                         <p id="tile-week" class="text-2xl font-bold text-amber-700 mt-1">—</p>
-                        <p class="text-xs text-amber-500 mt-1">next 7 days</p>
+                        <p class="text-xs text-amber-500 mt-1">next 7 days →</p>
                     </div>
-                    <div class="nati-card bg-blue-50 border border-blue-200 rounded-2xl p-4">
+                    <div class="nati-card bg-blue-50 border border-blue-200 rounded-2xl p-4 cursor-pointer hover:border-blue-400 transition" onclick="setPayFilter('month')" title="Show bills due this month">
                         <p class="text-xs text-blue-600 uppercase tracking-wide font-medium">Due this month</p>
                         <p id="tile-month" class="text-2xl font-bold text-blue-700 mt-1">—</p>
-                        <p class="text-xs text-blue-500 mt-1">next 30 days</p>
+                        <p class="text-xs text-blue-500 mt-1">next 30 days →</p>
                     </div>
-                    <div class="nati-card bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                    <div class="nati-card bg-slate-50 border border-slate-200 rounded-2xl p-4 cursor-pointer hover:border-indigo-300 transition" onclick="setPayFilter('all')" title="Show all outstanding bills">
                         <p class="text-xs text-slate-600 uppercase tracking-wide font-medium">Total outstanding</p>
                         <p id="tile-total" class="text-2xl font-bold text-slate-800 mt-1">—</p>
-                        <p class="text-xs text-slate-500 mt-1">all unpaid bills</p>
+                        <p class="text-xs text-slate-500 mt-1">all unpaid bills →</p>
                     </div>
                 </div>
 
@@ -218,12 +218,31 @@ function statusBadge(s, dueDate) {
 
 let payablesData = [];
 
+let _urgencyFilter = 'all';
+
+function setPayFilter(urgency) {
+    _urgencyFilter = urgency;
+    filterPayables();
+    // Scroll to table
+    document.getElementById('payables-tbody')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function filterPayables() {
     const search = (document.getElementById('pay-search')?.value || '').toLowerCase().trim();
     const grp    = document.getElementById('pay-group-filter')?.value || '';
     const sort   = document.getElementById('pay-sort')?.value || 'due';
+    const now    = new Date();
+    const week7  = new Date(Date.now() + 7*24*60*60*1000);
+    const month30= new Date(Date.now() + 30*24*60*60*1000);
 
     let rows = payablesData.slice();
+    if (_urgencyFilter === 'overdue') {
+        rows = rows.filter(d => d.bill_payment_due_date && new Date(d.bill_payment_due_date) < now);
+    } else if (_urgencyFilter === 'week') {
+        rows = rows.filter(d => d.bill_payment_due_date && new Date(d.bill_payment_due_date) >= now && new Date(d.bill_payment_due_date) <= week7);
+    } else if (_urgencyFilter === 'month') {
+        rows = rows.filter(d => d.bill_payment_due_date && new Date(d.bill_payment_due_date) >= now && new Date(d.bill_payment_due_date) <= month30);
+    }
     if (search) {
         rows = rows.filter(d => {
             const vendor = (d.bill_vendor_name || d.vendor_name || d.gemini_data?.vendor_name || '').toLowerCase();
