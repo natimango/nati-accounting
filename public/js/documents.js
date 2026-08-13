@@ -83,9 +83,75 @@ let currentDocumentDetail = null;
 let currentBillItems = [];
 const bus = window.store || { subscribe: () => {}, emit: () => {}, EVENTS: { DATA_CHANGED: 'DATA_CHANGED' } };
 
+// ── Meta cache for line-item editing ────────────────────────────────────────
+let _metaCoa   = null;   // [{coa_account_id, account_code, account_name}]
+let _metaDepts = null;   // [{department_id, department_name}]
+let _metaDrops = null;   // [{drop_id, drop_name}]
+let _allTags   = null;   // [{tag_id, tag_name, tag_group, color}]
+
+async function _ensureMeta() {
+    const needed = [];
+    if (!_metaCoa)   needed.push(authFetch('/api/meta/coa_accounts').then(r => r.json()).then(d => { _metaCoa   = d.accounts || []; }));
+    if (!_metaDepts) needed.push(authFetch('/api/meta/departments').then(r => r.json()).then(d => { _metaDepts = d.departments || []; }));
+    if (!_metaDrops) needed.push(authFetch('/api/meta/drops?all=1').then(r => r.json()).then(d => { _metaDrops = d.drops || []; }));
+    if (!_allTags)   needed.push(authFetch('/api/tags').then(r => r.json()).then(d => { _allTags   = d.tags || []; }));
+    if (needed.length) await Promise.all(needed);
+}
+
 function authFetch(url, options = {}) {
     const opts = Object.assign({ credentials: 'include' }, options);
     return fetch(url, opts);
+}
+
+async function saveLineItemField(itemId, payload) {
+    try {
+        const r = await authFetch(`/api/bill-items/${itemId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error || 'Save failed');
+        // Refresh quality badge on item row
+        _refreshItemStatusBadge(itemId, d.item);
+        return d;
+    } catch (e) {
+        console.error('saveLineItemField', e);
+        alert('Could not save: ' + e.message);
+    }
+}
+
+function _refreshItemStatusBadge(itemId, item) {
+    const row = document.querySelector(`tr[data-item-id="${itemId}"]`);
+    if (!row) return;
+    const badge = row.querySelector('.item-status-badge');
+    if (badge) badge.outerHTML = _postingBadge(item);
+}
+
+function _postingBadge(item) {
+    if (!item.is_postable) return `<span class="item-status-badge text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Non-postable</span>`;
+    if (item.posting_status === 'posted') return `<span class="item-status-badge text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Posted</span>`;
+    const missingDims = !item.coa_account_id || !item.department_id || !item.drop_id;
+    if (missingDims) return `<span class="item-status-badge text-xs px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">Missing dims</span>`;
+    return `<span class="item-status-badge text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Pending post</span>`;
+}
+
+async function saveTagsForBill(billId) {
+    const checkboxes = document.querySelectorAll('#bill-tags-wrap input[type=checkbox]:checked');
+    const tag_ids = Array.from(checkboxes).map(c => parseInt(c.value, 10));
+    try {
+        const r = await authFetch(`/api/tags/bill/${billId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tag_ids })
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error);
+        const wrap = document.getElementById('tags-save-indicator');
+        if (wrap) { wrap.textContent = 'Saved'; wrap.className = 'text-xs text-emerald-600 ml-2'; setTimeout(() => { if(wrap) wrap.textContent = ''; }, 2000); }
+    } catch (e) {
+        alert('Could not save tags: ' + e.message);
+    }
 }
 
 function getCategory(doc) {
@@ -672,19 +738,21 @@ async function openBillModal(id) {
                         <tr>
                             <th class="px-4 py-2 text-left">Description</th>
                             <th class="px-4 py-2 text-left">SKU</th>
-                            <th class="px-4 py-2 text-right">Qty</th>
-                            <th class="px-4 py-2 text-right">Rate</th>
                             <th class="px-4 py-2 text-right">Amount</th>
+                            <th class="px-4 py-2 text-center">Status</th>
+                            <th class="px-4 py-2 text-center">Post</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody class="divide-y divide-slate-100" id="line-items-tbody">
                         ${currentBillItems.map(item => `
-                            <tr class="hover:bg-slate-50">
-                                <td class="px-4 py-2">${escapeHTML(item.description || '—')}</td>
-                                <td class="px-4 py-2 text-slate-500">${escapeHTML(item.sku_code || '—')}</td>
-                                <td class="px-4 py-2 text-right">${item.quantity || '—'}</td>
-                                <td class="px-4 py-2 text-right">${item.unit_price ? '₹' + Number(item.unit_price).toLocaleString('en-IN') : '—'}</td>
+                            <tr class="hover:bg-slate-50" data-item-id="${item.item_id}">
+                                <td class="px-4 py-2 max-w-[180px] truncate" title="${escapeHTML(item.description || '')}">${escapeHTML(item.description || '—')}</td>
+                                <td class="px-4 py-2 text-slate-500 text-xs">${escapeHTML(item.sku_code || '—')}</td>
                                 <td class="px-4 py-2 text-right font-medium">₹${Number(item.amount || 0).toLocaleString('en-IN')}</td>
+                                <td class="px-4 py-2 text-center">${_postingBadge(item)}</td>
+                                <td class="px-4 py-2 text-center">
+                                    ${item.is_postable ? `<button onclick="openItemPostModal(${item.item_id})" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium"><i class="fas fa-edit"></i></button>` : ''}
+                                </td>
                             </tr>`).join('')}
                     </tbody>
                 </table>
@@ -759,6 +827,16 @@ async function openBillModal(id) {
                 </div>
             </div>
 
+            <!-- Tags (only for bills) -->
+            ${d.bill_id ? `<div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-2">
+                    Tags
+                    <span id="tags-save-indicator" class="text-xs text-emerald-600"></span>
+                </p>
+                <div id="bill-tags-wrap" class="text-sm text-slate-400 italic">Loading tags…</div>
+                <button onclick="saveTagsForBill(${d.bill_id})" class="mt-2 px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Save tags</button>
+            </div>` : ''}
+
             <!-- Line items (if any) -->
             ${lineItemsHtml ? `<div>
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Line Items</p>
@@ -776,9 +854,165 @@ async function openBillModal(id) {
             </div>
         </div>`;
 
+        // Load tags and populate asynchronously
+        if (d.bill_id) _loadBillTags(d.bill_id);
+
     } catch (err) {
         console.error('Load detail failed', err);
         body.innerHTML = `<p class="text-sm text-red-600 p-4">Failed to load document.</p>`;
+    }
+}
+
+async function _loadBillTags(billId) {
+    try {
+        await _ensureMeta();
+        const billTagsResp = await authFetch(`/api/tags/bill/${billId}`).then(r => r.json());
+        const billTagIds = new Set((billTagsResp.tags || []).map(t => t.tag_id));
+        const wrap = document.getElementById('bill-tags-wrap');
+        if (!wrap) return;
+
+        if (!_allTags || _allTags.length === 0) {
+            wrap.innerHTML = '<span class="text-slate-400">No tags configured</span>';
+            return;
+        }
+
+        // Group by tag_group
+        const groups = {};
+        _allTags.forEach(t => {
+            if (!groups[t.tag_group]) groups[t.tag_group] = [];
+            groups[t.tag_group].push(t);
+        });
+
+        wrap.innerHTML = Object.entries(groups).map(([grp, tags]) => `
+            <div class="mb-2">
+                <p class="text-xs text-slate-400 uppercase tracking-wide mb-1">${escapeHTML(grp)}</p>
+                <div class="flex flex-wrap gap-2">
+                    ${tags.map(t => `
+                        <label class="flex items-center gap-1.5 cursor-pointer">
+                            <input type="checkbox" value="${t.tag_id}" ${billTagIds.has(t.tag_id) ? 'checked' : ''}
+                                class="rounded border-slate-300 text-indigo-600">
+                            <span class="text-sm" style="color:${t.color || '#64748b'}">${escapeHTML(t.tag_name)}</span>
+                        </label>`).join('')}
+                </div>
+            </div>`).join('');
+    } catch (e) {
+        console.error('_loadBillTags', e);
+    }
+}
+
+// Item posting modal state
+let _editingItemId = null;
+
+async function openItemPostModal(itemId) {
+    _editingItemId = itemId;
+    const item = currentBillItems.find(i => i.item_id === itemId);
+    if (!item) return;
+
+    await _ensureMeta();
+
+    const coaOpts = _metaCoa.map(c => `<option value="${c.coa_account_id}" ${c.coa_account_id == item.coa_account_id ? 'selected' : ''}>${escapeHTML(c.account_code + ' – ' + c.account_name)}</option>`).join('');
+    const deptOpts = _metaDepts.map(d => `<option value="${d.department_id}" ${d.department_id == item.department_id ? 'selected' : ''}>${escapeHTML(d.department_name)}</option>`).join('');
+    const dropOpts = _metaDrops.map(d => `<option value="${d.drop_id}" ${d.drop_id == item.drop_id ? 'selected' : ''}>${escapeHTML(d.drop_name)}</option>`).join('');
+
+    const COST_NATURES = ['direct','indirect','fixed','variable','mixed'];
+    const COST_STAGES  = ['pre_production','production','post_production','fulfillment','marketing','overhead'];
+
+    let modal = document.getElementById('item-post-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'item-post-modal';
+        modal.className = 'fixed inset-0 bg-black/40 flex items-center justify-center z-50';
+        document.body.appendChild(modal);
+    }
+
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-800">Edit Posting — Line Item</h3>
+                <button onclick="document.getElementById('item-post-modal').remove()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
+            </div>
+            <p class="text-xs text-slate-500 truncate">${escapeHTML(item.description || '—')} · ₹${Number(item.amount || 0).toLocaleString('en-IN')}</p>
+
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs text-slate-500 mb-1">CoA Account</label>
+                    <select id="ipm-coa" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                        <option value="">— Not assigned —</option>${coaOpts}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-500 mb-1">Department</label>
+                    <select id="ipm-dept" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                        <option value="">— Not assigned —</option>${deptOpts}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-500 mb-1">Drop</label>
+                    <select id="ipm-drop" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                        <option value="">— Not assigned —</option>${dropOpts}
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-500 mb-1">Cost nature</label>
+                        <select id="ipm-nature" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                            <option value="">—</option>
+                            ${COST_NATURES.map(n => `<option value="${n}" ${item.cost_nature===n?'selected':''}>${n}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500 mb-1">Cost stage</label>
+                        <select id="ipm-stage" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                            <option value="">—</option>
+                            ${COST_STAGES.map(s => `<option value="${s}" ${item.cost_stage===s?'selected':''}>${s.replace(/_/g,' ')}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 pt-1">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="ipm-golive" ${item.go_live_eligible ? 'checked' : ''} class="rounded border-slate-300 text-indigo-600">
+                        <span class="text-xs text-slate-600">Go-live eligible</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="ipm-posted" ${item.posting_status === 'posted' ? 'checked' : ''} class="rounded border-slate-300 text-emerald-600">
+                        <span class="text-xs text-slate-600">Mark as posted</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex gap-2 pt-2">
+                <button onclick="_submitItemPost()" class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">Save</button>
+                <button onclick="document.getElementById('item-post-modal').remove()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200">Cancel</button>
+            </div>
+        </div>`;
+    modal.classList.remove('hidden');
+}
+
+async function _submitItemPost() {
+    const coa_account_id  = document.getElementById('ipm-coa')?.value    || null;
+    const department_id   = document.getElementById('ipm-dept')?.value   || null;
+    const drop_id         = document.getElementById('ipm-drop')?.value   || null;
+    const cost_nature     = document.getElementById('ipm-nature')?.value || null;
+    const cost_stage      = document.getElementById('ipm-stage')?.value  || null;
+    const go_live_eligible= document.getElementById('ipm-golive')?.checked ?? false;
+    const isPosted        = document.getElementById('ipm-posted')?.checked ?? false;
+
+    const payload = {
+        coa_account_id:   coa_account_id  ? parseInt(coa_account_id, 10)  : null,
+        department_id:    department_id   ? parseInt(department_id, 10)   : null,
+        drop_id:          drop_id         ? parseInt(drop_id, 10)         : null,
+        cost_nature:      cost_nature     || null,
+        cost_stage:       cost_stage      || null,
+        go_live_eligible,
+        posting_status:   isPosted ? 'posted' : 'unposted'
+    };
+
+    const result = await saveLineItemField(_editingItemId, payload);
+    if (result?.success) {
+        // Update currentBillItems in memory
+        const idx = currentBillItems.findIndex(i => i.item_id === _editingItemId);
+        if (idx >= 0) currentBillItems[idx] = { ...currentBillItems[idx], ...result.item };
+        document.getElementById('item-post-modal')?.remove();
     }
 }
 
