@@ -553,6 +553,11 @@ function renderPL(d) {
         const display = amt < 0 ? `(${fmt(Math.abs(amt))})` : fmt(amt);
         return `<tr class="${cls}"><td>${label}</td><td class="tr ${col}">${display}</td><td class="tr">${pctOf(Math.abs(amt))}</td>${priorDelta(amt, priorAmt)}</tr>`;
     }
+    function catLink(category, grp) {
+        const dateQs = currentStart ? `&from=${currentStart}&to=${currentEnd}` : '';
+        const url = `documents.html?filter_group=${encodeURIComponent(grp)}&q=${encodeURIComponent(category)}${dateQs}`;
+        return `<a href="${url}" class="ml-1 text-indigo-300 hover:text-indigo-600 text-xs" title="View bills"><i class="fas fa-receipt"></i></a>`;
+    }
     function sub(label, amt, priorAmt) {
         return `<tr class="sub"><td>${label}</td><td class="tr">${fmt(amt)}</td><td></td>${priorDelta(amt, priorAmt)}</tr>`;
     }
@@ -578,7 +583,7 @@ function renderPL(d) {
     // COGS
     h += `<tr class="sec-hdr"><td colspan="${colSpan}">COGS &mdash; Manufacturing &amp; Materials</td></tr>`;
     if ((d.cogs?.lines || []).length) {
-        d.cogs.lines.forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : ''), l.amount, true));
+        d.cogs.lines.forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : '') + catLink(l.category, 'COGS'), l.amount, true));
     } else {
         h += `<tr class="item"><td class="muted" colspan="${colSpan}">No COGS bills this period</td></tr>`;
     }
@@ -587,7 +592,7 @@ function renderPL(d) {
 
     // Fulfilment → CM1
     h += `<tr class="sec-hdr"><td colspan="${colSpan}">Fulfilment &amp; Variable Selling</td></tr>`;
-    (d.fulfilment?.lines || []).forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : ''), l.amount, true));
+    (d.fulfilment?.lines || []).forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : '') + catLink(l.category, 'FULFILLMENT'), l.amount, true));
     if (d.fulfilment?.marketplace_commission) h += row('Marketplace Commissions', d.fulfilment.marketplace_commission, true);
     if (d.fulfilment?.payment_gateway)        h += row('Payment Gateway Charges', d.fulfilment.payment_gateway, true);
     if (!(d.fulfilment?.lines || []).length && !d.fulfilment?.marketplace_commission) {
@@ -599,7 +604,7 @@ function renderPL(d) {
     // Marketing → CM2
     h += `<tr class="sec-hdr"><td colspan="${colSpan}">Marketing &amp; CAC</td></tr>`;
     if ((d.marketing?.lines || []).length) {
-        d.marketing.lines.forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : ''), l.amount, true));
+        d.marketing.lines.forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : '') + catLink(l.category, 'MARKETING'), l.amount, true));
     } else {
         h += `<tr class="item"><td class="muted" colspan="${colSpan}">No marketing bills this period</td></tr>`;
     }
@@ -609,7 +614,7 @@ function renderPL(d) {
     // OPEX → EBITDA
     h += `<tr class="sec-hdr"><td colspan="${colSpan}">Operating Expenses</td></tr>`;
     if ((d.opex?.lines || []).length) {
-        d.opex.lines.forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : ''), l.amount, true));
+        d.opex.lines.forEach(l => h += row(cap(l.category) + (l.bill_count > 1 ? ` <span class="muted">(${l.bill_count} bills)</span>` : '') + catLink(l.category, 'OPERATIONS'), l.amount, true));
     } else {
         h += `<tr class="item"><td class="muted" colspan="${colSpan}">No opex bills this period</td></tr>`;
     }
