@@ -356,6 +356,7 @@
                                 <option value="MARKETING">Marketing</option>
                                 <option value="OPERATIONS">Operations</option>
                             </select>
+                            <button onclick="exportVendorCSV()" class="text-xs text-slate-600 hover:underline border border-slate-200 rounded-lg px-2 py-1"><i class="fas fa-download mr-1"></i>CSV</button>
                             <button onclick="vendorsLoaded=false; loadVendors()" class="text-xs text-indigo-600 hover:underline"><i class="fas fa-rotate mr-1"></i>Refresh</button>
                         </div>
                     </div>
@@ -1372,6 +1373,20 @@ function renderVendors(rows) {
         </tr></thead>
         <tbody>${html}</tbody>
     </table></div>`;
+}
+
+function exportVendorCSV() {
+    if (!_vendorData.length) { alert('Load vendor data first'); return; }
+    const rows = [['Vendor', 'Category', 'Type', 'Total Spend', 'Avg Bill', 'Bill Count', '% of Total', 'Last Bill']];
+    _vendorData.forEach(v => {
+        rows.push([v.vendor_name, v.category_group, v.vendor_type || '', v.total_spend.toFixed(2), v.avg_bill.toFixed(2), v.bill_count, v.pct_of_total, v.last_bill || '']);
+    });
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `nati-vendors-${currentLabel.replace(/\s+/g,'-')}.csv`;
+    a.click();
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
