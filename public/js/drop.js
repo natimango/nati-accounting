@@ -223,6 +223,10 @@ async function loadDropPL(dropName) {
 
 async function loadDrop(dropName) {
   if (!dropName) return;
+  // Reset expandable sections when drop changes
+  budgetHistoryOpen = false;
+  const histWrap = document.getElementById('budget-history-wrap');
+  if (histWrap) histWrap.classList.add('hidden');
   try {
     const resp = await authFetch(`${API_URL}/drop/${encodeURIComponent(dropName)}/cost`);
     const data = await resp.json();
