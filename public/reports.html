@@ -1144,7 +1144,7 @@ function renderCM(skus) {
         const cmColor = s.contribution_margin_pct >= 40 ? 'text-emerald-600' : s.contribution_margin_pct >= 20 ? 'text-amber-600' : 'text-rose-600';
         return `<tr class="border-t border-slate-100 hover:bg-slate-50">
             <td class="px-4 py-2.5 font-mono text-xs font-semibold text-slate-700">
-                <a href="sku-catalog.html" class="hover:text-indigo-600">${s.sku_code}</a>
+                <a href="garment-economics.html?sku=${encodeURIComponent(s.sku_code)}" class="hover:text-indigo-600" title="View in Garment P&L">${s.sku_code}</a>
             </td>
             <td class="px-4 py-2.5 text-sm text-slate-600">${s.sku_name}</td>
             <td class="px-4 py-2.5 text-sm text-right">${fmt(s.selling_price)}</td>
@@ -1239,7 +1239,7 @@ function renderUE(data) {
             flags.negative_cm && '<span class="px-1 py-0.5 rounded text-[9px] bg-rose-100 text-rose-700 font-semibold">Neg CM</span>',
         ].filter(Boolean).join(' ');
         return `<tr class="border-t border-slate-100 hover:bg-slate-50">
-            <td class="px-4 py-2.5 font-mono text-xs font-semibold text-slate-700">${s.sku_code}</td>
+            <td class="px-4 py-2.5 font-mono text-xs font-semibold text-slate-700"><a href="garment-economics.html?sku=${encodeURIComponent(s.sku_code)}" class="hover:text-indigo-600" title="View in Garment P&L">${s.sku_code}</a></td>
             <td class="px-4 py-2.5 text-sm text-slate-600">${s.sku_name}</td>
             <td class="px-4 py-2.5 text-sm text-right">${fmt(s.price)}</td>
             <td class="px-4 py-2.5 text-sm text-right text-slate-500">${s.landed_cost > 0 ? fmt(s.landed_cost) : '<span class="text-amber-500 text-xs">—</span>'}</td>
