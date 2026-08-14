@@ -21,27 +21,6 @@ async function runMigrations() {
     const { rows: applied } = await pool.query('SELECT filename FROM schema_migrations');
     const appliedSet = new Set(applied.map(r => r.filename));
 
-    // If tracking table is empty but database is already bootstrapped,
-    // mark all existing migration files as applied (idempotent seed).
-    // We detect bootstrap by checking if the bills table exists.
-    if (appliedSet.size === 0) {
-      const { rows: hasBills } = await pool.query(`
-        SELECT 1 FROM information_schema.tables
-        WHERE table_schema = 'public' AND table_name = 'bills'
-      `);
-      if (hasBills.length > 0) {
-        // Pre-populate — mark all files as applied so they are skipped
-        for (const file of files) {
-          await pool.query(
-            'INSERT INTO schema_migrations (filename) VALUES ($1) ON CONFLICT DO NOTHING',
-            [file]
-          );
-          appliedSet.add(file);
-        }
-        console.log(`[migration] Seeded ${files.length} already-applied migrations into tracking table`);
-        return;
-      }
-    }
 
     let count = 0;
     for (const file of files) {
