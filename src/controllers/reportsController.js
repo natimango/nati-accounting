@@ -1355,6 +1355,70 @@ async function getCashFlow(req, res) {
 }
 
 // Create manual journal entry (double-entry)
+async function getSalesRegister(req, res) {
+  try {
+    const { start_date, end_date } = req.query;
+    const n = new Date();
+    const fyStart = n.getMonth() >= 3
+      ? new Date(n.getFullYear(), 3, 1)
+      : new Date(n.getFullYear() - 1, 3, 1);
+    const startDate = start_date || fyStart.toISOString().split('T')[0];
+    const endDate   = end_date   || n.toISOString().split('T')[0];
+
+    const result = await pool.query(`
+      SELECT
+        se.entry_id,
+        se.entry_date,
+        se.channel,
+        se.section,
+        se.drop_id,
+        dr.drop_name,
+        se.gross_units,
+        se.returned_units,
+        se.gross_units - se.returned_units AS net_units,
+        se.gross_sales,
+        se.discount_amount,
+        se.refund_amount,
+        se.gross_sales - COALESCE(se.discount_amount,0) - COALESCE(se.refund_amount,0) AS net_sales,
+        se.cgst_collected,
+        se.sgst_collected,
+        se.igst_collected,
+        COALESCE(se.cgst_collected,0) + COALESCE(se.sgst_collected,0) + COALESCE(se.igst_collected,0) AS total_gst,
+        se.notes
+      FROM sales_entries se
+      LEFT JOIN drops dr ON dr.drop_id = se.drop_id
+      WHERE se.entry_date BETWEEN $1 AND $2
+      ORDER BY se.entry_date ASC, se.entry_id ASC
+    `, [startDate, endDate]);
+
+    const totals = result.rows.reduce((acc, r) => {
+      acc.gross_sales   += Number(r.gross_sales || 0);
+      acc.discount_amount += Number(r.discount_amount || 0);
+      acc.refund_amount   += Number(r.refund_amount || 0);
+      acc.net_sales       += Number(r.net_sales || 0);
+      acc.cgst_collected  += Number(r.cgst_collected || 0);
+      acc.sgst_collected  += Number(r.sgst_collected || 0);
+      acc.igst_collected  += Number(r.igst_collected || 0);
+      acc.total_gst       += Number(r.total_gst || 0);
+      acc.gross_units     += Number(r.gross_units || 0);
+      acc.net_units       += Number(r.net_units || 0);
+      return acc;
+    }, { gross_sales: 0, discount_amount: 0, refund_amount: 0, net_sales: 0, cgst_collected: 0, sgst_collected: 0, igst_collected: 0, total_gst: 0, gross_units: 0, net_units: 0 });
+
+    res.json({
+      success: true,
+      start_date: startDate,
+      end_date: endDate,
+      rows: result.rows,
+      totals,
+      count: result.rows.length
+    });
+  } catch (err) {
+    console.error('Sales register error', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 async function getPurchaseRegister(req, res) {
   try {
     const { start_date, end_date } = req.query;
@@ -1536,5 +1600,6 @@ module.exports = {
   getCashFlow,
   createJournalEntry,
   getAPAging,
-  getPurchaseRegister
+  getPurchaseRegister,
+  getSalesRegister
 };

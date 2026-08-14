@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   getAPAging,
   getPurchaseRegister,
+  getSalesRegister,
   getProfitLoss,
   getPLTrend,
   getBalanceSheet,
@@ -64,5 +65,6 @@ router.get('/reports/cash-flow', getCashFlow);
 router.post('/reports/journal-entries', authorize('manager', 'admin'), createJournalEntry);
 router.get('/reports/ap-aging', getAPAging);
 router.get('/reports/purchase-register', getPurchaseRegister);
+router.get('/reports/sales-register', getSalesRegister);
 
 module.exports = router;
