@@ -995,6 +995,18 @@ async function openBillModal(id) {
                 ${lineItemsHtml}
             </div>` : ''}
 
+            <!-- Comments -->
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Comments</p>
+                <div id="comments-list" class="space-y-2 mb-3 text-xs text-slate-400 italic">Loading…</div>
+                <div class="flex gap-2">
+                    <input id="comment-input" type="text" placeholder="Add a comment…"
+                        class="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        onkeydown="if(event.key==='Enter')submitComment(${id})">
+                    <button onclick="submitComment(${id})" class="px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 font-medium">Post</button>
+                </div>
+            </div>
+
             <!-- Activity Log -->
             <div>
                 <button onclick="toggleActivityLog(${id})" class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-indigo-600 transition-colors">
@@ -1022,6 +1034,8 @@ async function openBillModal(id) {
         if (d.bill_id) _loadBillTags(d.bill_id);
         // Populate drop datalist for quick-edit
         if (d.bill_id) _populateQeDropList();
+        // Load comments
+        loadComments(id);
 
     } catch (err) {
         console.error('Load detail failed', err);
@@ -1126,6 +1140,67 @@ async function _populateQeDropList() {
     const dl = document.getElementById('qe-drop-list');
     if (!dl || !_metaDrops) return;
     dl.innerHTML = _metaDrops.map(d => `<option value="${escapeHTML(d.drop_name)}">`).join('');
+}
+
+async function loadComments(docId) {
+    const el = document.getElementById('comments-list');
+    if (!el) return;
+    try {
+        const data = await authFetch(`${API_URL}/documents/${docId}/comments`).then(r => r.json());
+        const comments = data.comments || [];
+        if (!comments.length) {
+            el.innerHTML = '<span class="text-slate-400 italic">No comments yet — be the first!</span>';
+            return;
+        }
+        el.className = 'space-y-2 mb-3';
+        el.innerHTML = comments.map(c => {
+            const author = c.full_name || c.email || 'User';
+            const time = c.created_at ? new Date(c.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+            const mine = window.currentUser && (c.user_id === window.currentUser.id);
+            return `<div class="flex gap-2 items-start group" data-comment-id="${c.comment_id}">
+                <div class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold flex-shrink-0">${(author[0] || '?').toUpperCase()}</div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-xs font-semibold text-slate-700">${escapeHTML(author)}</span>
+                        <span class="text-xs text-slate-400">${time}</span>
+                        ${mine ? `<button onclick="deleteComment(${c.comment_id}, ${docId})" class="text-xs text-rose-400 hover:text-rose-600 hidden group-hover:inline" title="Delete"><i class="fas fa-times"></i></button>` : ''}
+                    </div>
+                    <p class="text-sm text-slate-700 mt-0.5 break-words">${escapeHTML(c.body)}</p>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        if (el) el.innerHTML = '<span class="text-red-400">Failed to load comments</span>';
+    }
+}
+
+async function submitComment(docId) {
+    const input = document.getElementById('comment-input');
+    if (!input) return;
+    const body = input.value.trim();
+    if (!body) return;
+    try {
+        const data = await authFetch(`${API_URL}/documents/${docId}/comments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ body })
+        }).then(r => r.json());
+        if (!data.success) throw new Error(data.error);
+        input.value = '';
+        loadComments(docId);
+    } catch (e) {
+        showToast('Failed to post comment: ' + e.message);
+    }
+}
+
+async function deleteComment(commentId, docId) {
+    try {
+        const data = await authFetch(`${API_URL}/documents/comments/${commentId}`, { method: 'DELETE' }).then(r => r.json());
+        if (!data.success) throw new Error(data.error);
+        loadComments(docId);
+    } catch (e) {
+        showToast('Delete failed: ' + e.message);
+    }
 }
 
 async function submitQuickEdit(billId) {

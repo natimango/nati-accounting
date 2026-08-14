@@ -12,7 +12,10 @@ const {
   getVerificationSummary,
   deleteDocument,
   rerunAIForDocuments,
-  recategorizeAllBills
+  recategorizeAllBills,
+  getDocumentComments,
+  createDocumentComment,
+  deleteDocumentComment
 } = require('../controllers/uploadController');
 const { authorize } = require('../middleware/auth');
 
@@ -38,6 +41,11 @@ router.get('/documents/audit-log', authorize('manager', 'admin'), getAuditLog);
 
 // Delete document
 router.delete('/documents/:id', deleteDocument);
+
+// Document comments
+router.get('/documents/:id/comments', getDocumentComments);
+router.post('/documents/:id/comments', createDocumentComment);
+router.delete('/documents/comments/:comment_id', deleteDocumentComment);
 
 // Re-run AI processing
 router.post('/documents/reprocess', rerunAIForDocuments);

@@ -1891,6 +1891,71 @@ const getAuditLog = async (req, res) => {
   }
 };
 
+const getDocumentComments = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `SELECT c.comment_id, c.body, c.created_at,
+              u.user_id, u.full_name, u.email
+       FROM document_comments c
+       LEFT JOIN users u ON u.user_id = c.user_id
+       WHERE c.document_id = $1
+       ORDER BY c.created_at ASC`,
+      [id]
+    );
+    res.json({ success: true, comments: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+const createDocumentComment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { body } = req.body || {};
+    if (!body || !body.trim()) {
+      return res.status(400).json({ success: false, error: 'Comment body is required' });
+    }
+    const docCheck = await pool.query('SELECT document_id FROM documents WHERE document_id = $1', [id]);
+    if (!docCheck.rows.length) return res.status(404).json({ success: false, error: 'Document not found' });
+
+    const result = await pool.query(
+      `INSERT INTO document_comments (document_id, user_id, body)
+       VALUES ($1, $2, $3)
+       RETURNING comment_id, body, created_at`,
+      [id, req.user?.userId || null, body.trim()]
+    );
+    const comment = result.rows[0];
+    // Fetch author name
+    const userRow = await pool.query('SELECT full_name, email FROM users WHERE user_id = $1', [req.user?.userId || 0]);
+    comment.full_name = userRow.rows[0]?.full_name || null;
+    comment.email = userRow.rows[0]?.email || null;
+    res.status(201).json({ success: true, comment });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+const deleteDocumentComment = async (req, res) => {
+  try {
+    const { comment_id } = req.params;
+    const existing = await pool.query(
+      'SELECT user_id FROM document_comments WHERE comment_id = $1',
+      [comment_id]
+    );
+    if (!existing.rows.length) return res.status(404).json({ success: false, error: 'Comment not found' });
+    const isOwner = existing.rows[0].user_id === req.user?.userId;
+    const isAdmin = req.user?.role === 'admin';
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, error: 'Cannot delete another user\'s comment' });
+    }
+    await pool.query('DELETE FROM document_comments WHERE comment_id = $1', [comment_id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 module.exports = {
   upload,
   uploadBill,
@@ -1903,6 +1968,9 @@ module.exports = {
   rerunAIForDocuments,
   recategorizeAllBills,
   processDocumentWithAI,
+  getDocumentComments,
+  createDocumentComment,
+  deleteDocumentComment,
   canAttemptReprocess,
   buildVerificationSnapshot
 };
