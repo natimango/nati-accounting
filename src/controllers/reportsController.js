@@ -1355,6 +1355,59 @@ async function getCashFlow(req, res) {
 }
 
 // Create manual journal entry (double-entry)
+async function getAPAging(req, res) {
+  try {
+    const asOf = req.query.as_of_date || new Date().toISOString().split('T')[0];
+
+    const result = await pool.query(`
+      WITH outstanding AS (
+        SELECT
+          b.bill_id,
+          COALESCE(b.vendor_name, v.vendor_name, 'Unknown') AS vendor_name,
+          b.bill_number,
+          b.total_amount,
+          b.bill_date,
+          ps.due_date,
+          ps.amount_due - COALESCE(ps.amount_paid, 0) AS balance_due,
+          ($1::date - ps.due_date::date) AS days_overdue
+        FROM payment_schedule ps
+        JOIN bills b ON b.bill_id = ps.bill_id
+        LEFT JOIN vendors v ON v.vendor_id = b.vendor_id
+        WHERE ps.payment_status NOT IN ('paid', 'void')
+          AND COALESCE(b.status, 'pending') NOT IN ('deleted', 'void')
+          AND (ps.amount_due - COALESCE(ps.amount_paid, 0)) > 0.01
+      )
+      SELECT
+        vendor_name,
+        COUNT(DISTINCT bill_id) AS bill_count,
+        SUM(CASE WHEN days_overdue <= 0 THEN balance_due ELSE 0 END) AS current_due,
+        SUM(CASE WHEN days_overdue BETWEEN 1 AND 30 THEN balance_due ELSE 0 END) AS days_1_30,
+        SUM(CASE WHEN days_overdue BETWEEN 31 AND 60 THEN balance_due ELSE 0 END) AS days_31_60,
+        SUM(CASE WHEN days_overdue BETWEEN 61 AND 90 THEN balance_due ELSE 0 END) AS days_61_90,
+        SUM(CASE WHEN days_overdue > 90 THEN balance_due ELSE 0 END) AS days_90_plus,
+        SUM(balance_due) AS total_outstanding
+      FROM outstanding
+      GROUP BY vendor_name
+      ORDER BY total_outstanding DESC
+    `, [asOf]);
+
+    const totals = result.rows.reduce((acc, r) => {
+      acc.current_due   += Number(r.current_due   || 0);
+      acc.days_1_30     += Number(r.days_1_30     || 0);
+      acc.days_31_60    += Number(r.days_31_60    || 0);
+      acc.days_61_90    += Number(r.days_61_90    || 0);
+      acc.days_90_plus  += Number(r.days_90_plus  || 0);
+      acc.total_outstanding += Number(r.total_outstanding || 0);
+      return acc;
+    }, { current_due: 0, days_1_30: 0, days_31_60: 0, days_61_90: 0, days_90_plus: 0, total_outstanding: 0 });
+
+    res.json({ success: true, as_of_date: asOf, rows: result.rows, totals });
+  } catch (err) {
+    console.error('AP aging error', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 async function createJournalEntry(req, res) {
   const client = await pool.connect();
   try {
@@ -1427,5 +1480,6 @@ module.exports = {
   updateSalesEntry,
   deleteSalesEntry,
   getCashFlow,
-  createJournalEntry
+  createJournalEntry,
+  getAPAging
 };
