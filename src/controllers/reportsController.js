@@ -1355,6 +1355,69 @@ async function getCashFlow(req, res) {
 }
 
 // Create manual journal entry (double-entry)
+async function getPaymentForecast(req, res) {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const horizon = req.query.days ? Number(req.query.days) : 90;
+    const endDate = new Date(Date.now() + horizon * 86400000).toISOString().split('T')[0];
+
+    const result = await pool.query(`
+      SELECT
+        ps.schedule_id,
+        ps.bill_id,
+        ps.due_date,
+        ps.amount_due - COALESCE(ps.amount_paid, 0) AS balance_due,
+        ps.payment_status,
+        COALESCE(b.vendor_name, v.vendor_name, 'Unknown') AS vendor_name,
+        b.bill_number,
+        b.category_group,
+        b.drop_name,
+        ($1::date - ps.due_date::date) AS days_overdue
+      FROM payment_schedule ps
+      JOIN bills b ON b.bill_id = ps.bill_id
+      LEFT JOIN vendors v ON v.vendor_id = b.vendor_id
+      WHERE ps.payment_status NOT IN ('paid', 'void')
+        AND COALESCE(b.status, 'pending') NOT IN ('deleted', 'void')
+        AND (ps.amount_due - COALESCE(ps.amount_paid, 0)) > 0.01
+        AND ps.due_date <= $2
+      ORDER BY ps.due_date ASC
+    `, [today, endDate]);
+
+    // Group by week
+    const byWeek = {};
+    result.rows.forEach(r => {
+      const d = new Date(r.due_date);
+      const weekStart = new Date(d);
+      weekStart.setDate(d.getDate() - d.getDay() + 1); // Monday
+      const weekKey = weekStart.toISOString().split('T')[0];
+      if (!byWeek[weekKey]) byWeek[weekKey] = { week: weekKey, total: 0, overdue: 0, rows: [] };
+      const bal = Number(r.balance_due || 0);
+      byWeek[weekKey].total += bal;
+      if (Number(r.days_overdue) > 0) byWeek[weekKey].overdue += bal;
+      byWeek[weekKey].rows.push(r);
+    });
+
+    const overdueTotals = result.rows.filter(r => Number(r.days_overdue) > 0);
+    const totalOverdue = overdueTotals.reduce((s, r) => s + Number(r.balance_due || 0), 0);
+    const totalDue = result.rows.reduce((s, r) => s + Number(r.balance_due || 0), 0);
+    const totalUpcoming = totalDue - totalOverdue;
+
+    res.json({
+      success: true,
+      today,
+      horizon_days: horizon,
+      total_due: totalDue,
+      total_overdue: totalOverdue,
+      total_upcoming: totalUpcoming,
+      by_week: Object.values(byWeek),
+      schedules: result.rows
+    });
+  } catch (err) {
+    console.error('Payment forecast error', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 async function getSalesRegister(req, res) {
   try {
     const { start_date, end_date } = req.query;
@@ -1601,5 +1664,6 @@ module.exports = {
   createJournalEntry,
   getAPAging,
   getPurchaseRegister,
-  getSalesRegister
+  getSalesRegister,
+  getPaymentForecast
 };

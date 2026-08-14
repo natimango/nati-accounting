@@ -4,6 +4,7 @@ const {
   getAPAging,
   getPurchaseRegister,
   getSalesRegister,
+  getPaymentForecast,
   getProfitLoss,
   getPLTrend,
   getBalanceSheet,
@@ -66,5 +67,6 @@ router.post('/reports/journal-entries', authorize('manager', 'admin'), createJou
 router.get('/reports/ap-aging', getAPAging);
 router.get('/reports/purchase-register', getPurchaseRegister);
 router.get('/reports/sales-register', getSalesRegister);
+router.get('/reports/payment-forecast', getPaymentForecast);
 
 module.exports = router;

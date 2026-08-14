@@ -172,6 +172,42 @@
                 </div>
             </div>
 
+            <!-- Payment Forecast -->
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <div>
+                        <h2 class="font-semibold">Payment Forecast <span class="text-slate-400 font-normal text-sm">— Next 90 Days</span></h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Upcoming payment obligations from open payment schedules</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <select id="forecast-days" onchange="loadForecast()" class="px-2 py-1 border border-slate-300 rounded-lg text-xs">
+                            <option value="30">30 days</option>
+                            <option value="60">60 days</option>
+                            <option value="90" selected>90 days</option>
+                            <option value="180">180 days</option>
+                        </select>
+                        <button onclick="loadForecast()" class="text-xs text-indigo-600 hover:underline"><i class="fas fa-rotate mr-1"></i>Refresh</button>
+                    </div>
+                </div>
+                <div id="forecast-summary" class="grid grid-cols-3 gap-4 p-5 border-b border-slate-100">
+                    <div class="text-center">
+                        <div class="text-xs text-slate-500 mb-1">Overdue</div>
+                        <div id="fc-overdue" class="text-xl font-bold text-red-600">—</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-xs text-slate-500 mb-1">Upcoming</div>
+                        <div id="fc-upcoming" class="text-xl font-bold text-amber-600">—</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-xs text-slate-500 mb-1">Total Obligation</div>
+                        <div id="fc-total" class="text-xl font-bold text-slate-800">—</div>
+                    </div>
+                </div>
+                <div id="forecast-table" class="overflow-x-auto">
+                    <div class="text-center py-8 text-slate-400">Loading…</div>
+                </div>
+            </div>
+
         </div>
     </main>
 </div>
@@ -317,6 +353,55 @@ function renderTable(months, tot) {
     </tr>`;
 }
 
+async function loadForecast() {
+    const days = document.getElementById('forecast-days').value;
+    const tbl = document.getElementById('forecast-table');
+    tbl.innerHTML = '<div class="text-center py-8 text-slate-400">Loading…</div>';
+    try {
+        const r = await authFetch(`${API}/reports/payment-forecast?days=${days}`).then(r => r.json());
+        if (!r.success) throw new Error(r.error);
+        document.getElementById('fc-overdue').textContent = fmt(r.total_overdue);
+        document.getElementById('fc-upcoming').textContent = fmt(r.total_upcoming);
+        document.getElementById('fc-total').textContent = fmt(r.total_due);
+
+        if (!r.schedules.length) {
+            tbl.innerHTML = '<div class="text-center py-8 text-emerald-600"><i class="fas fa-circle-check mr-1"></i>No outstanding payments due in this period</div>';
+            return;
+        }
+
+        const rows = r.schedules.map(s => {
+            const overdue = Number(s.days_overdue) > 0;
+            const dueDt = s.due_date ? new Date(s.due_date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+            return `<tr class="border-t border-slate-100 hover:bg-slate-50 text-sm ${overdue ? 'bg-red-50' : ''}">
+                <td class="px-4 py-2.5 ${overdue ? 'text-red-600 font-medium' : 'text-slate-600'}">${dueDt}</td>
+                <td class="px-4 py-2.5 font-medium text-slate-800">${s.vendor_name}</td>
+                <td class="px-4 py-2.5 text-slate-500">${s.bill_number || '—'}</td>
+                <td class="px-4 py-2.5 text-slate-500">${s.category_group || '—'}</td>
+                <td class="px-4 py-2.5 text-slate-500">${s.drop_name || '—'}</td>
+                <td class="px-4 py-2.5 text-right font-semibold ${overdue ? 'text-red-700' : 'text-slate-800'}">${fmt(s.balance_due)}</td>
+                <td class="px-4 py-2.5">${overdue
+                    ? `<span class="text-xs font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded">${s.days_overdue}d overdue</span>`
+                    : `<span class="text-xs text-slate-400">due</span>`}</td>
+            </tr>`;
+        }).join('');
+
+        tbl.innerHTML = `<table class="w-full text-sm">
+            <thead><tr class="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
+                <th class="px-4 py-3 text-left">Due Date</th>
+                <th class="px-4 py-3 text-left">Vendor</th>
+                <th class="px-4 py-3 text-left">Bill No.</th>
+                <th class="px-4 py-3 text-left">Category</th>
+                <th class="px-4 py-3 text-left">Drop</th>
+                <th class="px-4 py-3 text-right">Balance Due</th>
+                <th class="px-4 py-3 text-left">Status</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table>`;
+    } catch (e) {
+        tbl.innerHTML = `<div class="text-center py-8 text-red-500">${e.message}</div>`;
+    }
+}
+
 function exportCSV() {
     if (!_data?.months?.length) { alert('Load data first'); return; }
     const rows = [['Month','Gross Sales','Returns','Platform Fees','Net Cash In','COGS Paid','Marketing Paid','Ops Paid','Total Cash Out','Net Cash']];
@@ -338,7 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fyYear = n.getMonth() >= 3 ? n.getFullYear() : n.getFullYear() - 1;
     document.getElementById('start-date').value = `${fyYear}-04-01`;
     document.getElementById('end-date').value   = today();
-    const init = () => load();
+    const init = () => { load(); loadForecast(); };
     if (window.sessionReady) window.sessionReady.then(init).catch(init);
     else init();
 });
