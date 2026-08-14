@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance Intelligence — NATI Accounting</title>
+    <link rel="stylesheet" href="css/tailwind.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/theme.css">
+</head>
+<body class="nati-page bg-gradient-to-br from-slate-50 via-slate-100 to-white text-slate-900">
+<div class="min-h-screen flex flex-col">
+
+    <header class="nati-hero bg-gradient-to-r from-indigo-700 via-blue-700 to-slate-900 text-white shadow">
+        <div class="nati-shell">
+            <div class="flex flex-wrap items-center gap-4 justify-between py-5">
+                <div class="flex items-center gap-3">
+                    <a href="index.html"><img src="logo.jpg" alt="NATI" class="h-14 w-14 rounded-xl border border-white/40 bg-white object-cover shadow"></a>
+                    <div>
+                        <p class="text-xs uppercase tracking-[.2em] text-white/70">NATI Collective</p>
+                        <h1 class="text-2xl font-semibold">Finance Intelligence</h1>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="nati-nav-wrapper">
+                        <button class="nati-nav-toggle" onclick="toggleNav('nav-alerts')"><i class="fas fa-bars"></i><span>Menu</span></button>
+                        <nav class="nati-nav" id="nav-alerts">
+                            <a href="index.html"        class="nati-nav-link"><i class="fas fa-gauge"></i><span>Dashboard</span></a>
+                            <a href="documents.html"    class="nati-nav-link"><i class="fas fa-folder-open"></i><span>Documents</span></a>
+                            <a href="upload.html"       class="nati-nav-link"><i class="fas fa-upload"></i><span>Upload</span></a>
+                            <a href="drop.html"         class="nati-nav-link"><i class="fas fa-layer-group"></i><span>Drop</span></a>
+                            <a href="reports.html"      class="nati-nav-link"><i class="fas fa-chart-line"></i><span>Reports</span></a>
+                            <a href="sales.html"        class="nati-nav-link"><i class="fas fa-store"></i><span>Sales</span></a>
+                            <a href="payables.html"     class="nati-nav-link"><i class="fas fa-file-invoice-dollar"></i><span>Payables</span></a>
+                            <a href="balance-sheet.html" class="nati-nav-link"><i class="fas fa-scale-balanced"></i><span>Balance Sheet</span></a>
+                            <a href="cashflow.html"     class="nati-nav-link"><i class="fas fa-water"></i><span>Cash Flow</span></a>
+                            <a href="accounts.html"     class="nati-nav-link"><i class="fas fa-book"></i><span>Accounts</span></a>
+                            <a href="alerts.html"       class="nati-nav-link is-active"><i class="fas fa-triangle-exclamation"></i><span>Alerts</span></a>
+                            <a href="admin.html"        class="nati-nav-link hidden" id="nav-admin"><i class="fas fa-user-shield"></i><span>Admin</span></a>
+                        </nav>
+                    </div>
+                    <div id="user-pill" class="hidden sm:flex items-center gap-2 px-3 py-2 rounded-2xl border border-white/30 bg-white/10 backdrop-blur">
+                        <div>
+                            <p id="user-name" class="text-sm font-semibold leading-tight">—</p>
+                            <p id="user-role" class="text-[11px] tracking-[.2em] text-white/70 uppercase">—</p>
+                        </div>
+                    </div>
+                    <button id="logout-btn" class="hidden px-3 py-2 bg-white/15 hover:bg-white/25 text-sm font-semibold rounded-2xl flex items-center gap-2 transition">
+                        <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 py-6">
+        <div class="nati-shell space-y-5">
+
+            <!-- Action bar -->
+            <div class="flex flex-wrap items-center gap-3">
+                <button onclick="runChecks()" id="run-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 flex items-center gap-2">
+                    <i class="fas fa-play"></i> Run All Checks
+                </button>
+                <button onclick="loadAll()" class="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 flex items-center gap-2">
+                    <i class="fas fa-rotate text-slate-400"></i> Refresh
+                </button>
+                <div class="ml-auto text-xs text-slate-400">Last refreshed: <span id="last-refreshed">—</span></div>
+            </div>
+
+            <!-- Invariant checks -->
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <div>
+                        <h2 class="font-semibold">Accounting Invariants</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Structural integrity checks that must pass for reliable reports</p>
+                    </div>
+                    <div id="invariant-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-400">Checking…</div>
+                </div>
+                <div id="invariants" class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div class="text-center py-6 text-slate-400 col-span-4"><i class="fas fa-circle-notch animate-spin mr-2"></i>Loading…</div>
+                </div>
+            </div>
+
+            <!-- Finance Watchdog -->
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <div>
+                        <h2 class="font-semibold">Finance Watchdog</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Automated checks on duplicates, stale reviews, overdue bills, uncategorised spend</p>
+                    </div>
+                    <div id="watchdog-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-400">Loading…</div>
+                </div>
+                <div id="watchdog-detail" class="p-4">
+                    <div class="text-center py-6 text-slate-400"><i class="fas fa-circle-notch animate-spin mr-2"></i>Loading…</div>
+                </div>
+            </div>
+
+            <!-- Alert feed -->
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center gap-3 justify-between">
+                    <div>
+                        <h2 class="font-semibold">Alert Feed</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Budget breaches, high-value bills, verification issues</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select id="alert-status" onchange="loadAlerts()" class="px-2 py-1.5 border border-slate-300 rounded-lg text-xs bg-white">
+                            <option value="open">Open alerts</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="all">All</option>
+                        </select>
+                        <select id="alert-severity" onchange="filterAlerts()" class="px-2 py-1.5 border border-slate-300 rounded-lg text-xs bg-white">
+                            <option value="">All severities</option>
+                            <option value="critical">Critical</option>
+                            <option value="warning">Warning</option>
+                            <option value="info">Info</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="alert-list" class="divide-y divide-slate-100">
+                    <div class="text-center py-8 text-slate-400"><i class="fas fa-circle-notch animate-spin mr-2"></i>Loading…</div>
+                </div>
+                <div id="alert-empty" class="hidden text-center py-10 text-slate-400">
+                    <i class="fas fa-circle-check text-3xl text-emerald-400 mb-2"></i>
+                    <p class="font-medium text-slate-600">No open alerts</p>
+                    <p class="text-xs mt-1">Everything looks clean. Run checks to refresh.</p>
+                </div>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<script src="js/session.js" defer></script>
+<script src="js/nav.js" defer></script>
+<script>
+const API = '/api';
+function authFetch(url, opts = {}) { return fetch(url, Object.assign({ credentials: 'include' }, opts)); }
+const fmt = n => n == null ? '—' : '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+
+let _allAlerts = [];
+
+async function loadAll() {
+    await Promise.all([loadInvariants(), loadWatchdog(), loadAlerts()]);
+    document.getElementById('last-refreshed').textContent = new Date().toLocaleTimeString('en-IN');
+}
+
+// ── Invariants ────────────────────────────────────────────────────────────────
+async function loadInvariants() {
+    const el = document.getElementById('invariants');
+    try {
+        const d = await authFetch(`${API}/brain/invariants/check`).then(r => r.json());
+        const inv = d.invariants || {};
+        const checks = [
+            { key: 'posted_missing_dims', label: 'Posted items missing dims', icon: 'fa-tag', good: v => v === 0, link: 'documents.html?flag=missing-dims' },
+            { key: 'verified_with_unposted', label: 'Verified docs with unposted items', icon: 'fa-inbox', good: v => v === 0, link: 'documents.html?flag=unposted-postable' },
+            { key: 'duplicate_file_count', label: 'Duplicate documents', icon: 'fa-copy', good: v => v === 0, link: 'documents.html' },
+            { key: 'unposted_count', label: 'Unposted bill items', icon: 'fa-circle-dot', good: v => v === 0, extra: v => fmt(inv.unposted_amount) },
+        ];
+
+        const allGood = checks.every(c => c.good(inv[c.key] || 0));
+        const badge = document.getElementById('invariant-badge');
+        badge.textContent = allGood ? '✓ All passing' : `${checks.filter(c => !c.good(inv[c.key]||0)).length} issues`;
+        badge.className = `px-3 py-1 rounded-full text-xs font-semibold ${allGood ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`;
+
+        el.innerHTML = checks.map(c => {
+            const val = inv[c.key] || 0;
+            const ok  = c.good(val);
+            const extra = c.extra ? `<p class="text-xs mt-0.5 ${ok ? 'text-slate-400' : 'text-rose-500'}">${c.extra(val)}</p>` : '';
+            const content = `
+                <div class="p-2 rounded-lg ${ok ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'} mb-3 inline-flex">
+                    <i class="fas ${c.icon}"></i>
+                </div>
+                <p class="text-xs text-slate-500 leading-snug">${c.label}</p>
+                <p class="text-2xl font-bold mt-1 ${ok ? 'text-emerald-700' : 'text-rose-600'}">${val}</p>
+                ${extra}`;
+            return ok
+                ? `<div class="border border-slate-100 rounded-xl p-4">${content}</div>`
+                : `<a href="${c.link}" class="border border-rose-200 rounded-xl p-4 bg-rose-50/50 hover:bg-rose-50 transition block">${content}
+                       <p class="text-xs text-rose-500 mt-2 font-medium">Fix →</p></a>`;
+        }).join('');
+    } catch (err) {
+        el.innerHTML = `<div class="col-span-4 py-6 text-center text-red-400">${err.message}</div>`;
+    }
+}
+
+// ── Watchdog ──────────────────────────────────────────────────────────────────
+async function loadWatchdog() {
+    const el = document.getElementById('watchdog-detail');
+    try {
+        const d = await authFetch(`${API}/brain/watchdog`).then(r => r.json());
+        const summary = d.summary || {};
+        const checks = [
+            { key: 'duplicates',    label: 'Duplicate bills',      icon: 'fa-copy',           href: 'documents.html',                        items: (d.duplicates    || []).map(x => x.vendor_name || '—') },
+            { key: 'stale_manual',  label: 'Stale manual reviews (48h+)', icon: 'fa-hourglass-half', href: 'documents.html?status=manual_required', items: (d.stale_manual  || []).map(x => x.file_name || '—') },
+            { key: 'aged_unpaid',   label: 'Unpaid bills > 30 days', icon: 'fa-calendar-xmark', href: 'payables.html',                          items: (d.aged_unpaid   || []).map(x => `${x.vendor_name||'—'} · ${fmt(x.total_amount)}`) },
+            { key: 'uncategorized', label: 'Uncategorised bills',   icon: 'fa-tag',            href: 'documents.html?flag=no-group',           items: (d.uncategorized || []).map(x => `${x.vendor_name||'—'} · ${fmt(x.total_amount)}`) },
+        ];
+
+        const issueCount = checks.filter(c => (summary[c.key] ?? c.items.length) > 0).length;
+        const badge = document.getElementById('watchdog-badge');
+        badge.textContent = issueCount === 0 ? '✓ All clear' : `${issueCount} area${issueCount !== 1 ? 's' : ''} need attention`;
+        badge.className = `px-3 py-1 rounded-full text-xs font-semibold ${issueCount === 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`;
+
+        el.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">${
+            checks.map(c => {
+                const count = summary[c.key] ?? c.items.length;
+                const ok    = count === 0;
+                const subs  = c.items.slice(0, 3).map(i => `<p class="text-[11px] text-slate-400 truncate mt-0.5">${i}</p>`).join('');
+                const card = `
+                    <div class="p-2 rounded-lg ${ok ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'} inline-flex mb-3">
+                        <i class="fas ${c.icon}"></i>
+                    </div>
+                    <div class="flex items-start justify-between">
+                        <p class="text-xs text-slate-500 leading-snug flex-1">${c.label}</p>
+                        <span class="text-xl font-bold ml-3 ${ok ? 'text-emerald-700' : 'text-amber-700'}">${count}</span>
+                    </div>
+                    ${!ok && subs ? `<div class="mt-2">${subs}${c.items.length > 3 ? `<p class="text-[11px] text-slate-400 mt-0.5">…and ${c.items.length-3} more</p>` : ''}</div>` : ''}`;
+                return ok
+                    ? `<div class="border border-slate-100 rounded-xl p-4">${card}</div>`
+                    : `<a href="${c.href}" class="border border-amber-200 rounded-xl p-4 bg-amber-50/40 hover:bg-amber-50 transition block">${card}<p class="text-xs text-amber-600 font-medium mt-2">View →</p></a>`;
+            }).join('')
+        }</div>`;
+    } catch (err) {
+        el.innerHTML = `<div class="py-6 text-center text-red-400">${err.message}</div>`;
+    }
+}
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+async function loadAlerts() {
+    const status = document.getElementById('alert-status').value;
+    const el = document.getElementById('alert-list');
+    el.innerHTML = '<div class="text-center py-8 text-slate-400"><i class="fas fa-circle-notch animate-spin mr-2"></i>Loading…</div>';
+    document.getElementById('alert-empty').classList.add('hidden');
+    try {
+        const d = await authFetch(`${API}/brain/alerts?status=${status}&limit=100`).then(r => r.json());
+        _allAlerts = d.alerts || [];
+        filterAlerts();
+    } catch (err) {
+        el.innerHTML = `<div class="py-8 text-center text-red-400">${err.message}</div>`;
+    }
+}
+
+function filterAlerts() {
+    const sev = document.getElementById('alert-severity').value;
+    const rows = sev ? _allAlerts.filter(a => a.severity === sev) : _allAlerts;
+    const el = document.getElementById('alert-list');
+
+    if (!rows.length) {
+        el.innerHTML = '';
+        document.getElementById('alert-empty').classList.remove('hidden');
+        return;
+    }
+    document.getElementById('alert-empty').classList.add('hidden');
+
+    const SEV = {
+        critical: { bg: 'bg-red-50 border-red-200',  dot: 'bg-red-500',    text: 'text-red-700',    label: 'Critical' },
+        warning:  { bg: 'bg-amber-50 border-amber-200', dot: 'bg-amber-500', text: 'text-amber-700',  label: 'Warning'  },
+        info:     { bg: 'bg-blue-50 border-blue-100', dot: 'bg-blue-400',   text: 'text-blue-700',   label: 'Info'     },
+    };
+
+    el.innerHTML = rows.map(a => {
+        const s = SEV[a.severity] || SEV.info;
+        const date = a.created_at ? new Date(a.created_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : '—';
+        const resolvedStr = a.resolved_at
+            ? `<span class="text-xs text-emerald-600 flex items-center gap-1"><i class="fas fa-circle-check"></i>Resolved ${new Date(a.resolved_at).toLocaleDateString('en-IN')}</span>`
+            : '';
+        const links = [];
+        if (a.document_id) links.push(`<a href="documents.html?doc=${a.document_id}" class="text-xs text-indigo-500 hover:underline"><i class="fas fa-receipt mr-0.5"></i>View doc</a>`);
+        if (a.drop_name)   links.push(`<a href="drop.html?drop=${encodeURIComponent(a.drop_name)}" class="text-xs text-indigo-500 hover:underline"><i class="fas fa-layer-group mr-0.5"></i>${a.drop_name}</a>`);
+
+        return `<div class="flex items-start gap-3 px-5 py-4 border-l-4 ${a.resolved_at ? 'opacity-60' : ''}" style="border-left-color:${a.severity==='critical'?'#ef4444':a.severity==='warning'?'#f59e0b':'#60a5fa'}">
+            <div class="w-2 h-2 rounded-full mt-1.5 shrink-0 ${s.dot}"></div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-xs font-bold uppercase tracking-wide ${s.text}">${a.alert_type?.replace(/_/g,' ') || 'Alert'}</span>
+                    ${a.category_group ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">${a.category_group}</span>` : ''}
+                    <span class="text-xs text-slate-400 ml-auto">${date}</span>
+                </div>
+                <p class="text-sm text-slate-700 mt-0.5">${a.message || '—'}</p>
+                <div class="flex items-center gap-3 mt-1.5 flex-wrap">
+                    ${links.join('')}
+                    ${resolvedStr}
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ── Run checks ────────────────────────────────────────────────────────────────
+async function runChecks() {
+    const btn = document.getElementById('run-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-circle-notch animate-spin mr-2"></i>Running…';
+    try {
+        await authFetch(`${API}/brain/alerts/run`, { method: 'POST' });
+        await loadAll();
+    } catch (err) {
+        alert('Run failed: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-play mr-2"></i>Run All Checks';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const init = () => loadAll();
+    if (window.sessionReady) window.sessionReady.then(init).catch(init);
+    else init();
+});
+</script>
+</body>
+</html>
