@@ -343,6 +343,19 @@ async function loadAll() {
     await Promise.all([loadStats(), loadDocs()]);
 }
 
+// Apply URL filter param
+(function applyUrlFilter() {
+    const p = new URLSearchParams(window.location.search).get('filter');
+    const valid = ['all','low_quality','unverified','missing_bill','unposted'];
+    if (p && valid.includes(p)) {
+        _filter = p;
+        document.querySelectorAll('.filter-btn').forEach(b => {
+            const match = b.getAttribute('onclick')?.includes(`'${p}'`);
+            b.classList.toggle('active', !!match);
+        });
+    }
+})();
+
 // Auth check
 fetch('/api/auth/me', { credentials: 'include' })
     .then(r => r.ok ? r.json() : Promise.reject())

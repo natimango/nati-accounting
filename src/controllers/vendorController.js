@@ -64,6 +64,26 @@ async function updateVendor(req, res) {
   }
 }
 
+async function createVendor(req, res) {
+  try {
+    const { vendor_name, gstin, pan, contact_person, email, phone, address, vendor_type, payment_terms } = req.body;
+    if (!vendor_name || !vendor_name.trim()) {
+      return res.status(400).json({ success: false, error: 'vendor_name is required' });
+    }
+    const result = await pool.query(`
+      INSERT INTO vendors (vendor_name, gstin, pan, contact_person, email, phone, address, vendor_type, payment_terms, is_active)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true)
+      RETURNING *
+    `, [vendor_name.trim(), gstin || null, pan || null, contact_person || null, email || null, phone || null, address || null, vendor_type || null, payment_terms || null]);
+    res.status(201).json({ success: true, vendor: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ success: false, error: 'A vendor with this name already exists' });
+    }
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 async function archiveVendor(req, res) {
   try {
     const { vendor_id } = req.params;
@@ -74,4 +94,4 @@ async function archiveVendor(req, res) {
   }
 }
 
-module.exports = { listVendors, getVendor, updateVendor, archiveVendor };
+module.exports = { listVendors, getVendor, createVendor, updateVendor, archiveVendor };
