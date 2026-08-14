@@ -117,6 +117,9 @@
                             <option value="REVENUE">Revenue</option>
                             <option value="EXPENSE">Expenses</option>
                         </select>
+                        <button onclick="openAddAccount()" data-role-required="admin" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 flex items-center gap-1.5 hidden">
+                            <i class="fas fa-plus text-xs"></i> Add
+                        </button>
                     </div>
                 </div>
                 <div id="coa-loading" class="text-center py-12 text-slate-400">Loading accounts…</div>
@@ -719,7 +722,79 @@
         document.getElementById('je-end').value    = today;
         loadCOA();
     });
+
+    function openAddAccount() {
+        ['aa-code','aa-name','aa-desc'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        const typeEl = document.getElementById('aa-type'); if (typeEl) typeEl.value = 'EXPENSE';
+        document.getElementById('aa-msg').textContent = '';
+        document.getElementById('add-account-modal').classList.remove('hidden');
+        setTimeout(() => document.getElementById('aa-code')?.focus(), 50);
+    }
+
+    function closeAddAccount() {
+        document.getElementById('add-account-modal').classList.add('hidden');
+    }
+
+    async function submitAddAccount() {
+        const msg = document.getElementById('aa-msg');
+        const code = document.getElementById('aa-code').value.trim();
+        const name = document.getElementById('aa-name').value.trim();
+        const type = document.getElementById('aa-type').value;
+        if (!code || !name) { msg.textContent = 'Code and name are required.'; msg.className = 'text-xs text-red-500'; return; }
+        msg.textContent = 'Saving…'; msg.className = 'text-xs text-slate-400';
+        try {
+            const resp = await authFetch(`${API}/reports/chart-of-accounts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ account_code: code, account_name: name, account_type: type, description: document.getElementById('aa-desc').value.trim() || null })
+            }).then(r => r.json());
+            if (!resp.success) throw new Error(resp.error || 'Failed');
+            closeAddAccount();
+            loadCOA();
+        } catch (e) {
+            msg.textContent = e.message; msg.className = 'text-xs text-red-500';
+        }
+    }
 </script>
+
+<!-- Add Account Modal -->
+<div id="add-account-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-slate-800">Add Account</h3>
+            <button onclick="closeAddAccount()" class="text-slate-400 hover:text-slate-700"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="space-y-3 text-sm">
+            <div>
+                <label class="block text-xs text-slate-500 mb-1">Account Code *</label>
+                <input id="aa-code" type="text" placeholder="e.g. 5120" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500 mb-1">Account Name *</label>
+                <input id="aa-name" type="text" placeholder="e.g. Office Supplies" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500 mb-1">Type *</label>
+                <select id="aa-type" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                    <option value="ASSET">Asset</option>
+                    <option value="LIABILITY">Liability</option>
+                    <option value="EQUITY">Equity</option>
+                    <option value="REVENUE">Revenue</option>
+                    <option value="EXPENSE" selected>Expense</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500 mb-1">Description</label>
+                <input id="aa-desc" type="text" placeholder="Optional" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+            </div>
+        </div>
+        <div class="flex items-center gap-3 mt-4">
+            <button onclick="submitAddAccount()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">Create Account</button>
+            <button onclick="closeAddAccount()" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm hover:bg-slate-50">Cancel</button>
+            <span id="aa-msg" class="text-xs text-slate-400 ml-1"></span>
+        </div>
+    </div>
+</div>
 
 <script src="js/session.js" defer></script>
 <script src="js/nav.js" defer></script>

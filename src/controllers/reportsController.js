@@ -540,6 +540,29 @@ async function getChartOfAccounts(req, res) {
   }
 }
 
+async function createAccount(req, res) {
+  try {
+    const { account_code, account_name, account_type, parent_account_id, description } = req.body;
+    if (!account_code || !account_name || !account_type) {
+      return res.status(400).json({ success: false, error: 'account_code, account_name, account_type are required' });
+    }
+    const VALID_TYPES = ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE'];
+    if (!VALID_TYPES.includes(account_type.toUpperCase())) {
+      return res.status(400).json({ success: false, error: `account_type must be one of: ${VALID_TYPES.join(', ')}` });
+    }
+    const result = await pool.query(
+      `INSERT INTO accounts (account_code, account_name, account_type, parent_account_id, description, is_active)
+       VALUES ($1, $2, $3, $4, $5, true)
+       RETURNING *`,
+      [account_code.trim(), account_name.trim(), account_type.toUpperCase(), parent_account_id || null, description || null]
+    );
+    res.status(201).json({ success: true, account: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ success: false, error: 'Account code already exists' });
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 // Spend by dimensions (drop/trip) for D2C ops visibility
 async function getDimensionSpend(req, res) {
   try {
@@ -1641,6 +1664,7 @@ module.exports = {
   getBalanceSheet,
   getJournalEntries,
   getChartOfAccounts,
+  createAccount,
   getVendorAnalysis,
   getDimensionSpend,
   upsertDropBudget,

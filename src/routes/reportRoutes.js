@@ -10,6 +10,7 @@ const {
   getBalanceSheet,
   getTrialBalance,
   getChartOfAccounts,
+  createAccount,
   getDimensionSpend,
   upsertDropBudget,
   getDropBudgets,
@@ -61,6 +62,7 @@ router.delete('/reports/sales/:id', authorize('admin'), deleteSalesEntry);
 router.get('/reports/journal-entries', getJournalEntries);
 router.get('/reports/trial-balance', getTrialBalance);
 router.get('/reports/chart-of-accounts', getChartOfAccounts);
+router.post('/reports/chart-of-accounts', authorize('admin'), createAccount);
 router.get('/reports/vendor-analysis', getVendorAnalysis);
 router.get('/reports/cash-flow', getCashFlow);
 router.post('/reports/journal-entries', authorize('manager', 'admin'), createJournalEntry);
