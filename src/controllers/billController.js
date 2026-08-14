@@ -726,14 +726,14 @@ async function recordPayment(req, res) {
       `INSERT INTO payments (bill_id, schedule_id, payment_date, amount_paid, payment_method, notes, recorded_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING payment_id`,
-      [bill_id, schedule_id, payment_date, amount, method, notes, 1]
+      [bill_id, schedule_id, payment_date, amount, method, notes, req.user?.user_id || null]
     );
-    
+
     // Update payment schedule
     await pool.query(
-      `UPDATE payment_schedule 
+      `UPDATE payment_schedule
        SET amount_paid = amount_paid + $1,
-           payment_status = CASE 
+           payment_status = CASE
              WHEN amount_paid + $1 >= amount_due THEN 'PAID'
              ELSE 'PARTIAL'
            END
@@ -779,7 +779,7 @@ async function recordSimplePayment(req, res) {
       `INSERT INTO payments (bill_id, schedule_id, payment_date, amount_paid, payment_method, notes, recorded_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING payment_id`,
-      [bill_id, schedule_id, payment_date, amount, method, notes, 1]
+      [bill_id, schedule_id, payment_date, amount, method, notes, req.user?.user_id || null]
     );
 
     await pool.query(

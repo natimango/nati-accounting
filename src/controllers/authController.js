@@ -184,10 +184,34 @@ async function updateUser(req, res) {
   }
 }
 
+async function changePassword(req, res) {
+  try {
+    const userId = req.user?.user_id || req.user?.userId;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+    const { current_password, new_password } = req.body || {};
+    if (!current_password || !new_password) {
+      return res.status(400).json({ error: 'current_password and new_password are required' });
+    }
+    if (new_password.length < 8) {
+      return res.status(400).json({ error: 'new_password must be at least 8 characters' });
+    }
+    const userRes = await pool.query('SELECT password_hash FROM users WHERE user_id = $1', [userId]);
+    if (!userRes.rows.length) return res.status(404).json({ error: 'User not found' });
+    const match = await bcrypt.compare(current_password, userRes.rows[0].password_hash);
+    if (!match) return res.status(403).json({ error: 'Current password is incorrect' });
+    const hash = await bcrypt.hash(new_password, 10);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE user_id = $2', [hash, userId]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Unable to change password' });
+  }
+}
+
 module.exports = {
   login,
   logout,
   me,
+  changePassword,
   listUsers,
   createUser,
   deleteUser,

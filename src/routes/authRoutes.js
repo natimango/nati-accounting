@@ -4,6 +4,7 @@ const {
   login,
   logout,
   me,
+  changePassword,
   listUsers,
   createUser,
   deleteUser,
@@ -14,6 +15,7 @@ const { authenticate, authorize } = require('../middleware/auth');
 router.post('/login', login);
 router.post('/logout', authenticate, logout);
 router.get('/me', authenticate, me);
+router.post('/change-password', authenticate, changePassword);
 router.get('/users', authenticate, authorize('admin'), listUsers);
 router.post('/users', authenticate, authorize('admin'), createUser);
 router.patch('/users/:id', authenticate, authorize('admin'), updateUser);
