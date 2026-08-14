@@ -203,6 +203,12 @@
                     <p id="cost-msg" class="text-xs mt-2"></p>
                 </div>
 
+                <!-- Spend Analysis from Brain -->
+                <div class="p-4 border-b border-slate-100">
+                    <h4 class="text-sm font-semibold text-slate-700 mb-3">Spend Analysis <span class="font-normal text-slate-400 text-xs">(from bills)</span></h4>
+                    <div id="sku-spend-panel" class="text-xs text-slate-400">Loading…</div>
+                </div>
+
                 <!-- SKU meta -->
                 <div class="p-4">
                     <h4 class="text-sm font-semibold text-slate-700 mb-3">Details</h4>
@@ -369,12 +375,42 @@ async function openEditPanel(skuId) {
     document.getElementById('edit-panel').style.display = '';
     document.getElementById('edit-panel').scrollIntoView({ behavior: 'smooth' });
 
-    await loadCostLayers(skuId);
+    await Promise.all([loadCostLayers(skuId), loadSkuSpend(sku.sku_code)]);
 }
 
 function closeEditPanel() {
     document.getElementById('edit-panel').style.display = 'none';
     currentSkuId = null;
+}
+
+async function loadSkuSpend(skuCode) {
+    const panel = document.getElementById('sku-spend-panel');
+    panel.innerHTML = '<span class="text-slate-400">Loading spend data…</span>';
+    try {
+        const r = await authFetch(`/api/brain/sku/${encodeURIComponent(skuCode)}`);
+        const d = await r.json();
+        if (!d || (!d.total_amount && !d.total_qty)) {
+            panel.innerHTML = '<span class="text-slate-400">No bill spend recorded for this SKU yet.</span>';
+            return;
+        }
+        panel.innerHTML = `
+            <div class="grid grid-cols-3 gap-4">
+                <div class="bg-slate-50 rounded-lg p-3 text-center">
+                    <div class="text-slate-500 text-xs mb-1">Total Spend</div>
+                    <div class="text-base font-bold text-slate-800">${fmt(d.total_amount || 0)}</div>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-3 text-center">
+                    <div class="text-slate-500 text-xs mb-1">Total Qty</div>
+                    <div class="text-base font-bold text-slate-800">${Number(d.total_qty || 0).toLocaleString('en-IN')}</div>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-3 text-center">
+                    <div class="text-slate-500 text-xs mb-1">Avg Cost/Unit</div>
+                    <div class="text-base font-bold text-slate-800">${d.total_qty > 0 ? fmt(d.total_amount / d.total_qty) : '—'}</div>
+                </div>
+            </div>`;
+    } catch (e) {
+        panel.innerHTML = `<span class="text-red-500">Failed to load: ${e.message}</span>`;
+    }
 }
 
 async function loadCostLayers(skuId) {
