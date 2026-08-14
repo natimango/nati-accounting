@@ -907,6 +907,7 @@ async function openBillModal(id) {
                 ${needsMarkPaid ? `<button onclick="actionMarkPaid(${d.bill_id}, '${(vendor).replace(/'/g,'')}', ${total})" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 flex items-center gap-2"><i class="fas fa-check"></i>Mark Paid</button>` : ''}
                 ${notYetProcessed && d.can_process !== false ? `<button onclick="actionProcessAI(${d.document_id})" class="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 flex items-center gap-2"><i class="fas fa-robot"></i>Extract with AI</button>` : ''}
                 <button onclick="actionDownload(${d.document_id})" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 flex items-center gap-2"><i class="fas fa-download"></i>Download</button>
+                ${d.bill_id && d.bill_status !== 'void' ? `<button onclick="actionVoid(${d.bill_id})" class="px-4 py-2 bg-amber-50 text-amber-700 rounded-lg text-sm font-medium hover:bg-amber-100 flex items-center gap-2"><i class="fas fa-ban"></i>Void Bill</button>` : ''}
                 ${d.can_delete !== false ? `<button onclick="actionDelete(${d.document_id}, ${d.bill_id || 'null'})" class="ml-auto px-4 py-2 bg-rose-50 text-rose-600 rounded-lg text-sm font-medium hover:bg-rose-100 flex items-center gap-2"><i class="fas fa-trash"></i>Delete</button>` : ''}
             </div>
         </div>`;
@@ -2270,6 +2271,24 @@ function actionManual(documentId) {
 function actionDelete(documentId, billId) {
     if (billId) return deleteBill(billId);
     return deleteDocument(documentId);
+}
+
+async function actionVoid(billId) {
+    const reason = prompt('Reason for voiding (optional):');
+    if (reason === null) return; // cancelled
+    try {
+        const resp = await authFetch(`${API_URL}/bills/${billId}/void`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason.trim() })
+        }).then(r => r.json());
+        if (!resp.success) throw new Error(resp.error || 'Failed to void');
+        showToast('Bill voided.');
+        closeBillModal();
+        loadDocuments();
+    } catch (e) {
+        showToast('Void failed: ' + e.message);
+    }
 }
 
 function actionMarkPaid(billId, vendor, outstanding) {

@@ -993,6 +993,44 @@ async function deleteBill(req, res) {
   }
 }
 
+async function voidBill(req, res) {
+  const client = await pool.connect();
+  try {
+    const { bill_id } = req.params;
+    const { reason } = req.body || {};
+    const billRow = await client.query(
+      `SELECT b.bill_id, b.document_id, b.status, b.total_amount, v.vendor_name
+       FROM bills b LEFT JOIN vendors v ON v.vendor_id = b.vendor_id
+       WHERE b.bill_id = $1`, [bill_id]
+    );
+    if (!billRow.rows.length) return res.status(404).json({ error: 'Bill not found' });
+    const bill = billRow.rows[0];
+    if (bill.status === 'void' || bill.status === 'deleted') {
+      return res.status(400).json({ error: 'Bill is already voided or deleted' });
+    }
+    await client.query('BEGIN');
+    await client.query(`UPDATE bills SET status = 'void' WHERE bill_id = $1`, [bill_id]);
+    await client.query(
+      `UPDATE payment_schedule SET status = 'cancelled' WHERE bill_id = $1 AND status NOT IN ('paid','cancelled')`,
+      [bill_id]
+    );
+    if (bill.document_id) {
+      await client.query(
+        `UPDATE documents SET notes = COALESCE(notes || E'\n', '') || $2 WHERE document_id = $1`,
+        [bill.document_id, `[Voided${reason ? ': ' + reason : ''}]`]
+      );
+    }
+    await client.query('COMMIT');
+    res.json({ success: true, bill_id: Number(bill_id), status: 'void' });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Void bill error:', err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+}
+
 // Update bill/document dimensions/metadata
 async function updateBillMeta(req, res) {
   try {
@@ -1207,6 +1245,7 @@ module.exports = {
   getPaymentDashboard,
   recordPayment,
   deleteBill,
+  voidBill,
   updateBillMeta,
   bulkUpdateBillMeta,
   recordSimplePayment,

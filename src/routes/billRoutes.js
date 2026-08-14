@@ -8,6 +8,7 @@ const {
   recordPayment,
   recordSimplePayment,
   deleteBill,
+  voidBill,
   updateBillMeta,
   bulkUpdateBillMeta,
   listPayments,
@@ -33,6 +34,9 @@ router.post('/payments/record', recordPayment);
 
 // Delete bill (and cascade its items/payments), reset document for reprocess
 router.delete('/bills/:bill_id', deleteBill);
+
+// Void bill (keeps document, marks bill as void, cancels pending payments)
+router.patch('/bills/:bill_id/void', authorize('admin'), voidBill);
 
 // Update bill/document metadata (dimensions/category)
 router.patch('/bills/:bill_id/meta', updateBillMeta);
