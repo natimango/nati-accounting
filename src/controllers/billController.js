@@ -740,13 +740,21 @@ async function recordPayment(req, res) {
        WHERE schedule_id = $2`,
       [amount, schedule_id]
     );
-    
+
+    // Update bill outstanding_amount
+    await pool.query(
+      `UPDATE bills SET
+         outstanding_amount = GREATEST(0, total_amount - COALESCE((SELECT SUM(amount_paid) FROM payments WHERE bill_id = $1), 0))
+       WHERE bill_id = $1`,
+      [bill_id]
+    );
+
     res.json({
       success: true,
       payment_id: paymentResult.rows[0].payment_id,
       message: 'Payment recorded successfully'
     });
-    
+
   } catch (error) {
     console.error('Payment recording error:', error);
     res.status(500).json({ error: error.message });
@@ -793,14 +801,20 @@ async function recordSimplePayment(req, res) {
       [amount, schedule_id]
     );
 
-    // Update bill payment_status based on all schedules
+    // Update bill payment_status and outstanding_amount
     const allPaid = await pool.query(
       `SELECT COUNT(*) FILTER (WHERE payment_status != 'PAID') AS pending_count
        FROM payment_schedule WHERE bill_id = $1`,
       [bill_id]
     );
     const billStatus = parseInt(allPaid.rows[0].pending_count) === 0 ? 'paid' : 'advance';
-    await pool.query(`UPDATE bills SET payment_status = $1 WHERE bill_id = $2`, [billStatus, bill_id]);
+    await pool.query(
+      `UPDATE bills SET
+         payment_status = $1,
+         outstanding_amount = GREATEST(0, total_amount - COALESCE((SELECT SUM(amount_paid) FROM payments WHERE bill_id = $2), 0))
+       WHERE bill_id = $2`,
+      [billStatus, bill_id]
+    );
 
     res.json({
       success: true,
@@ -857,14 +871,22 @@ async function importBankCSV(req, res) {
 
       // Update schedule
       await pool.query(
-        `UPDATE payment_schedule 
+        `UPDATE payment_schedule
          SET amount_paid = amount_paid + $1,
-             payment_status = CASE 
+             payment_status = CASE
                WHEN amount_paid + $1 >= amount_due THEN 'PAID'
                ELSE 'PARTIAL'
              END
          WHERE schedule_id = $2`,
         [amount, match.schedule_id]
+      );
+
+      // Update bill outstanding_amount
+      await pool.query(
+        `UPDATE bills SET
+           outstanding_amount = GREATEST(0, total_amount - COALESCE((SELECT SUM(amount_paid) FROM payments WHERE bill_id = $1), 0))
+         WHERE bill_id = $1`,
+        [match.bill_id]
       );
 
       matches.push({

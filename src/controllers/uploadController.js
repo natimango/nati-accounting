@@ -1570,11 +1570,27 @@ const getDocument = async (req, res) => {
       lineItems = itemsResult.rows;
     }
 
+    let payments = [];
+    if (document.bill_id) {
+      const paymentsResult = await pool.query(
+        `SELECT p.payment_id, p.payment_date, p.amount_paid, p.payment_method,
+                p.notes, p.reference_number, p.recorded_by,
+                u.full_name AS recorded_by_name
+         FROM payments p
+         LEFT JOIN users u ON u.user_id = p.recorded_by
+         WHERE p.bill_id = $1
+         ORDER BY p.payment_date DESC, p.payment_id DESC`,
+        [document.bill_id]
+      );
+      payments = paymentsResult.rows;
+    }
+
     res.json({
       success: true,
       document: {
         ...document,
-        line_items: lineItems
+        line_items: lineItems,
+        payment_history: payments
       }
     });
   } catch (error) {

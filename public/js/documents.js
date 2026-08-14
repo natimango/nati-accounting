@@ -685,6 +685,26 @@ async function applyBulkMeta() {
 
 function applyBulkGroup() { return applyBulkMeta(); }
 
+async function bulkPostAllItems() {
+    if (!bulkSelected.size) { showToast('No bills selected'); return; }
+    const billIds = Array.from(bulkSelected);
+    let totalPosted = 0;
+    let errors = 0;
+    for (const billId of billIds) {
+        try {
+            const doc = allDocuments.find(d => (d.bill_id || d.document_id) === billId);
+            if (!doc || !doc.bill_id) continue;
+            const r = await authFetch(`${API_URL}/bills/${doc.bill_id}/post-all-items`, { method: 'POST' }).then(r => r.json());
+            if (r.success) totalPosted += (r.posted || 0);
+            else errors++;
+        } catch (_) { errors++; }
+    }
+    if (errors) showToast(`Posted ${totalPosted} items (${errors} bills failed).`);
+    else showToast(`Posted ${totalPosted} items across ${billIds.length} bill${billIds.length !== 1 ? 's' : ''}.`);
+    clearSelection();
+    loadDocuments();
+}
+
 
 async function openBillModal(id) {
     const doc = filteredDocuments.find(d => d.document_id === id);
@@ -711,6 +731,7 @@ async function openBillModal(id) {
         }
         currentDocumentDetail = detailResp.document || doc;
         currentBillItems = Array.isArray(currentDocumentDetail.line_items) ? currentDocumentDetail.line_items : [];
+        const currentPaymentHistory = Array.isArray(currentDocumentDetail.payment_history) ? currentDocumentDetail.payment_history : [];
         const d = { ...doc, ...currentDocumentDetail };
         const gemData = d.gemini_data || {};
 
@@ -930,6 +951,34 @@ async function openBillModal(id) {
                 </p>
                 <div id="bill-tags-wrap" class="text-sm text-slate-400 italic">Loading tags…</div>
                 <button onclick="saveTagsForBill(${d.bill_id})" class="mt-2 px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Save tags</button>
+            </div>` : ''}
+
+            <!-- Payment History -->
+            ${currentPaymentHistory.length ? `<div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Payment History</p>
+                <div class="overflow-auto rounded-xl border border-slate-200">
+                    <table class="min-w-full text-xs">
+                        <thead class="bg-slate-50 text-slate-500 uppercase tracking-wide">
+                            <tr>
+                                <th class="px-3 py-2 text-left">Date</th>
+                                <th class="px-3 py-2 text-right">Amount</th>
+                                <th class="px-3 py-2 text-left">Method</th>
+                                <th class="px-3 py-2 text-left">Reference</th>
+                                <th class="px-3 py-2 text-left">By</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            ${currentPaymentHistory.map(p => `
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-3 py-2">${formatDateDisplay(p.payment_date)}</td>
+                                <td class="px-3 py-2 text-right font-medium text-emerald-700">₹${Number(p.amount_paid || 0).toLocaleString('en-IN')}</td>
+                                <td class="px-3 py-2 text-slate-500">${escapeHTML(p.payment_method || '—')}</td>
+                                <td class="px-3 py-2 text-slate-400">${escapeHTML(p.reference_number || p.notes || '—')}</td>
+                                <td class="px-3 py-2 text-slate-400">${escapeHTML(p.recorded_by_name || '—')}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
             </div>` : ''}
 
             <!-- Line items -->
