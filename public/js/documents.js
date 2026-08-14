@@ -2053,11 +2053,24 @@ function populateManualForm(doc, billLineItems) {
     setSelectValue('manual-department', doc.bill_category_group || doc.category_group || doc.department || '', '');
     setSelectValue('manual-section', doc.bill_section || doc.section || '', '');
     loadManualDropList(doc.bill_drop_name || doc.drop_name || '');
+    _populateVendorDatalist();
     document.getElementById('manual-error').textContent = '';
     syncManualPaymentFields();
     updateManualAdvanceSummary();
     renderLineItems();
     document.getElementById('manual-modal').classList.remove('hidden');
+}
+
+let _vendorDatalistLoaded = false;
+async function _populateVendorDatalist() {
+    if (_vendorDatalistLoaded) return;
+    try {
+        const data = await authFetch('/api/vendors').then(r => r.json());
+        const dl = document.getElementById('vendor-datalist');
+        if (!dl || !data.vendors) return;
+        dl.innerHTML = data.vendors.map(v => `<option value="${v.vendor_name.replace(/"/g,'&quot;')}">`).join('');
+        _vendorDatalistLoaded = true;
+    } catch (e) { /* non-fatal */ }
 }
 
 async function loadManualDropList(currentDrop) {
