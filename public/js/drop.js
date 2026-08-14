@@ -39,9 +39,10 @@ function setBudgetMessage(text, tone = 'muted') {
 
 async function loadDropList() {
   try {
-    const r = await authFetch(`${META_URL}/drops`);
+    const r = await authFetch(`${META_URL}/drops?all=1`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
-    const drops = data.drops || [];
+    const drops = (data.drops || []).filter(d => d.is_active !== false);
     const sel = document.getElementById('drop-select');
     sel.innerHTML = '<option value="">— select drop —</option>';
     drops.forEach(d => {
@@ -60,8 +61,10 @@ async function loadDropList() {
       sel.value = urlDrop;
       onDropChange();
     }
+    return drops;
   } catch (e) {
     console.error('loadDropList error', e);
+    return [];
   }
 }
 
@@ -547,8 +550,12 @@ async function createDrop() {
     await loadDropList();
     // Select the newly created drop
     const sel = document.getElementById('drop-select');
-    sel.value = name;
-    onDropChange();
+    // Find the option by value (drop_name)
+    const matchOpt = Array.from(sel.options).find(o => o.value === name);
+    if (matchOpt) {
+      sel.value = name;
+      onDropChange();
+    }
   } catch (err) {
     errEl.textContent = err.message || 'Failed to create drop.';
     errEl.classList.remove('hidden');
