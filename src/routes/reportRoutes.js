@@ -26,7 +26,8 @@ const {
   deleteSalesEntry,
   getJournalEntries,
   getVendorAnalysis,
-  getCashFlow
+  getCashFlow,
+  createJournalEntry
 } = require('../controllers/reportsController');
 const { authorize } = require('../middleware/auth');
 
@@ -58,5 +59,6 @@ router.get('/reports/trial-balance', getTrialBalance);
 router.get('/reports/chart-of-accounts', getChartOfAccounts);
 router.get('/reports/vendor-analysis', getVendorAnalysis);
 router.get('/reports/cash-flow', getCashFlow);
+router.post('/reports/journal-entries', authorize('manager', 'admin'), createJournalEntry);
 
 module.exports = router;

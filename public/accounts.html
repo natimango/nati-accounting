@@ -214,7 +214,9 @@
                 <button onclick="exportJE()" class="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold flex items-center gap-2 transition">
                     <i class="fas fa-download"></i> Export CSV
                 </button>
-                <span class="text-xs text-slate-400 ml-auto">Showing latest 100 entries</span>
+                <button onclick="openJEModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition ml-auto">
+                    <i class="fas fa-plus"></i> New Entry
+                </button>
             </div>
 
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -225,6 +227,71 @@
         </div>
 
     </main>
+</div>
+
+<!-- ── New Journal Entry Modal ── -->
+<div id="je-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(15,23,42,.5)">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <h3 class="font-semibold text-slate-900">New Journal Entry</h3>
+            <button onclick="closeJEModal()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-lg"></i></button>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Date</label>
+                    <input type="date" id="je-new-date" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Type</label>
+                    <select id="je-new-type" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500">
+                        <option value="manual">Manual adjustment</option>
+                        <option value="depreciation">Depreciation</option>
+                        <option value="accrual">Accrual</option>
+                        <option value="prepayment">Prepayment</option>
+                        <option value="correction">Correction</option>
+                        <option value="opening">Opening balance</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Description</label>
+                <input type="text" id="je-new-desc" placeholder="e.g. Monthly depreciation — laptop" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <!-- Lines -->
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Lines</label>
+                    <button onclick="addJELine()" class="text-xs text-indigo-600 hover:underline font-semibold"><i class="fas fa-plus mr-1"></i>Add line</button>
+                </div>
+                <div class="border border-slate-200 rounded-xl overflow-hidden">
+                    <table class="w-full text-sm">
+                        <thead><tr class="bg-slate-50 text-[11px] text-slate-400 uppercase">
+                            <th class="px-3 py-2 text-left">Account</th>
+                            <th class="px-3 py-2 text-right w-32">Debit ₹</th>
+                            <th class="px-3 py-2 text-right w-32">Credit ₹</th>
+                            <th class="px-3 py-2 text-left">Note</th>
+                            <th class="w-8"></th>
+                        </tr></thead>
+                        <tbody id="je-lines-tbody"></tbody>
+                        <tfoot><tr class="bg-slate-50 border-t border-slate-200 font-semibold text-sm">
+                            <td class="px-3 py-2 text-slate-500">Totals</td>
+                            <td class="px-3 py-2 text-right text-indigo-700" id="je-total-debit">₹0</td>
+                            <td class="px-3 py-2 text-right text-emerald-700" id="je-total-credit">₹0</td>
+                            <td colspan="2" class="px-3 py-2 text-xs" id="je-balance-note"></td>
+                        </tr></tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+            <button onclick="closeJEModal()" class="px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold hover:bg-slate-50">Cancel</button>
+            <button onclick="submitJE()" id="je-submit-btn" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition">
+                <i class="fas fa-check"></i> Post Entry
+            </button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -520,6 +587,124 @@
         a.href = 'data:text/csv,' + encodeURIComponent(csv);
         a.download = `journal-entries-${new Date().toISOString().split('T')[0]}.csv`;
         a.click();
+    }
+
+    // ── Journal Entry Modal ───────────────────────────────────────────────────
+    let _jeLineCount = 0;
+
+    function openJEModal() {
+        document.getElementById('je-new-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('je-new-desc').value = '';
+        document.getElementById('je-new-type').value = 'manual';
+        document.getElementById('je-lines-tbody').innerHTML = '';
+        _jeLineCount = 0;
+        addJELine(); addJELine(); // start with 2 empty lines
+        updateJETotals();
+        document.getElementById('je-modal').classList.remove('hidden');
+    }
+
+    function closeJEModal() {
+        document.getElementById('je-modal').classList.add('hidden');
+    }
+
+    function addJELine() {
+        const idx = _jeLineCount++;
+        const tbody = document.getElementById('je-lines-tbody');
+        const accountOptions = (_allAccounts || []).map(a =>
+            `<option value="${a.account_id}">${a.account_code} — ${a.account_name}</option>`
+        ).join('');
+        const tr = document.createElement('tr');
+        tr.className = 'border-t border-slate-100';
+        tr.dataset.idx = idx;
+        tr.innerHTML = `
+            <td class="px-2 py-1.5">
+                <select class="je-account w-full px-2 py-1 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-400" onchange="updateJETotals()">
+                    <option value="">— select account —</option>
+                    ${accountOptions}
+                </select>
+            </td>
+            <td class="px-2 py-1.5">
+                <input type="number" step="0.01" min="0" placeholder="0.00" class="je-debit w-full px-2 py-1 border border-slate-200 rounded-lg text-xs text-right focus:ring-2 focus:ring-indigo-400" oninput="updateJETotals()">
+            </td>
+            <td class="px-2 py-1.5">
+                <input type="number" step="0.01" min="0" placeholder="0.00" class="je-credit w-full px-2 py-1 border border-slate-200 rounded-lg text-xs text-right focus:ring-2 focus:ring-indigo-400" oninput="updateJETotals()">
+            </td>
+            <td class="px-2 py-1.5">
+                <input type="text" placeholder="Optional note" class="je-note w-full px-2 py-1 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-400">
+            </td>
+            <td class="px-2 py-1.5 text-center">
+                <button onclick="this.closest('tr').remove(); updateJETotals()" class="text-slate-300 hover:text-red-400 text-xs"><i class="fas fa-times"></i></button>
+            </td>`;
+        tbody.appendChild(tr);
+    }
+
+    function updateJETotals() {
+        const rows = document.querySelectorAll('#je-lines-tbody tr');
+        let totalD = 0, totalC = 0;
+        rows.forEach(tr => {
+            totalD += parseFloat(tr.querySelector('.je-debit')?.value  || 0);
+            totalC += parseFloat(tr.querySelector('.je-credit')?.value || 0);
+        });
+        document.getElementById('je-total-debit').textContent  = '₹' + totalD.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+        document.getElementById('je-total-credit').textContent = '₹' + totalC.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+        const diff = Math.abs(totalD - totalC);
+        const noteEl = document.getElementById('je-balance-note');
+        const btn    = document.getElementById('je-submit-btn');
+        if (diff < 0.01) {
+            noteEl.innerHTML = '<span class="text-emerald-600 font-semibold"><i class="fas fa-check-circle mr-1"></i>Balanced</span>';
+            btn.disabled = false; btn.classList.remove('opacity-50');
+        } else {
+            noteEl.innerHTML = `<span class="text-rose-500 font-semibold">Diff: ₹${diff.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>`;
+            btn.disabled = true; btn.classList.add('opacity-50');
+        }
+    }
+
+    async function submitJE() {
+        const entry_date     = document.getElementById('je-new-date').value;
+        const description    = document.getElementById('je-new-desc').value.trim();
+        const reference_type = document.getElementById('je-new-type').value;
+        if (!entry_date || !description) { alert('Date and description are required'); return; }
+
+        const rows = document.querySelectorAll('#je-lines-tbody tr');
+        const lines = [];
+        rows.forEach(tr => {
+            const account_id = parseInt(tr.querySelector('.je-account')?.value);
+            const debit  = parseFloat(tr.querySelector('.je-debit')?.value  || 0);
+            const credit = parseFloat(tr.querySelector('.je-credit')?.value || 0);
+            const note   = tr.querySelector('.je-note')?.value || '';
+            if (account_id && (debit > 0 || credit > 0)) {
+                lines.push({ account_id, debit, credit, description: note });
+            }
+        });
+
+        if (lines.length < 2) { alert('At least 2 lines with amounts are required'); return; }
+
+        const btn = document.getElementById('je-submit-btn');
+        btn.textContent = 'Posting…'; btn.disabled = true;
+
+        try {
+            const resp = await authFetch(`${API}/reports/journal-entries`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ entry_date, description, reference_type, lines }),
+            }).then(r => r.json());
+
+            if (!resp.success) throw new Error(resp.error || 'Failed to post');
+            closeJEModal();
+            _jeLoaded = false;
+            await loadJournalEntries();
+            // Show success toast
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-5 right-5 z-50 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-lg text-sm font-semibold';
+            toast.textContent = `Journal entry #${resp.journal_id} posted successfully`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3500);
+        } catch (e) {
+            alert('Error: ' + e.message);
+        } finally {
+            btn.innerHTML = '<i class="fas fa-check"></i> Post Entry';
+            btn.disabled = false;
+        }
     }
 
     document.addEventListener('DOMContentLoaded', () => {

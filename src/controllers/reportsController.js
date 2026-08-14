@@ -1354,6 +1354,52 @@ async function getCashFlow(req, res) {
   }
 }
 
+// Create manual journal entry (double-entry)
+async function createJournalEntry(req, res) {
+  const client = await pool.connect();
+  try {
+    const { entry_date, description, reference_type = 'manual', lines } = req.body;
+    if (!entry_date || !description || !Array.isArray(lines) || lines.length < 2) {
+      return res.status(400).json({ error: 'entry_date, description, and at least 2 lines are required' });
+    }
+
+    const totalDebit  = lines.reduce((s, l) => s + parseFloat(l.debit  || 0), 0);
+    const totalCredit = lines.reduce((s, l) => s + parseFloat(l.credit || 0), 0);
+    if (Math.abs(totalDebit - totalCredit) > 0.01) {
+      return res.status(400).json({ error: `Debits (${totalDebit.toFixed(2)}) must equal credits (${totalCredit.toFixed(2)})` });
+    }
+
+    await client.query('BEGIN');
+
+    const jeRes = await client.query(
+      `INSERT INTO journal_entries (entry_date, reference_type, description, total_debit, total_credit, status, created_by)
+       VALUES ($1, $2, $3, $4, $5, 'posted', $6)
+       RETURNING journal_id`,
+      [entry_date, reference_type, description, totalDebit, totalCredit, req.user?.user_id || null]
+    );
+    const journalId = jeRes.rows[0].journal_id;
+
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i];
+      if (!l.account_id) continue;
+      await client.query(
+        `INSERT INTO journal_entry_lines (journal_id, account_id, debit_amount, credit_amount, description, line_number)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [journalId, l.account_id, parseFloat(l.debit || 0), parseFloat(l.credit || 0), l.description || null, i + 1]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, journal_id: journalId });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('createJournalEntry error:', err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   getProfitLoss,
   getPLTrend,
@@ -1380,5 +1426,6 @@ module.exports = {
   createSalesEntry,
   updateSalesEntry,
   deleteSalesEntry,
-  getCashFlow
+  getCashFlow,
+  createJournalEntry
 };
