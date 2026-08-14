@@ -5,6 +5,7 @@ const {
   logout,
   me,
   changePassword,
+  adminResetPassword,
   listUsers,
   createUser,
   deleteUser,
@@ -19,6 +20,7 @@ router.post('/change-password', authenticate, changePassword);
 router.get('/users', authenticate, authorize('admin'), listUsers);
 router.post('/users', authenticate, authorize('admin'), createUser);
 router.patch('/users/:id', authenticate, authorize('admin'), updateUser);
+router.post('/users/:id/reset-password', authenticate, authorize('admin'), adminResetPassword);
 router.delete('/users/:id', authenticate, authorize('admin'), deleteUser);
 
 module.exports = router;

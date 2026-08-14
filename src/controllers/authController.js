@@ -184,6 +184,29 @@ async function updateUser(req, res) {
   }
 }
 
+async function adminResetPassword(req, res) {
+  try {
+    const { id } = req.params;
+    const userId = Number(id);
+    if (!userId) return res.status(400).json({ error: 'Invalid user id' });
+    if (req.user.userId === userId) {
+      return res.status(400).json({ error: 'Use change-password to update your own password' });
+    }
+    const { new_password } = req.body || {};
+    if (!new_password || new_password.length < 8) {
+      return res.status(400).json({ error: 'new_password must be at least 8 characters' });
+    }
+    const userRes = await pool.query('SELECT user_id FROM users WHERE user_id = $1', [userId]);
+    if (!userRes.rows.length) return res.status(404).json({ error: 'User not found' });
+    const hash = await bcrypt.hash(new_password, 10);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE user_id = $2', [hash, userId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin reset password error:', err);
+    res.status(500).json({ error: 'Unable to reset password' });
+  }
+}
+
 async function changePassword(req, res) {
   try {
     const userId = req.user?.user_id || req.user?.userId;
@@ -212,6 +235,7 @@ module.exports = {
   logout,
   me,
   changePassword,
+  adminResetPassword,
   listUsers,
   createUser,
   deleteUser,

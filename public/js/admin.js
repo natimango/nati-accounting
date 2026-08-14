@@ -315,7 +315,11 @@ async function loadUsers() {
             </td>
             <td class="px-4 py-3 text-sm text-slate-600">${formatDateTime(user.created_at)}</td>
             <td class="px-4 py-3 text-sm text-slate-600">${user.last_login ? formatDateTime(user.last_login) : '—'}</td>
-            <td class="px-4 py-3 text-right">
+            <td class="px-4 py-3 text-right flex gap-2 justify-end">
+              <button class="px-3 py-2 rounded-lg text-xs font-semibold border border-slate-200 hover:border-amber-400 hover:text-amber-600 transition"
+                onclick="adminResetPassword(${user.id}, '${safeEmail}')">
+                <i class="fas fa-key mr-1"></i>Reset Pwd
+              </button>
               <button class="px-3 py-2 rounded-lg text-xs font-semibold border border-slate-200 hover:border-rose-400 hover:text-rose-600 transition"
                 onclick="deleteUser(${user.id}, '${safeEmail}')">
                 <i class="fas fa-trash mr-1"></i>Remove
@@ -431,6 +435,26 @@ window.deleteUser = async function deleteUser(userId, email) {
   } catch (err) {
     console.error('Delete user failed', err);
     alert(err.message || 'Unable to delete user');
+  }
+};
+
+window.adminResetPassword = async function adminResetPassword(userId, email) {
+  const newPwd = prompt(`Set new password for "${email}" (min 8 characters):`);
+  if (newPwd === null) return;
+  if (!newPwd || newPwd.length < 8) { alert('Password must be at least 8 characters.'); return; }
+  try {
+    const res = await fetch(`${USERS_API}/${userId}/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ new_password: newPwd })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) throw new Error(data.error || 'Failed to reset password');
+    alert(`Password for "${email}" has been reset.`);
+  } catch (err) {
+    console.error('Reset password failed', err);
+    alert(err.message || 'Unable to reset password');
   }
 };
 
