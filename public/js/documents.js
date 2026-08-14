@@ -890,6 +890,34 @@ async function openBillModal(id) {
                         <button onclick="submitQuickEdit(${d.bill_id})" class="px-4 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">Save changes</button>
                         <span id="qe-status" class="text-xs text-emerald-600"></span>
                     </div>
+                    <hr class="border-slate-200">
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Core Fields (manager/admin)</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Vendor name</label>
+                            <input id="qe-vendor" type="text" value="${escapeHTML(d.bill_vendor_name || d.vendor_name || '')}" placeholder="Vendor"
+                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Bill number</label>
+                            <input id="qe-billno" type="text" value="${escapeHTML(d.bill_number || '')}" placeholder="INV-001"
+                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Bill date</label>
+                            <input id="qe-billdate" type="date" value="${d.bill_date ? d.bill_date.split('T')[0] : ''}"
+                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Total amount (₹)</label>
+                            <input id="qe-amount" type="number" min="0" step="0.01" value="${d.total_amount || d.bill_total_amount || ''}" placeholder="0.00"
+                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="submitCoreEdit(${d.bill_id})" class="px-4 py-1.5 text-xs bg-rose-600 text-white rounded-lg hover:bg-rose-700 font-medium">Save core fields</button>
+                        <span id="qe-core-status" class="text-xs text-emerald-600"></span>
+                    </div>
                 </div>
             </div>` : ''}
 
@@ -1084,6 +1112,47 @@ async function submitQuickEdit(billId) {
         }
     } catch (e) {
         console.error('submitQuickEdit', e);
+        if (status) { status.textContent = 'Network error'; status.className = 'text-xs text-rose-600'; }
+    }
+}
+
+async function submitCoreEdit(billId) {
+    const vendor   = (document.getElementById('qe-vendor')?.value || '').trim();
+    const billno   = (document.getElementById('qe-billno')?.value || '').trim();
+    const billdate = (document.getElementById('qe-billdate')?.value || '').trim();
+    const amount   = document.getElementById('qe-amount')?.value;
+    const status   = document.getElementById('qe-core-status');
+
+    const payload = {};
+    if (vendor)   payload.vendor_name  = vendor;
+    if (billno)   payload.bill_number  = billno;
+    if (billdate) payload.bill_date    = billdate;
+    if (amount !== '' && amount != null) payload.total_amount = parseFloat(amount);
+
+    if (!Object.keys(payload).length) {
+        if (status) { status.textContent = 'Nothing to save'; setTimeout(() => { status.textContent = ''; }, 2000); }
+        return;
+    }
+    try {
+        const r = await authFetch(`/api/bills/${billId}/core`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const data = await r.json();
+        if (r.ok && data.success) {
+            if (status) { status.textContent = 'Saved ✓'; setTimeout(() => { status.textContent = ''; }, 2000); }
+            const doc = allDocuments.find(d => d.bill_id === billId);
+            if (doc) {
+                if (vendor) { doc.bill_vendor_name = vendor; doc.vendor_name = vendor; }
+                if (billdate) { doc.bill_date = billdate; }
+                if (amount !== '' && amount != null) { doc.total_amount = parseFloat(amount); doc.bill_total_amount = parseFloat(amount); }
+            }
+            loadDocuments(); // refresh table
+        } else {
+            if (status) { status.textContent = data.error || data.message || 'Error saving'; status.className = 'text-xs text-rose-600'; }
+        }
+    } catch (e) {
         if (status) { status.textContent = 'Network error'; status.className = 'text-xs text-rose-600'; }
     }
 }

@@ -12,7 +12,8 @@ const {
   updateBillMeta,
   bulkUpdateBillMeta,
   listPayments,
-  createStandaloneBill
+  createStandaloneBill,
+  updateBillCore
 } = require('../controllers/billController');
 const { authorize } = require('../middleware/auth');
 
@@ -40,6 +41,9 @@ router.patch('/bills/:bill_id/void', authorize('admin'), voidBill);
 
 // Update bill/document metadata (dimensions/category)
 router.patch('/bills/:bill_id/meta', updateBillMeta);
+
+// Update core financial fields (amount, date, vendor, bill_number)
+router.patch('/bills/:bill_id/core', authorize('manager', 'admin'), updateBillCore);
 
 // Quick payment record against earliest pending schedule
 router.post('/payments/record-simple', recordSimplePayment);

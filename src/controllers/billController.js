@@ -1079,6 +1079,49 @@ async function updateBillMeta(req, res) {
   }
 }
 
+// PATCH /api/bills/:bill_id/core — edit core financial fields (amount, date, vendor, bill_number)
+async function updateBillCore(req, res) {
+  try {
+    const { bill_id } = req.params;
+    const { vendor_name, bill_date, total_amount, bill_number, tax_amount, payment_terms } = req.body || {};
+    const bill = await pool.query('SELECT bill_id, document_id FROM bills WHERE bill_id = $1', [bill_id]);
+    if (!bill.rows.length) return res.status(404).json({ success: false, error: 'Bill not found' });
+    const documentId = bill.rows[0].document_id;
+
+    await pool.query(
+      `UPDATE bills SET
+         vendor_name = COALESCE($2, vendor_name),
+         bill_date = COALESCE($3, bill_date),
+         total_amount = COALESCE($4, total_amount),
+         outstanding_amount = CASE
+           WHEN $4 IS NOT NULL THEN $4 - COALESCE((SELECT SUM(amount_paid) FROM payment_records WHERE bill_id = $1), 0)
+           ELSE outstanding_amount END,
+         bill_number = COALESCE($5, bill_number),
+         tax_amount = COALESCE($6, tax_amount),
+         payment_terms = COALESCE($7, payment_terms)
+       WHERE bill_id = $1`,
+      [bill_id, vendor_name || null, bill_date || null,
+       total_amount != null ? Number(total_amount) : null,
+       bill_number || null, tax_amount != null ? Number(tax_amount) : null,
+       payment_terms != null ? Number(payment_terms) : null]
+    );
+
+    if (documentId && (vendor_name || total_amount != null)) {
+      await pool.query(
+        `UPDATE documents SET
+           vendor_name = COALESCE($2, vendor_name),
+           total_amount = COALESCE($3, total_amount)
+         WHERE document_id = $1`,
+        [documentId, vendor_name || null, total_amount != null ? Number(total_amount) : null]
+      );
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 // PATCH /api/bills/bulk-meta — apply department/category to multiple bill_ids at once
 async function bulkUpdateBillMeta(req, res) {
   try {
@@ -1250,5 +1293,6 @@ module.exports = {
   bulkUpdateBillMeta,
   recordSimplePayment,
   listPayments,
-  createStandaloneBill
+  createStandaloneBill,
+  updateBillCore
 };
