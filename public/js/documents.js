@@ -493,6 +493,25 @@ function showAIActionModal() {
     });
 }
 
+function exportDocumentsCSV() {
+    const rows = filteredDocuments.length ? filteredDocuments : allDocuments;
+    if (!rows.length) { showToast('No documents to export.'); return; }
+    const esc = v => v == null ? '' : ('"' + String(v).replace(/"/g, '""') + '"');
+    const headers = ['Document ID','Filename','Vendor','Category','Group','Drop','Bill Date','Due Date','Total Amount','Tax Amount','Bill Status','Doc Status','Payment Terms','GSTIN','Notes','Uploaded At'];
+    const lines = [headers.join(',')].concat(rows.map(d => [
+        d.document_id, d.file_name, d.bill_vendor_name || d.vendor_name, d.bill_category,
+        d.bill_category_group, d.drop_name, d.bill_date, d.due_date,
+        d.total_amount || d.bill_total_amount, d.tax_amount,
+        d.bill_status, d.status, d.payment_terms, d.vendor_gstin, d.notes, d.uploaded_at
+    ].map(esc).join(',')));
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `documents-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
 function showToast(msg) {
     const t = document.getElementById('doc-toast') || (() => {
         const el = document.createElement('div');
