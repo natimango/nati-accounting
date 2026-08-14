@@ -62,9 +62,9 @@
                             <a href="sales.html" class="nati-nav-link"><i class="fas fa-store"></i><span>Sales</span></a>
                             <a href="payables.html" class="nati-nav-link"><i class="fas fa-file-invoice-dollar"></i><span>Payables</span></a>
                                                         <a href="balance-sheet.html" class="nati-nav-link"><i class="fas fa-scale-balanced"></i><span>Balance Sheet</span></a>
-                            <a href="cashflow.html"     class="nati-nav-link"><i class="fas fa-water"></i><span>Cash Flow</span></a>
-                            <a href="accounts.html"     class="nati-nav-link"><i class="fas fa-book"></i><span>Accounts</span></a>
-                                                        <a href="alerts.html"       class="nati-nav-link"><i class="fas fa-triangle-exclamation"></i><span>Alerts</span></a>
+                            <a href="cashflow.html"      class="nati-nav-link"><i class="fas fa-water"></i><span>Cash Flow</span></a>
+                            <a href="accounts.html"      class="nati-nav-link is-active"><i class="fas fa-book"></i><span>Accounts</span></a>
+                            <a href="alerts.html"        class="nati-nav-link"><i class="fas fa-triangle-exclamation"></i><span>Alerts</span></a>
                             <a href="admin.html" class="nati-nav-link hidden" id="nav-admin"><i class="fas fa-user-shield"></i><span>Admin</span></a>
                         </nav>
                     </div>
@@ -88,8 +88,9 @@
 
         <!-- Tab bar -->
         <div class="flex gap-2 mb-6 flex-wrap">
-            <button class="tab-btn active" onclick="showTab('coa')">Chart of Accounts</button>
-            <button class="tab-btn" onclick="showTab('tb')">Trial Balance</button>
+            <button class="tab-btn active" onclick="showTab('coa')"><i class="fas fa-list mr-1.5"></i>Chart of Accounts</button>
+            <button class="tab-btn" onclick="showTab('tb')"><i class="fas fa-scale-balanced mr-1.5"></i>Trial Balance</button>
+            <button class="tab-btn" onclick="showTab('je')"><i class="fas fa-book-open mr-1.5"></i>Journal Entries</button>
         </div>
 
         <!-- ── Chart of Accounts tab ── -->
@@ -195,6 +196,34 @@
             </div>
         </div>
 
+        <!-- ── Journal Entries tab ── -->
+        <div id="tab-je" class="hidden">
+            <!-- Controls -->
+            <div class="flex flex-wrap items-center gap-3 mb-5">
+                <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
+                    <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">From</label>
+                    <input type="date" id="je-start" class="text-sm border-none outline-none bg-transparent font-medium text-slate-900">
+                </div>
+                <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
+                    <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">To</label>
+                    <input type="date" id="je-end" class="text-sm border-none outline-none bg-transparent font-medium text-slate-900">
+                </div>
+                <button onclick="loadJournalEntries()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition">
+                    <i class="fas fa-sync-alt"></i> Load
+                </button>
+                <button onclick="exportJE()" class="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold flex items-center gap-2 transition">
+                    <i class="fas fa-download"></i> Export CSV
+                </button>
+                <span class="text-xs text-slate-400 ml-auto">Showing latest 100 entries</span>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div id="je-loading" class="text-center py-12 text-slate-400">Select a date range and click Load</div>
+                <div id="je-container" class="hidden"></div>
+                <div id="je-empty" class="hidden text-center py-10 text-slate-400 text-sm">No journal entries found for this period.</div>
+            </div>
+        </div>
+
     </main>
 </div>
 
@@ -218,13 +247,11 @@
     }
 
     // ── Tab switcher ──────────────────────────────────────────────────────────
+    const TABS = ['coa', 'tb', 'je'];
     function showTab(name) {
-        ['coa', 'tb'].forEach(t => {
-            document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
-        });
-        document.querySelectorAll('.tab-btn').forEach((b, i) => {
-            b.classList.toggle('active', ['coa', 'tb'][i] === name);
-        });
+        TABS.forEach(t => document.getElementById('tab-' + t).classList.toggle('hidden', t !== name));
+        document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', TABS[i] === name));
+        if (name === 'je' && !_jeLoaded) loadJournalEntries();
     }
 
     // ── Chart of Accounts ─────────────────────────────────────────────────────
@@ -381,8 +408,126 @@
         a.click();
     }
 
+    // ── Journal Entries ───────────────────────────────────────────────────────
+    let _jeLoaded = false;
+    let _jeData   = [];
+
+    async function loadJournalEntries() {
+        const start = document.getElementById('je-start').value;
+        const end   = document.getElementById('je-end').value;
+        const el    = document.getElementById('je-container');
+        document.getElementById('je-loading').textContent = 'Loading…';
+        document.getElementById('je-loading').classList.remove('hidden');
+        el.classList.add('hidden');
+        document.getElementById('je-empty').classList.add('hidden');
+
+        try {
+            let url = `${API}/reports/journal-entries`;
+            const params = [];
+            if (start) params.push(`start_date=${start}`);
+            if (end)   params.push(`end_date=${end}`);
+            if (params.length) url += '?' + params.join('&');
+
+            const d = await authFetch(url).then(r => r.json());
+            _jeData   = d.entries || [];
+            _jeLoaded = true;
+
+            if (!_jeData.length) {
+                document.getElementById('je-loading').classList.add('hidden');
+                document.getElementById('je-empty').classList.remove('hidden');
+                return;
+            }
+
+            renderJE(_jeData);
+            document.getElementById('je-loading').classList.add('hidden');
+            el.classList.remove('hidden');
+        } catch (e) {
+            document.getElementById('je-loading').textContent = 'Error: ' + e.message;
+        }
+    }
+
+    const REF_BADGE = {
+        bill:  'bg-orange-100 text-orange-700',
+        sale:  'bg-emerald-100 text-emerald-700',
+        payment: 'bg-blue-100 text-blue-700',
+        manual: 'bg-slate-100 text-slate-600',
+    };
+
+    function renderJE(entries) {
+        const el = document.getElementById('je-container');
+        el.innerHTML = entries.map(je => {
+            const lines = (je.lines || []);
+            const refType = (je.reference_type || 'manual').toLowerCase();
+            const refBadge = REF_BADGE[refType] || REF_BADGE.manual;
+            const refLabel = (je.reference_type || 'manual').replace(/_/g, ' ');
+            const statusColor = je.status === 'posted' ? 'text-emerald-600' : 'text-amber-500';
+            const linesHtml = lines.map(l => `
+                <tr class="border-t border-slate-100">
+                    <td class="pl-8 py-1.5 text-xs text-slate-500 mono">${l.account_code}</td>
+                    <td class="py-1.5 text-xs text-slate-700">${l.account_name}</td>
+                    <td class="py-1.5 text-xs text-slate-500">${l.description || ''}</td>
+                    <td class="py-1.5 text-xs text-right font-medium ${l.debit > 0 ? 'text-indigo-700' : 'text-slate-300'}">${l.debit > 0 ? fmt(l.debit) : '—'}</td>
+                    <td class="py-1.5 text-xs text-right font-medium ${l.credit > 0 ? 'text-emerald-700' : 'text-slate-300'}">${l.credit > 0 ? fmt(l.credit) : '—'}</td>
+                </tr>`).join('');
+
+            return `<div class="border-b border-slate-100 last:border-0">
+                <div class="flex items-start gap-3 px-5 py-3 hover:bg-slate-50 transition cursor-default">
+                    <div class="shrink-0 w-20 text-xs text-slate-500 pt-0.5">${je.entry_date ? je.entry_date.split('T')[0] : '—'}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1 flex-wrap">
+                            <span class="text-sm font-semibold text-slate-800">${je.description || 'No description'}</span>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${refBadge}">${refLabel}</span>
+                            <span class="text-[10px] font-semibold ${statusColor}">${(je.status || '').toUpperCase()}</span>
+                        </div>
+                        <table class="w-full text-left" style="font-size:12px">
+                            <thead><tr class="text-[10px] text-slate-400 uppercase">
+                                <th class="pl-8 pb-1 w-28">Code</th><th class="pb-1">Account</th>
+                                <th class="pb-1">Note</th>
+                                <th class="pb-1 text-right w-24">Debit</th>
+                                <th class="pb-1 text-right w-24">Credit</th>
+                            </tr></thead>
+                            <tbody>${linesHtml}</tbody>
+                            <tfoot><tr class="border-t border-slate-200">
+                                <td colspan="3" class="pl-8 pt-1 text-[10px] text-slate-400">Entry #${je.journal_id}</td>
+                                <td class="pt-1 text-right text-xs font-bold text-indigo-700">${fmt(je.total_debit)}</td>
+                                <td class="pt-1 text-right text-xs font-bold text-emerald-700">${fmt(je.total_credit)}</td>
+                            </tr></tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function exportJE() {
+        if (!_jeData.length) { alert('Load journal entries first'); return; }
+        const rows = [['Date', 'Description', 'Ref Type', 'Status', 'Account Code', 'Account Name', 'Debit', 'Credit']];
+        _jeData.forEach(je => {
+            (je.lines || []).forEach(l => {
+                rows.push([
+                    je.entry_date ? je.entry_date.split('T')[0] : '',
+                    je.description || '',
+                    je.reference_type || '',
+                    je.status || '',
+                    l.account_code, l.account_name,
+                    parseFloat(l.debit || 0).toFixed(2),
+                    parseFloat(l.credit || 0).toFixed(2),
+                ]);
+            });
+        });
+        const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+        const a = document.createElement('a');
+        a.href = 'data:text/csv,' + encodeURIComponent(csv);
+        a.download = `journal-entries-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('tb-date').value = new Date().toISOString().split('T')[0];
+        const today = new Date().toISOString().split('T')[0];
+        const fyYear  = new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1;
+        document.getElementById('tb-date').value    = today;
+        document.getElementById('je-start').value  = `${fyYear}-04-01`;
+        document.getElementById('je-end').value    = today;
         loadCOA();
     });
 </script>
