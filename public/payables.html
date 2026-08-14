@@ -519,8 +519,9 @@ function filterPayables() {
         rows = rows.filter(d => (d.bill_category_group || d.category_group || '').toUpperCase() === grp);
     }
     rows.sort((a, b) => {
-        if (sort === 'amount-desc') return Number(b.total_amount || 0) - Number(a.total_amount || 0);
-        if (sort === 'amount-asc')  return Number(a.total_amount || 0) - Number(b.total_amount || 0);
+        const getAmt = d => d.outstanding_amount != null ? Number(d.outstanding_amount) : Number(d.total_amount || d.bill_total_amount || 0);
+        if (sort === 'amount-desc') return getAmt(b) - getAmt(a);
+        if (sort === 'amount-asc')  return getAmt(a) - getAmt(b);
         if (sort === 'vendor') {
             const va = (a.bill_vendor_name || a.vendor_name || '').toLowerCase();
             const vb = (b.bill_vendor_name || b.vendor_name || '').toLowerCase();
@@ -548,8 +549,13 @@ async function loadPayables() {
 
         payablesData = allDocs;
 
-        // Compute totals
-        const totalOutstanding = allDocs.reduce((sum, d) => sum + Number(d.total_amount || d.bill_total_amount || 0), 0);
+        // Compute totals — prefer outstanding_amount for partially-paid bills
+        const totalOutstanding = allDocs.reduce((sum, d) => {
+            const amt = d.outstanding_amount != null
+                ? Number(d.outstanding_amount)
+                : Number(d.total_amount || d.bill_total_amount || 0);
+            return sum + amt;
+        }, 0);
         document.getElementById('tile-total').textContent = fmt(totalOutstanding);
 
         const overdueCount = allDocs.filter(d => {
@@ -622,9 +628,11 @@ function renderPayablesTable(rows) {
         const dropName = d.bill_drop_name || d.drop_name || '';
         const isOverdue = dueDate && new Date(dueDate) < new Date();
         const rowClass = isOverdue ? 'bg-red-50' : '';
-        // Estimate outstanding: for advance bills, balance due = total - advance portion
-        const advancePct = Number(d.bill_advance_percentage || 0);
-        const outstanding = advancePct > 0 ? total * (1 - advancePct / 100) : total;
+        // Use outstanding_amount from API; fall back to advance-based estimate
+        const outstanding = d.outstanding_amount != null
+            ? Number(d.outstanding_amount)
+            : (() => { const adv = Number(d.bill_advance_percentage || 0); return adv > 0 ? total * (1 - adv / 100) : total; })();
+        const partialNote = outstanding < total ? `<div class="text-[10px] text-slate-400">of ${fmt(total)}</div>` : '';
         const docLink = docId ? `<a href="documents.html?doc=${docId}" class="ml-1 text-indigo-400 hover:text-indigo-700 text-xs" title="Open document"><i class="fas fa-receipt"></i></a>` : '';
 
         return `<tr class="${rowClass} hover:bg-slate-50 border-t border-slate-100">
@@ -637,7 +645,7 @@ function renderPayablesTable(rows) {
             <td class="px-4 py-3 ${isOverdue ? 'text-red-600 font-medium' : 'text-slate-500'}">${fmtDate(dueDate)}</td>
             <td class="px-4 py-3">${statusBadge(d.bill_payment_status, dueDate)}</td>
             <td class="px-4 py-3 text-right font-semibold">${fmt(total)}</td>
-            <td class="px-4 py-3 text-right text-slate-700 font-semibold ${outstanding < total ? 'text-blue-700' : ''}">${fmt(outstanding)}${outstanding < total ? `<div class="text-[10px] text-slate-400">${advancePct}% advance paid</div>` : ''}</td>
+            <td class="px-4 py-3 text-right font-semibold ${outstanding < total ? 'text-blue-700' : 'text-slate-700'}">${fmt(outstanding)}${partialNote}</td>
             <td class="px-4 py-3 text-center">
                 ${billId
                     ? `<button onclick="openPayModal(${billId}, '${vendor.replace(/'/g, '')}', ${outstanding})" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700"><i class="fas fa-check mr-1"></i>Mark Paid</button>`
