@@ -1382,7 +1382,9 @@ const getDocuments = async (req, res) => {
         pt.terms_text AS bill_payment_terms_text,
         ps.due_date AS bill_payment_due_date,
         COALESCE(unposted.unposted_amount, 0) AS unposted_amount,
-        COALESCE(unposted.unposted_count, 0) AS unposted_line_count
+        COALESCE(unposted.unposted_count, 0) AS unposted_line_count,
+        b.outstanding_amount,
+        COALESCE(v.vendor_name, b.vendor_name) AS bill_vendor_name
        FROM documents d
        LEFT JOIN bills b ON b.document_id = d.document_id
        LEFT JOIN vendors v ON b.vendor_id = v.vendor_id

@@ -816,6 +816,11 @@ async function openBillModal(id) {
             <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
                 <div>
                     <p class="text-3xl font-bold text-slate-900">₹${total.toLocaleString('en-IN', {maximumFractionDigits:0})}</p>
+                    ${d.outstanding_amount != null && Number(d.outstanding_amount) < total && Number(d.outstanding_amount) > 0
+                        ? `<p class="text-xs text-amber-600 font-semibold mt-0.5">Outstanding: ₹${Number(d.outstanding_amount).toLocaleString('en-IN', {maximumFractionDigits:0})}</p>`
+                        : d.outstanding_amount != null && Number(d.outstanding_amount) === 0 && total > 0
+                        ? `<p class="text-xs text-emerald-600 font-semibold mt-0.5">Fully paid</p>`
+                        : ''}
                     <p class="text-xs text-slate-500 mt-1">${subtotal > 0 ? `Subtotal ₹${subtotal.toLocaleString('en-IN')} + Tax ₹${tax.toLocaleString('en-IN')}` : 'Total amount'}</p>
                 </div>
                 <div class="flex flex-wrap gap-2 items-center">
@@ -1004,7 +1009,7 @@ async function openBillModal(id) {
             <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
                 ${canPreview ? `<button onclick="actionPreview(${d.document_id}, '${(fileName).replace(/'/g,'')}', '${d.file_type}')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2"><i class="fas fa-eye"></i>View Document</button>` : ''}
                 <button onclick="actionManual(${d.document_id})" class="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-900 flex items-center gap-2"><i class="fas fa-pen"></i>Edit Bill</button>
-                ${needsMarkPaid ? `<button onclick="actionMarkPaid(${d.bill_id}, '${(vendor).replace(/'/g,'')}', ${total})" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 flex items-center gap-2"><i class="fas fa-check"></i>Mark Paid</button>` : ''}
+                ${needsMarkPaid ? `<button onclick="actionMarkPaid(${d.bill_id}, '${(vendor).replace(/'/g,'')}', ${Number(d.outstanding_amount || total)})" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 flex items-center gap-2"><i class="fas fa-check"></i>Mark Paid</button>` : ''}
                 ${notYetProcessed && d.can_process !== false ? `<button onclick="actionProcessAI(${d.document_id})" class="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 flex items-center gap-2"><i class="fas fa-robot"></i>Extract with AI</button>` : ''}
                 <button onclick="actionDownload(${d.document_id})" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 flex items-center gap-2"><i class="fas fa-download"></i>Download</button>
                 ${d.bill_id && d.bill_status !== 'void' ? `<button onclick="actionPostAllItems(${d.bill_id})" class="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-100 flex items-center gap-2"><i class="fas fa-check-double"></i>Post All Items</button>` : ''}
