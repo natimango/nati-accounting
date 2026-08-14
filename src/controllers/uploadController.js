@@ -1838,12 +1838,48 @@ const getDocumentHistory = async (req, res) => {
   }
 };
 
+const getAuditLog = async (req, res) => {
+  try {
+    const { limit = 100, offset = 0, actor_type, field_name, start_date, end_date } = req.query;
+    const conditions = [];
+    const params = [];
+    let idx = 1;
+    if (actor_type) { conditions.push(`h.actor_type = $${idx++}`); params.push(actor_type); }
+    if (field_name) { conditions.push(`h.field_name ILIKE $${idx++}`); params.push('%' + field_name + '%'); }
+    if (start_date) { conditions.push(`h.created_at >= $${idx++}`); params.push(start_date); }
+    if (end_date)   { conditions.push(`h.created_at <  $${idx++}`); params.push(new Date(new Date(end_date).getTime() + 86400000).toISOString()); }
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+    params.push(Number(limit) || 100, Number(offset) || 0);
+    const result = await pool.query(
+      `SELECT h.history_id, h.document_id, h.field_name, h.old_value, h.new_value,
+              h.actor_type, h.actor_id, h.reason, h.source_action, h.created_at,
+              u.email AS actor_email,
+              d.file_name, d.vendor_name AS doc_vendor
+       FROM document_field_history h
+       LEFT JOIN users u ON u.user_id = h.actor_id::int
+       LEFT JOIN documents d ON d.document_id = h.document_id
+       ${where}
+       ORDER BY h.created_at DESC
+       LIMIT $${idx} OFFSET $${idx+1}`,
+      params
+    );
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM document_field_history h ${where}`,
+      params.slice(0, -2)
+    );
+    res.json({ success: true, entries: result.rows, total: Number(countResult.rows[0].count) });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 module.exports = {
   upload,
   uploadBill,
   getDocuments,
   getDocument,
   getDocumentHistory,
+  getAuditLog,
   getVerificationSummary,
   deleteDocument,
   rerunAIForDocuments,

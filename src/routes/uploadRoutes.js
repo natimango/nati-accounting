@@ -8,6 +8,7 @@ const {
   getDocuments,
   getDocument,
   getDocumentHistory,
+  getAuditLog,
   getVerificationSummary,
   deleteDocument,
   rerunAIForDocuments,
@@ -31,6 +32,9 @@ router.get('/documents/:id', getDocument);
 
 // Get document audit history
 router.get('/documents/:id/history', getDocumentHistory);
+
+// Global audit log
+router.get('/documents/audit-log', authorize('manager', 'admin'), getAuditLog);
 
 // Delete document
 router.delete('/documents/:id', deleteDocument);

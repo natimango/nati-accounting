@@ -1094,7 +1094,7 @@ async function updateBillCore(req, res) {
          bill_date = COALESCE($3, bill_date),
          total_amount = COALESCE($4, total_amount),
          outstanding_amount = CASE
-           WHEN $4 IS NOT NULL THEN $4 - COALESCE((SELECT SUM(amount_paid) FROM payment_records WHERE bill_id = $1), 0)
+           WHEN $4 IS NOT NULL THEN $4 - COALESCE((SELECT SUM(amount_paid) FROM payments WHERE bill_id = $1), 0)
            ELSE outstanding_amount END,
          bill_number = COALESCE($5, bill_number),
          tax_amount = COALESCE($6, tax_amount),

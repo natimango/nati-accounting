@@ -408,6 +408,44 @@
                 </div>
             </section>
 
+            <!-- ── Audit Log ── -->
+            <section class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-5 space-y-4">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Audit Trail</p>
+                        <h2 class="text-xl font-semibold text-slate-900 mt-1">Field change log</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">All AI and manual changes to document fields</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select id="audit-actor" class="text-sm border border-slate-300 rounded-lg px-2 py-1.5 bg-white">
+                            <option value="">All actors</option>
+                            <option value="ai">AI only</option>
+                            <option value="user">User only</option>
+                            <option value="system">System only</option>
+                        </select>
+                        <button onclick="loadAuditLog()" class="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-1"><i class="fas fa-sync"></i> Load</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs">
+                        <thead class="bg-slate-50">
+                            <tr class="text-left text-slate-500 uppercase tracking-wide">
+                                <th class="px-3 py-2">When</th>
+                                <th class="px-3 py-2">Document</th>
+                                <th class="px-3 py-2">Field</th>
+                                <th class="px-3 py-2">Old</th>
+                                <th class="px-3 py-2">New</th>
+                                <th class="px-3 py-2">Actor</th>
+                                <th class="px-3 py-2">Source</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-tbody">
+                            <tr><td colspan="7" class="text-center py-6 text-slate-400">Click Load to fetch the audit trail</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
             <!-- ── Finance Overview ── -->
             <section class="nati-card bg-white border border-slate-200 rounded-2xl shadow p-5 space-y-4">
                 <div class="flex items-center justify-between flex-wrap gap-2">

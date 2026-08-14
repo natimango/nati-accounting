@@ -567,3 +567,40 @@ async function loadFinanceSummary() {
     totalsEl.innerHTML = `<div class="text-xs text-red-400 col-span-4 py-4">Failed to load finance summary</div>`;
   }
 }
+
+async function loadAuditLog() {
+    const tbody = document.getElementById('audit-tbody');
+    if (!tbody) return;
+    const actor = document.getElementById('audit-actor')?.value || '';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-slate-400">Loading…</td></tr>';
+    try {
+        const params = new URLSearchParams({ limit: 100 });
+        if (actor) params.set('actor_type', actor);
+        const data = await authFetch(`/api/documents/audit-log?${params}`).then(r => r.json());
+        const entries = data.entries || [];
+        if (!entries.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-6 text-slate-400">No audit entries found</td></tr>';
+            return;
+        }
+        tbody.innerHTML = entries.map(e => {
+            const when = new Date(e.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            const who = e.actor_email ? e.actor_email.split('@')[0] : (e.actor_type || 'system');
+            const doc = e.file_name || `doc#${e.document_id}`;
+            const docLink = e.document_id ? `<a href="documents.html?doc=${e.document_id}" class="text-indigo-500 hover:underline" title="${e.file_name || ''}">${doc}</a>` : doc;
+            const field = (e.field_name || '').replace(/_/g, ' ');
+            const oldV = e.old_value != null ? String(e.old_value).slice(0, 30) : '—';
+            const newV = e.new_value != null ? String(e.new_value).slice(0, 30) : '—';
+            return `<tr class="border-t border-slate-100 hover:bg-slate-50">
+                <td class="px-3 py-2 text-slate-400 whitespace-nowrap">${when}</td>
+                <td class="px-3 py-2 max-w-[120px] truncate">${docLink}</td>
+                <td class="px-3 py-2 text-slate-600">${field}</td>
+                <td class="px-3 py-2 text-rose-400 max-w-[100px] truncate">${oldV}</td>
+                <td class="px-3 py-2 text-emerald-600 max-w-[100px] truncate">${newV}</td>
+                <td class="px-3 py-2 font-medium text-slate-700">${who}</td>
+                <td class="px-3 py-2 text-slate-400">${e.source_action || '—'}</td>
+            </tr>`;
+        }).join('');
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-red-400">Error: ${e.message}</td></tr>`;
+    }
+}
