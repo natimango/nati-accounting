@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Management — NATI Accounting</title>
+    <link rel="stylesheet" href="css/tailwind.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/theme.css">
+    <style>
+        .rt { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .rt th { padding: 9px 14px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; background: #f8fafc; border-bottom: 2px solid #e2e8f0; }
+        .rt th.tr, .rt td.tr { text-align: right; }
+        .rt td { padding: 9px 14px; border-bottom: 1px solid #f1f5f9; }
+        .rt tr:hover td { background: #f8fafc; }
+        .rt tr.selected td { background: #eef2ff; }
+        .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 99px; letter-spacing: .03em; }
+        .badge-COGS        { background: #dbeafe; color: #1d4ed8; }
+        .badge-FULFILLMENT { background: #ede9fe; color: #7c3aed; }
+        .badge-MARKETING   { background: #fef3c7; color: #92400e; }
+        .badge-OPERATIONS  { background: #f1f5f9; color: #475569; }
+        .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+        .kpi { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; }
+        .kpi .label { font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+        .kpi .value { font-size: 18px; font-weight: 700; color: #1e293b; margin-top: 3px; }
+        .status-PAID    { color: #059669; }
+        .status-PENDING { color: #b45309; }
+        .status-PARTIAL { color: #7c3aed; }
+        .status-OVERDUE { color: #dc2626; }
+    </style>
+</head>
+<body class="nati-page bg-gradient-to-br from-slate-50 via-slate-100 to-white text-slate-900">
+<div class="min-h-screen flex flex-col">
+
+    <header class="nati-hero bg-gradient-to-r from-indigo-700 via-blue-700 to-slate-900 text-white shadow-md">
+        <div class="nati-shell">
+            <div class="py-5 flex flex-wrap items-center gap-4 justify-between">
+                <div class="flex items-center gap-3">
+                    <a href="index.html"><img src="logo.jpg" alt="NATI" class="h-14 w-14 rounded-xl border border-white/40 bg-white object-cover shadow"></a>
+                    <div>
+                        <p class="text-xs uppercase tracking-[.2em] text-white/70">Vendor Management</p>
+                        <h1 class="text-2xl font-semibold">Vendors &middot; Bills &middot; Payments</h1>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="nati-nav-wrapper">
+                        <button class="nati-nav-toggle" onclick="toggleNav('nav-vendors')"><i class="fas fa-bars"></i><span>Menu</span></button>
+                        <nav class="nati-nav" id="nav-vendors">
+                            <a href="index.html"     class="nati-nav-link"><i class="fas fa-gauge"></i><span>Dashboard</span></a>
+                            <a href="documents.html" class="nati-nav-link"><i class="fas fa-folder-open"></i><span>Documents</span></a>
+                            <a href="upload.html"    class="nati-nav-link"><i class="fas fa-upload"></i><span>Upload</span></a>
+                            <a href="drop.html"      class="nati-nav-link"><i class="fas fa-layer-group"></i><span>Drop</span></a>
+                            <a href="reports.html"   class="nati-nav-link"><i class="fas fa-chart-line"></i><span>Reports</span></a>
+                            <a href="sales.html"     class="nati-nav-link"><i class="fas fa-store"></i><span>Sales</span></a>
+                            <a href="payables.html"  class="nati-nav-link"><i class="fas fa-file-invoice-dollar"></i><span>Payables</span></a>
+                            <a href="balance-sheet.html" class="nati-nav-link"><i class="fas fa-scale-balanced"></i><span>Balance Sheet</span></a>
+                            <a href="cashflow.html"  class="nati-nav-link"><i class="fas fa-water"></i><span>Cash Flow</span></a>
+                            <a href="accounts.html"  class="nati-nav-link"><i class="fas fa-book"></i><span>Accounts</span></a>
+                            <a href="alerts.html"    class="nati-nav-link"><i class="fas fa-triangle-exclamation"></i><span>Alerts</span></a>
+                            <a href="vendors.html"   class="nati-nav-link is-active"><i class="fas fa-building"></i><span>Vendors</span></a>
+                            <a href="admin.html"     class="nati-nav-link hidden" id="nav-admin"><i class="fas fa-user-shield"></i><span>Admin</span></a>
+                        </nav>
+                    </div>
+                    <div id="user-pill" class="hidden sm:flex items-center gap-2 px-3 py-2 rounded-2xl border border-white/30 bg-white/10 backdrop-blur">
+                        <div>
+                            <p id="user-name" class="text-sm font-semibold leading-tight">—</p>
+                            <p id="user-role" class="text-[11px] tracking-[.2em] text-white/70 uppercase">—</p>
+                        </div>
+                    </div>
+                    <button id="logout-btn" class="hidden px-3 py-2 bg-white/15 hover:bg-white/25 text-sm font-semibold rounded-2xl flex items-center gap-2 transition">
+                        <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 py-6">
+        <div class="nati-shell max-w-6xl mx-auto space-y-5">
+
+            <!-- Period + search bar -->
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-wrap items-center gap-3">
+                <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Period</label>
+                <input type="date" id="v-start" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                <span class="text-slate-400">to</span>
+                <input type="date" id="v-end"   class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm">
+                <select id="v-cat" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm bg-white">
+                    <option value="">All categories</option>
+                    <option value="COGS">COGS</option>
+                    <option value="FULFILLMENT">Fulfillment</option>
+                    <option value="MARKETING">Marketing</option>
+                    <option value="OPERATIONS">Operations</option>
+                </select>
+                <button onclick="loadVendors()" class="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">Apply</button>
+                <div class="flex-1 min-w-40">
+                    <input type="text" id="v-search" placeholder="Search vendors…" oninput="filterVendors()"
+                        class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <button onclick="exportVendors()" class="px-3 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-sm hover:bg-slate-50 flex items-center gap-1.5">
+                    <i class="fas fa-download text-slate-400"></i> CSV
+                </button>
+            </div>
+
+            <!-- KPI summary -->
+            <div class="kpi-row" id="vendor-kpis">
+                <div class="kpi"><div class="label">Total Vendors</div><div class="value" id="kpi-vendor-count">—</div></div>
+                <div class="kpi"><div class="label">Total Spend</div><div class="value" id="kpi-total-spend">—</div></div>
+                <div class="kpi"><div class="label">Avg per Vendor</div><div class="value" id="kpi-avg-spend">—</div></div>
+                <div class="kpi"><div class="label">Largest Vendor</div><div class="value text-sm" id="kpi-top-vendor">—</div></div>
+            </div>
+
+            <!-- Main layout: vendor list + detail panel -->
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-5 items-start">
+
+                <!-- Vendor list -->
+                <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-100">
+                        <h3 class="font-semibold text-sm">Vendors <span id="vendor-list-count" class="text-slate-400 font-normal text-xs ml-1"></span></h3>
+                    </div>
+                    <div id="vendor-list-body">
+                        <div class="text-center py-12 text-slate-400 text-sm">Loading vendors…</div>
+                    </div>
+                </div>
+
+                <!-- Detail panel -->
+                <div class="lg:col-span-3 space-y-4">
+                    <div id="vendor-detail-empty" class="bg-white border border-slate-200 rounded-xl shadow-sm p-12 text-center text-slate-400">
+                        <i class="fas fa-building text-4xl mb-3 text-slate-200"></i>
+                        <p class="text-sm">Select a vendor to view their bill history and payment ledger</p>
+                    </div>
+                    <div id="vendor-detail" class="hidden space-y-4"></div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<script>
+const API = '/api';
+const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+const fmtD = s => s ? s.split('T')[0] : '—';
+
+function authFetch(url, opts = {}) {
+    return fetch(url, Object.assign({ credentials: 'include' }, opts));
+}
+
+let _vendors = [];
+let _selectedVendor = null;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    const now    = new Date();
+    const fyYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+    document.getElementById('v-start').value = `${fyYear}-04-01`;
+    document.getElementById('v-end').value   = now.toISOString().split('T')[0];
+    loadVendors();
+});
+
+async function loadVendors() {
+    const start = document.getElementById('v-start').value;
+    const end   = document.getElementById('v-end').value;
+    document.getElementById('vendor-list-body').innerHTML = '<div class="text-center py-12 text-slate-400 text-sm">Loading…</div>';
+    try {
+        const d = await authFetch(`${API}/reports/vendor-analysis?start_date=${start}&end_date=${end}`).then(r => r.json());
+        _vendors = d.vendors || [];
+        renderKPIs(d);
+        filterVendors();
+    } catch (e) {
+        document.getElementById('vendor-list-body').innerHTML = `<div class="text-center py-8 text-red-400 text-sm">${e.message}</div>`;
+    }
+}
+
+function renderKPIs(d) {
+    const vendors = d.vendors || [];
+    document.getElementById('kpi-vendor-count').textContent = vendors.length;
+    document.getElementById('kpi-total-spend').innerHTML = fmt(d.total_spend);
+    const avg = vendors.length ? d.total_spend / vendors.length : 0;
+    document.getElementById('kpi-avg-spend').innerHTML = fmt(avg);
+    const top = vendors[0];
+    document.getElementById('kpi-top-vendor').textContent = top ? top.vendor_name : '—';
+}
+
+function filterVendors() {
+    const q   = (document.getElementById('v-search').value || '').toLowerCase();
+    const cat = document.getElementById('v-cat').value;
+    const rows = _vendors.filter(v => {
+        const mCat = !cat || v.category_group === cat;
+        const mQ   = !q || v.vendor_name.toLowerCase().includes(q);
+        return mCat && mQ;
+    });
+    document.getElementById('vendor-list-count').textContent = `(${rows.length})`;
+    renderVendorList(rows);
+}
+
+const CAT_COLOR = { COGS: '#3b82f6', FULFILLMENT: '#8b5cf6', MARKETING: '#f59e0b', OPERATIONS: '#6b7280' };
+
+function renderVendorList(rows) {
+    const body = document.getElementById('vendor-list-body');
+    if (!rows.length) {
+        body.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">No vendors match</div>';
+        return;
+    }
+    const maxSpend = rows[0]?.total_spend || 1;
+    body.innerHTML = rows.map(v => {
+        const barW = Math.max(4, Math.round(v.total_spend / maxSpend * 100));
+        const color = CAT_COLOR[v.category_group] || '#6b7280';
+        const isSel = _selectedVendor === v.vendor_name;
+        return `<div class="flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition ${isSel ? 'bg-indigo-50 border-indigo-100' : ''}" onclick="selectVendor('${v.vendor_name.replace(/'/g, "\\'")}')">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0" style="background:${color}">${(v.vendor_name || '?')[0].toUpperCase()}</div>
+            <div class="flex-1 min-w-0">
+                <div class="font-medium text-slate-800 text-sm truncate">${v.vendor_name}</div>
+                <div class="flex items-center gap-1 mt-0.5">
+                    <div class="flex-1 h-1.5 rounded bg-slate-100 overflow-hidden">
+                        <div style="width:${barW}%;background:${color}" class="h-full rounded"></div>
+                    </div>
+                    <span class="text-[10px] text-slate-400 shrink-0">${v.pct_of_total}%</span>
+                </div>
+            </div>
+            <div class="text-right shrink-0">
+                <div class="text-sm font-bold text-slate-800">${fmt(v.total_spend)}</div>
+                <div class="text-[10px] text-slate-400">${v.bill_count} bill${v.bill_count !== 1 ? 's' : ''}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function selectVendor(vendorName) {
+    _selectedVendor = vendorName;
+    filterVendors(); // re-render to show selection highlight
+
+    const detail = document.getElementById('vendor-detail');
+    const empty  = document.getElementById('vendor-detail-empty');
+    empty.classList.add('hidden');
+    detail.classList.remove('hidden');
+    detail.innerHTML = '<div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 text-center text-slate-400"><i class="fas fa-spinner fa-spin text-xl"></i></div>';
+
+    try {
+        const start = document.getElementById('v-start').value;
+        const end   = document.getElementById('v-end').value;
+
+        // Fetch bills + payments for this vendor
+        const [docsResp, payResp] = await Promise.all([
+            authFetch(`${API}/documents?vendor_name=${encodeURIComponent(vendorName)}`).then(r => r.json()),
+            authFetch(`${API}/payments/ledger?vendor_name=${encodeURIComponent(vendorName)}&limit=50`).then(r => r.json()).catch(() => ({ payments: [] })),
+        ]);
+
+        const docs     = (docsResp.documents || []).filter(d => d.bill_vendor_name === vendorName || d.vendor_name === vendorName);
+        const payments = payResp.payments || [];
+        const vData    = _vendors.find(v => v.vendor_name === vendorName);
+
+        renderVendorDetail(vendorName, vData, docs, payments);
+    } catch (e) {
+        detail.innerHTML = `<div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6 text-red-400 text-sm">Error: ${e.message}</div>`;
+    }
+}
+
+function renderVendorDetail(name, vData, docs, payments) {
+    const detail = document.getElementById('vendor-detail');
+    const totalPaid = payments.reduce((s, p) => s + parseFloat(p.amount_paid || 0), 0);
+    const totalBilled = docs.reduce((s, d) => s + parseFloat(d.total_amount || d.bill_total_amount || 0), 0);
+    const outstanding = Math.max(0, totalBilled - totalPaid);
+    const color = CAT_COLOR[vData?.category_group] || '#6b7280';
+
+    const billsHtml = docs.length ? docs.slice(0, 20).map(d => {
+        const amount = parseFloat(d.total_amount || d.bill_total_amount || 0);
+        const date   = d.bill_date || d.uploaded_at;
+        const status = (d.bill_payment_status || d.payment_status || 'UNKNOWN').toUpperCase();
+        const statusCls = `status-${status.split(' ')[0]}`;
+        const billNo = d.bill_number || '—';
+        return `<tr>
+            <td class="px-3 py-2 text-xs text-slate-500">${fmtD(date)}</td>
+            <td class="px-3 py-2 text-xs font-mono">${billNo}</td>
+            <td class="px-3 py-2 text-xs">${d.bill_category || d.category || '—'}</td>
+            <td class="px-3 py-2 text-xs text-right font-semibold">${fmt(amount)}</td>
+            <td class="px-3 py-2 text-xs font-bold ${statusCls}">${status}</td>
+            <td class="px-3 py-2 text-xs text-center">
+                <a href="documents.html?doc=${d.document_id}" class="text-indigo-500 hover:underline"><i class="fas fa-external-link-alt"></i></a>
+            </td>
+        </tr>`;
+    }).join('') : '<tr><td colspan="6" class="text-center py-6 text-slate-400 text-xs">No bills found for this vendor in the selected period</td></tr>';
+
+    const paymentsHtml = payments.length ? payments.slice(0, 15).map(p => {
+        return `<tr>
+            <td class="px-3 py-2 text-xs text-slate-500">${fmtD(p.payment_date)}</td>
+            <td class="px-3 py-2 text-xs font-semibold text-emerald-700">${fmt(p.amount_paid)}</td>
+            <td class="px-3 py-2 text-xs">${p.payment_method || '—'}</td>
+            <td class="px-3 py-2 text-xs text-slate-400">${p.notes || '—'}</td>
+        </tr>`;
+    }).join('') : '<tr><td colspan="4" class="text-center py-6 text-slate-400 text-xs">No payments recorded</td></tr>';
+
+    detail.innerHTML = `
+        <!-- Header card -->
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+            <div class="flex items-start gap-4">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white text-lg font-bold shrink-0" style="background:${color}">${name[0].toUpperCase()}</div>
+                <div class="flex-1">
+                    <h3 class="font-bold text-lg text-slate-900">${name}</h3>
+                    <div class="flex items-center gap-2 mt-1 flex-wrap">
+                        ${vData ? `<span class="badge badge-${vData.category_group}">${vData.category_group}</span>` : ''}
+                        ${vData?.vendor_type ? `<span class="text-xs text-slate-400">${vData.vendor_type}</span>` : ''}
+                        ${vData?.last_bill ? `<span class="text-xs text-slate-400"><i class="fas fa-calendar mr-1"></i>Last bill: ${vData.last_bill}</span>` : ''}
+                    </div>
+                </div>
+                <div class="text-right">
+                    <a href="documents.html?q=${encodeURIComponent(name)}" class="text-xs text-indigo-600 hover:underline"><i class="fas fa-folder-open mr-1"></i>View all docs</a>
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-3 mt-4">
+                <div class="bg-slate-50 rounded-xl p-3 text-center">
+                    <div class="text-xs text-slate-400 uppercase tracking-wide">Total Billed</div>
+                    <div class="text-base font-bold text-slate-800 mt-1">${fmt(totalBilled)}</div>
+                </div>
+                <div class="bg-emerald-50 rounded-xl p-3 text-center">
+                    <div class="text-xs text-emerald-600 uppercase tracking-wide">Total Paid</div>
+                    <div class="text-base font-bold text-emerald-700 mt-1">${fmt(totalPaid)}</div>
+                </div>
+                <div class="rounded-xl p-3 text-center ${outstanding > 0 ? 'bg-amber-50' : 'bg-slate-50'}">
+                    <div class="text-xs uppercase tracking-wide ${outstanding > 0 ? 'text-amber-600' : 'text-slate-400'}">Outstanding</div>
+                    <div class="text-base font-bold mt-1 ${outstanding > 0 ? 'text-amber-700' : 'text-slate-500'}">${fmt(outstanding)}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bills -->
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                <h4 class="font-semibold text-sm">Bills <span class="text-slate-400 font-normal text-xs">(${docs.length}${docs.length > 20 ? ', showing 20' : ''})</span></h4>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="rt">
+                    <thead><tr>
+                        <th>Date</th><th>Bill #</th><th>Category</th><th class="tr">Amount</th><th>Status</th><th class="text-center">View</th>
+                    </tr></thead>
+                    <tbody>${billsHtml}</tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Payment history -->
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-100">
+                <h4 class="font-semibold text-sm">Payment History <span class="text-slate-400 font-normal text-xs">(${payments.length}${payments.length > 15 ? ', showing 15' : ''})</span></h4>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="rt">
+                    <thead><tr><th>Date</th><th class="tr">Amount Paid</th><th>Method</th><th>Notes</th></tr></thead>
+                    <tbody>${paymentsHtml}</tbody>
+                </table>
+            </div>
+        </div>`;
+}
+
+function exportVendors() {
+    if (!_vendors.length) { alert('Load vendor data first'); return; }
+    const rows = [['Vendor', 'Category', 'Type', 'Total Spend', 'Bill Count', 'Avg Bill', '% of Total', 'Last Bill']];
+    _vendors.forEach(v => {
+        rows.push([v.vendor_name, v.category_group, v.vendor_type || '', v.total_spend.toFixed(2), v.bill_count, v.avg_bill.toFixed(2), v.pct_of_total, v.last_bill || '']);
+    });
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/csv,' + encodeURIComponent(csv);
+    a.download = `nati-vendors-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+}
+</script>
+<script src="js/session.js" defer></script>
+<script src="js/nav.js" defer></script>
+</body>
+</html>
