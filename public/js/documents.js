@@ -1699,7 +1699,13 @@ function filterDocuments() {
     }
 
     if (statusFilter) {
-        filtered = filtered.filter(doc => (doc.status || '') === statusFilter);
+        if (statusFilter === 'bill:void') {
+            filtered = filtered.filter(doc => doc.bill_status === 'void');
+        } else if (statusFilter === 'bill:active') {
+            filtered = filtered.filter(doc => doc.bill_id && doc.bill_status !== 'void' && doc.bill_status !== 'deleted');
+        } else {
+            filtered = filtered.filter(doc => (doc.status || '') === statusFilter);
+        }
     }
 
     if (paymentFilter) {

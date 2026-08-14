@@ -1248,10 +1248,10 @@ async function createStandaloneBill(req, res) {
     const grp = (category_group || 'OPERATIONS').toUpperCase();
     const billRes = await client.query(
       `INSERT INTO bills
-         (document_id, vendor_name, bill_number, bill_date, subtotal, tax_amount, total_amount,
+         (document_id, vendor_name, bill_number, bill_date, subtotal, tax_amount, total_amount, outstanding_amount,
           category, category_group, drop_name, section, payment_method, payment_status, notes,
           status, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'processed', NOW())
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$7,$8,$9,$10,$11,$12,$13,$14,'processed', NOW())
        RETURNING bill_id`,
       [
         documentId, vendor_name, bill_number || null,

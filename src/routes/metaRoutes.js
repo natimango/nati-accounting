@@ -23,13 +23,14 @@ router.get('/search', async (req, res) => {
         [like]
       ),
       pool.query(
-        `SELECT b.bill_id, b.bill_number, b.total_amount, b.bill_date, v.vendor_name,
+        `SELECT b.bill_id, b.bill_number, b.total_amount, b.bill_date,
+                COALESCE(v.vendor_name, b.vendor_name) AS bill_vendor_name,
                 d.document_id
          FROM bills b
          LEFT JOIN vendors v ON v.vendor_id = b.vendor_id
          LEFT JOIN documents d ON d.document_id = b.document_id
          WHERE (b.status IS NULL OR b.status NOT IN ('deleted','void'))
-           AND (b.bill_number ILIKE $1 OR v.vendor_name ILIKE $1 OR b.category ILIKE $1)
+           AND (b.bill_number ILIKE $1 OR v.vendor_name ILIKE $1 OR b.vendor_name ILIKE $1 OR b.category ILIKE $1)
          ORDER BY b.bill_date DESC LIMIT 5`,
         [like]
       ),
@@ -45,7 +46,7 @@ router.get('/search', async (req, res) => {
     ]);
     const results = [
       ...vendors.rows.map(r => ({ type: 'vendor', id: r.vendor_id, label: r.vendor_name, sub: r.vendor_type || '', href: `vendors.html?q=${encodeURIComponent(r.vendor_name)}` })),
-      ...bills.rows.map(r => ({ type: 'bill', id: r.bill_id, label: `${r.vendor_name || '?'} — ${r.bill_number || '#' + r.bill_id}`, sub: r.total_amount ? `₹${Number(r.total_amount).toLocaleString('en-IN')}` : '', href: `documents.html?doc=${r.document_id || ''}` })),
+      ...bills.rows.map(r => ({ type: 'bill', id: r.bill_id, label: `${r.bill_vendor_name || r.vendor_name || '?'} — ${r.bill_number || '#' + r.bill_id}`, sub: r.total_amount ? `₹${Number(r.total_amount).toLocaleString('en-IN')}` : '', href: `documents.html?doc=${r.document_id || ''}` })),
       ...docs.rows.map(r => ({ type: 'doc', id: r.document_id, label: r.file_name || `Doc #${r.document_id}`, sub: '', href: `documents.html?doc=${r.document_id}` })),
     ];
     res.json({ success: true, results });
