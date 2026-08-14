@@ -30,22 +30,22 @@ router.get('/documents/verification/summary', getVerificationSummary);
 // Get all documents
 router.get('/documents', getDocuments);
 
+// Global audit log — must be before /:id to avoid route shadowing
+router.get('/documents/audit-log', authorize('manager', 'admin'), getAuditLog);
+
 // Get single document
 router.get('/documents/:id', getDocument);
 
 // Get document audit history
 router.get('/documents/:id/history', getDocumentHistory);
 
-// Global audit log
-router.get('/documents/audit-log', authorize('manager', 'admin'), getAuditLog);
+// Document comments — static sub-paths before /:id routes
+router.delete('/documents/comments/:comment_id', deleteDocumentComment);
+router.get('/documents/:id/comments', getDocumentComments);
+router.post('/documents/:id/comments', createDocumentComment);
 
 // Delete document
 router.delete('/documents/:id', deleteDocument);
-
-// Document comments
-router.get('/documents/:id/comments', getDocumentComments);
-router.post('/documents/:id/comments', createDocumentComment);
-router.delete('/documents/comments/:comment_id', deleteDocumentComment);
 
 // Re-run AI processing
 router.post('/documents/reprocess', rerunAIForDocuments);
