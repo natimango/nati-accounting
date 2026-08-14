@@ -166,6 +166,7 @@
                 <button class="tab-btn" onclick="showTab('cm')"><i class="fas fa-percent mr-1.5"></i>Contribution Margin</button>
                 <button class="tab-btn" onclick="showTab('ue')"><i class="fas fa-dollar-sign mr-1.5"></i>Unit Economics</button>
                 <button class="tab-btn" onclick="showTab('vendors')"><i class="fas fa-building mr-1.5"></i>Vendors</button>
+                <button class="tab-btn" onclick="showTab('fycomp')"><i class="fas fa-calendar-alt mr-1.5"></i>FY Compare</button>
                 <a href="balance-sheet.html" class="tab-btn flex items-center no-print" style="text-decoration:none"><i class="fas fa-scale-balanced mr-1.5"></i>Balance Sheet</a>
                 <a href="accounts.html" class="tab-btn flex items-center no-print" style="text-decoration:none"><i class="fas fa-book mr-1.5"></i>Accounts</a>
                 <a href="sku-catalog.html" class="tab-btn flex items-center no-print" style="text-decoration:none"><i class="fas fa-shirt mr-1.5"></i>SKU Catalog</a>
@@ -341,6 +342,28 @@
                     </div>
                     <div id="ueContent" class="p-5">
                         <div class="text-center py-8 text-slate-400">Open this tab to load unit economics</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ── FY Compare tab ── -->
+            <section id="tab-fycomp" class="print-area hidden">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
+                        <div>
+                            <h3 class="font-semibold text-base">FY Year-over-Year Comparison</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Current FY vs previous FY — full-year P&amp;L side by side</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <select id="fycomp-year" onchange="loadFYComp()" class="px-2 py-1.5 border border-slate-300 rounded-lg text-sm bg-white">
+                            </select>
+                            <button onclick="exportFYComp()" class="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 flex items-center gap-1.5">
+                                <i class="fas fa-download text-slate-400"></i> CSV
+                            </button>
+                        </div>
+                    </div>
+                    <div id="fycomp-content">
+                        <div class="text-center py-10 text-slate-400">Open this tab to load FY comparison</div>
                     </div>
                 </div>
             </section>
@@ -865,7 +888,7 @@ function renderDropSpend(d) {
 }
 
 // ── Tab switcher ──────────────────────────────────────────────────────────────
-const TABS = ['pl','section','gst','spend','trend','drops','variance','cm','ue','vendors'];
+const TABS = ['pl','section','gst','spend','trend','drops','variance','cm','ue','vendors','fycomp'];
 function showTab(name) {
     TABS.forEach(t => { document.getElementById('tab-' + t).classList.toggle('hidden', t !== name); });
     document.querySelectorAll('.tab-btn').forEach((b, i) => { b.classList.toggle('active', TABS[i] === name); });
@@ -874,6 +897,7 @@ function showTab(name) {
     if (name === 'cm' && !cmLoaded) loadCM();
     if (name === 'ue' && !ueLoaded) loadUE();
     if (name === 'vendors' && !vendorsLoaded) loadVendors();
+    if (name === 'fycomp' && !fycompLoaded) loadFYComp();
 }
 
 // ── Trend chart ───────────────────────────────────────────────────────────────
@@ -1399,6 +1423,146 @@ function exportVendorCSV() {
 // ── Utils ─────────────────────────────────────────────────────────────────────
 function cap(str) {
     return (str || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// ── FY Year-over-Year Comparison ──────────────────────────────────────────────
+let fycompLoaded = false;
+let _fycompData  = {};
+
+function initFYCompYears() {
+    const sel = document.getElementById('fycomp-year');
+    if (!sel || sel.options.length > 1) return;
+    const now = new Date();
+    const curFY = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+    for (let y = curFY; y >= curFY - 4; y--) {
+        const o = document.createElement('option');
+        o.value = y;
+        o.textContent = `FY ${y}-${String(y+1).slice(-2)}`;
+        sel.appendChild(o);
+    }
+}
+
+async function loadFYComp() {
+    initFYCompYears();
+    const el = document.getElementById('fycomp-content');
+    el.innerHTML = '<div class="text-center py-10 text-slate-400">Loading…</div>';
+    const fyYear = parseInt(document.getElementById('fycomp-year').value);
+    if (!fyYear) return;
+
+    const curStart  = `${fyYear}-04-01`;
+    const curEnd    = `${fyYear+1}-03-31`;
+    const prevStart = `${fyYear-1}-04-01`;
+    const prevEnd   = `${fyYear}-03-31`;
+
+    try {
+        const [cur, prev] = await Promise.all([
+            fetch(`/api/reports/profit-loss?start_date=${curStart}&end_date=${curEnd}`, { credentials: 'include' }).then(r => r.json()),
+            fetch(`/api/reports/profit-loss?start_date=${prevStart}&end_date=${prevEnd}`, { credentials: 'include' }).then(r => r.json()),
+        ]);
+        _fycompData = { cur, prev, fyYear };
+        fycompLoaded = true;
+        renderFYComp(cur, prev, fyYear);
+    } catch (e) {
+        el.innerHTML = `<div class="text-center py-8 text-red-400">${e.message}</div>`;
+    }
+}
+
+function renderFYComp(cur, prev, fyYear) {
+    const el = document.getElementById('fycomp-content');
+    const curLbl  = `FY ${fyYear}-${String(fyYear+1).slice(-2)}`;
+    const prevLbl = `FY ${fyYear-1}-${String(fyYear).slice(-2)}`;
+
+    function row(label, curVal, prevVal, isMilestone, isNeg) {
+        const chg   = prevVal && prevVal !== 0 ? ((curVal - prevVal) / Math.abs(prevVal) * 100) : null;
+        const chgEl = chg !== null
+            ? `<span class="text-xs ${chg >= 0 ? 'text-emerald-600' : 'text-rose-600'}">${chg >= 0 ? '▲' : '▼'} ${Math.abs(chg).toFixed(1)}%</span>`
+            : '<span class="text-xs text-slate-300">—</span>';
+        const cls = isMilestone ? `font-bold text-sm ${isNeg ? 'text-rose-600' : 'text-indigo-700'}` : 'text-slate-700';
+        const bg  = isMilestone ? (isNeg ? 'bg-rose-50' : 'bg-indigo-50') : '';
+        return `<tr class="${bg}">
+            <td class="px-5 py-2.5 ${cls}">${label}</td>
+            <td class="px-5 py-2.5 text-right ${cls}">${fmt(curVal)}</td>
+            <td class="px-5 py-2.5 text-right text-slate-500">${fmt(prevVal)}</td>
+            <td class="px-5 py-2.5 text-right">${chgEl}</td>
+        </tr>`;
+    }
+
+    function pctRow(label, curVal, curBase, prevVal, prevBase) {
+        const cp = curBase  ? (curVal  / curBase  * 100).toFixed(1) : null;
+        const pp = prevBase ? (prevVal / prevBase * 100).toFixed(1) : null;
+        return `<tr class="bg-slate-50">
+            <td class="px-5 py-1.5 text-xs text-slate-400 pl-10">↳ ${label}</td>
+            <td class="px-5 py-1.5 text-right text-xs text-slate-500">${cp ? cp + '%' : '—'}</td>
+            <td class="px-5 py-1.5 text-right text-xs text-slate-500">${pp ? pp + '%' : '—'}</td>
+            <td></td>
+        </tr>`;
+    }
+
+    function secHdr(label) {
+        return `<tr class="bg-slate-800"><td colspan="4" class="px-5 py-2 text-xs font-bold text-white uppercase tracking-widest">${label}</td></tr>`;
+    }
+
+    const ns  = cur.net_sales || 0;
+    const pns = prev.net_sales || 0;
+    const rows = [
+        secHdr('Revenue'),
+        row('Gross Sales',    cur.gross_sales   || ns, prev.gross_sales   || pns),
+        row('Returns',       -(cur.returns      || 0), -(prev.returns     || 0)),
+        row('Net Sales',      ns,                       pns,               true),
+
+        secHdr('Cost of Goods Sold'),
+        row('COGS',           cur.cogs?.total   || 0,  prev.cogs?.total   || 0),
+        row('Gross Profit',   cur.gross_profit  || 0,  prev.gross_profit  || 0,  true),
+        pctRow('Gross Margin', cur.gross_profit||0, ns, prev.gross_profit||0, pns),
+
+        secHdr('Operating Expenses'),
+        row('Fulfillment',    cur.fulfilment?.total || 0,  prev.fulfilment?.total || 0),
+        row('CM1',            cur.cm1           || 0,  prev.cm1           || 0,   true),
+        pctRow('CM1 %', cur.cm1||0, ns, prev.cm1||0, pns),
+        row('Marketing',      cur.marketing?.total  || 0,  prev.marketing?.total  || 0),
+        row('CM2',            cur.cm2           || 0,  prev.cm2           || 0,   true),
+        row('Operations',     cur.opex?.total   || 0,  prev.opex?.total   || 0),
+        row('EBITDA',         cur.ebitda        || 0,  prev.ebitda        || 0,   true, (cur.ebitda||0) < 0),
+        pctRow('EBITDA %', cur.ebitda||0, ns, prev.ebitda||0, pns),
+    ].join('');
+
+    el.innerHTML = `
+        <div class="overflow-x-auto">
+        <table class="rt w-full">
+            <thead><tr>
+                <th class="w-1/3">Line Item</th>
+                <th class="tr">${curLbl}</th>
+                <th class="tr">${prevLbl}</th>
+                <th class="tr">YoY Change</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+        </div>
+        <div class="px-5 py-3 text-xs text-slate-400 border-t border-slate-100">
+            <i class="fas fa-info-circle mr-1"></i>FY runs April 1 – March 31. Data sourced from P&L as at report date.
+        </div>`;
+}
+
+function exportFYComp() {
+    if (!_fycompData.cur) { alert('Load FY comparison first'); return; }
+    const { cur, prev, fyYear } = _fycompData;
+    const rows = [
+        ['Line Item', `FY ${fyYear}-${String(fyYear+1).slice(-2)}`, `FY ${fyYear-1}-${String(fyYear).slice(-2)}`],
+        ['Net Sales',    cur.net_sales    || 0, prev.net_sales    || 0],
+        ['Gross Profit', cur.gross_profit || 0, prev.gross_profit || 0],
+        ['CM1',          cur.cm1          || 0, prev.cm1          || 0],
+        ['CM2',          cur.cm2          || 0, prev.cm2          || 0],
+        ['EBITDA',       cur.ebitda       || 0, prev.ebitda       || 0],
+        ['COGS',         cur.cogs?.total  || 0, prev.cogs?.total  || 0],
+        ['Fulfillment',  cur.fulfilment?.total || 0, prev.fulfilment?.total || 0],
+        ['Marketing',    cur.marketing?.total  || 0, prev.marketing?.total  || 0],
+        ['Operations',   cur.opex?.total  || 0, prev.opex?.total  || 0],
+    ];
+    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/csv,' + encodeURIComponent(csv);
+    a.download = `fy-comparison-${fyYear}.csv`;
+    a.click();
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
