@@ -300,7 +300,7 @@ function renderDocs() {
             <td>${verifPill(d.verification_status)}</td>
             <td>${unpostedBadge}</td>
             <td class="space-x-1">${gaps.join(' ') || '<span class="text-slate-300">—</span>'}</td>
-            <td><a href="documents.html?id=${d.document_id}" class="text-indigo-600 text-xs hover:underline">View</a></td>
+            <td><a href="documents.html?doc=${d.document_id}" class="text-indigo-600 text-xs hover:underline">View</a></td>
         </tr>`;
     }).join('');
 }
