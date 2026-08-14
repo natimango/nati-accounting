@@ -1136,6 +1136,25 @@ async function getMaxCacSizes(req, res) {
   }
 }
 
+async function resolveAlert(req, res) {
+  try {
+    const { alert_id } = req.params;
+    const actorId = req.user?.user_id || null;
+    const result = await pool.query(
+      `UPDATE alerts SET resolved_at = NOW(), resolved_by = $2
+       WHERE alert_id = $1 AND resolved_at IS NULL
+       RETURNING alert_id`,
+      [alert_id, actorId ? String(actorId) : null]
+    );
+    if (!result.rows.length) {
+      return res.status(404).json({ success: false, error: 'Alert not found or already resolved' });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 module.exports = {
   getFinanceSummary,
   getDropOverview,
@@ -1148,5 +1167,6 @@ module.exports = {
   checkInvariants,
   getDropCostOverview,
   getMaxCacTiers,
-  getMaxCacSizes
+  getMaxCacSizes,
+  resolveAlert
 };
