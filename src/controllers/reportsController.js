@@ -1355,6 +1355,60 @@ async function getCashFlow(req, res) {
 }
 
 // Create manual journal entry (double-entry)
+async function getPurchaseRegister(req, res) {
+  try {
+    const { start_date, end_date } = req.query;
+    const startDate = start_date || new Date(new Date().getFullYear(), 3, 1).toISOString().split('T')[0];
+    const endDate   = end_date   || new Date().toISOString().split('T')[0];
+
+    const result = await pool.query(`
+      SELECT
+        b.bill_id,
+        b.bill_number,
+        ${BILL_DATE_SQL} AS bill_date,
+        COALESCE(b.vendor_name, v.vendor_name, 'Unknown') AS vendor_name,
+        COALESCE(v.gstin, b.vendor_gstin) AS vendor_gstin,
+        b.category_group,
+        b.drop_name,
+        COALESCE(b.total_amount, 0) AS total_amount,
+        COALESCE(b.tax_amount, 0) AS tax_amount,
+        COALESCE(b.cgst_amount, 0) AS cgst,
+        COALESCE(b.sgst_amount, 0) AS sgst,
+        COALESCE(b.igst_amount, 0) AS igst,
+        COALESCE(b.total_amount, 0) - COALESCE(b.tax_amount, 0) AS taxable_value,
+        b.payment_status
+      FROM bills b
+      LEFT JOIN documents d ON d.document_id = b.document_id
+      LEFT JOIN vendors v ON v.vendor_id = b.vendor_id
+      WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
+        AND ${ACTIVE_BILL_FILTER}
+      ORDER BY ${BILL_DATE_SQL} ASC, b.bill_id ASC
+    `, [startDate, endDate]);
+
+    const totals = result.rows.reduce((acc, r) => {
+      acc.taxable_value += Number(r.taxable_value || 0);
+      acc.cgst += Number(r.cgst || 0);
+      acc.sgst += Number(r.sgst || 0);
+      acc.igst += Number(r.igst || 0);
+      acc.tax_amount += Number(r.tax_amount || 0);
+      acc.total_amount += Number(r.total_amount || 0);
+      return acc;
+    }, { taxable_value: 0, cgst: 0, sgst: 0, igst: 0, tax_amount: 0, total_amount: 0 });
+
+    res.json({
+      success: true,
+      start_date: startDate,
+      end_date: endDate,
+      rows: result.rows,
+      totals,
+      count: result.rows.length
+    });
+  } catch (err) {
+    console.error('Purchase register error', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 async function getAPAging(req, res) {
   try {
     const asOf = req.query.as_of_date || new Date().toISOString().split('T')[0];
@@ -1481,5 +1535,6 @@ module.exports = {
   deleteSalesEntry,
   getCashFlow,
   createJournalEntry,
-  getAPAging
+  getAPAging,
+  getPurchaseRegister
 };

@@ -171,6 +171,7 @@
                 <button class="tab-btn" onclick="showTab('ue')"><i class="fas fa-dollar-sign mr-1.5"></i>Unit Economics</button>
                 <button class="tab-btn" onclick="showTab('vendors')"><i class="fas fa-building mr-1.5"></i>Vendors</button>
                 <button class="tab-btn" onclick="showTab('fycomp')"><i class="fas fa-calendar-alt mr-1.5"></i>FY Compare</button>
+                <button class="tab-btn" onclick="showTab('pureg')"><i class="fas fa-file-invoice mr-1.5"></i>Purchase Register</button>
                 <a href="balance-sheet.html" class="tab-btn flex items-center no-print" style="text-decoration:none"><i class="fas fa-scale-balanced mr-1.5"></i>Balance Sheet</a>
                 <a href="accounts.html" class="tab-btn flex items-center no-print" style="text-decoration:none"><i class="fas fa-book mr-1.5"></i>Accounts</a>
                 <a href="sku-catalog.html" class="tab-btn flex items-center no-print" style="text-decoration:none"><i class="fas fa-shirt mr-1.5"></i>SKU Catalog</a>
@@ -368,6 +369,25 @@
                     </div>
                     <div id="fycomp-content">
                         <div class="text-center py-10 text-slate-400">Open this tab to load FY comparison</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ── Purchase Register tab ── -->
+            <section id="tab-pureg" class="print-area hidden">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h3 class="font-semibold text-base">Purchase Register (Input Tax Credit)</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">All bills with GSTIN and tax breakdown — for GSTR-2B reconciliation</p>
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <button onclick="exportPureG()" class="text-xs text-slate-600 hover:underline border border-slate-200 rounded-lg px-2 py-1"><i class="fas fa-download mr-1"></i>CSV</button>
+                            <button onclick="puregLoaded=false;loadPureG()" class="text-xs text-indigo-600 hover:underline"><i class="fas fa-rotate mr-1"></i>Refresh</button>
+                        </div>
+                    </div>
+                    <div id="pureg-content">
+                        <div class="text-center py-10 text-slate-400">Open this tab to load purchase register</div>
                     </div>
                 </div>
             </section>
@@ -892,7 +912,7 @@ function renderDropSpend(d) {
 }
 
 // ── Tab switcher ──────────────────────────────────────────────────────────────
-const TABS = ['pl','section','gst','spend','trend','drops','variance','cm','ue','vendors','fycomp'];
+const TABS = ['pl','section','gst','spend','trend','drops','variance','cm','ue','vendors','fycomp','pureg'];
 function showTab(name) {
     TABS.forEach(t => { document.getElementById('tab-' + t).classList.toggle('hidden', t !== name); });
     document.querySelectorAll('.tab-btn').forEach((b, i) => { b.classList.toggle('active', TABS[i] === name); });
@@ -902,6 +922,7 @@ function showTab(name) {
     if (name === 'ue' && !ueLoaded) loadUE();
     if (name === 'vendors' && !vendorsLoaded) loadVendors();
     if (name === 'fycomp' && !fycompLoaded) loadFYComp();
+    if (name === 'pureg'  && !puregLoaded)  loadPureG();
 }
 
 // ── Trend chart ───────────────────────────────────────────────────────────────
@@ -1566,6 +1587,123 @@ function exportFYComp() {
     const a = document.createElement('a');
     a.href = 'data:text/csv,' + encodeURIComponent(csv);
     a.download = `fy-comparison-${fyYear}.csv`;
+    a.click();
+}
+
+// ── Purchase Register ──────────────────────────────────────────────────────────
+let puregLoaded = false;
+let _puregData  = null;
+
+async function loadPureG() {
+    const el = document.getElementById('pureg-content');
+    el.innerHTML = '<div class="text-center py-10 text-slate-400">Loading…</div>';
+    try {
+        const { start, end } = getDateRange();
+        const r = await apiFetch(`/api/reports/purchase-register?start_date=${start}&end_date=${end}`);
+        if (!r.success) throw new Error(r.error || 'API error');
+        _puregData = r;
+        puregLoaded = true;
+        renderPureG(r);
+    } catch (e) {
+        el.innerHTML = `<div class="text-center py-10 text-red-500">${e.message}</div>`;
+    }
+}
+
+function renderPureG(d) {
+    const el = document.getElementById('pureg-content');
+    const t = d.totals;
+    const fmtN = v => Number(v || 0) > 0 ? fmt(v) : '—';
+
+    // Summary tiles
+    const tiles = `
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 p-5 border-b border-slate-100">
+            <div class="bg-slate-50 rounded-xl p-4 text-center">
+                <div class="text-xs text-slate-500 mb-1">Bills</div>
+                <div class="text-xl font-bold text-slate-800">${d.count}</div>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-4 text-center">
+                <div class="text-xs text-slate-500 mb-1">Taxable Value</div>
+                <div class="text-xl font-bold text-slate-800">${fmt(t.taxable_value)}</div>
+            </div>
+            <div class="bg-indigo-50 rounded-xl p-4 text-center">
+                <div class="text-xs text-indigo-500 mb-1">Total ITC</div>
+                <div class="text-xl font-bold text-indigo-700">${fmt(Number(t.cgst||0)+Number(t.sgst||0)+Number(t.igst||0))}</div>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-4 text-center">
+                <div class="text-xs text-slate-500 mb-1">Total Invoice Value</div>
+                <div class="text-xl font-bold text-slate-800">${fmt(t.total_amount)}</div>
+            </div>
+        </div>`;
+
+    if (!d.rows.length) {
+        el.innerHTML = tiles + '<div class="text-center py-8 text-slate-400">No bills in this period</div>';
+        return;
+    }
+
+    const rows = d.rows.map(r => `<tr class="border-t border-slate-100 hover:bg-slate-50 text-xs">
+        <td class="px-3 py-2 text-slate-500 font-mono">${r.bill_date ? new Date(r.bill_date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—'}</td>
+        <td class="px-3 py-2 font-medium text-slate-800">${r.vendor_name}</td>
+        <td class="px-3 py-2 text-slate-500 font-mono">${r.vendor_gstin || '—'}</td>
+        <td class="px-3 py-2 text-slate-500">${r.bill_number || '—'}</td>
+        <td class="px-3 py-2 text-slate-500">${r.category_group || '—'}</td>
+        <td class="px-3 py-2 text-right">${fmt(r.taxable_value)}</td>
+        <td class="px-3 py-2 text-right ${Number(r.cgst)>0 ? 'text-indigo-700 font-medium' : 'text-slate-300'}">${fmtN(r.cgst)}</td>
+        <td class="px-3 py-2 text-right ${Number(r.sgst)>0 ? 'text-indigo-700 font-medium' : 'text-slate-300'}">${fmtN(r.sgst)}</td>
+        <td class="px-3 py-2 text-right ${Number(r.igst)>0 ? 'text-violet-700 font-medium' : 'text-slate-300'}">${fmtN(r.igst)}</td>
+        <td class="px-3 py-2 text-right font-semibold text-slate-800">${fmt(r.total_amount)}</td>
+    </tr>`).join('');
+
+    el.innerHTML = tiles + `
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead><tr class="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
+                    <th class="px-3 py-3 text-left">Date</th>
+                    <th class="px-3 py-3 text-left">Vendor</th>
+                    <th class="px-3 py-3 text-left">GSTIN</th>
+                    <th class="px-3 py-3 text-left">Bill No.</th>
+                    <th class="px-3 py-3 text-left">Category</th>
+                    <th class="px-3 py-3 text-right">Taxable</th>
+                    <th class="px-3 py-3 text-right">CGST</th>
+                    <th class="px-3 py-3 text-right">SGST</th>
+                    <th class="px-3 py-3 text-right">IGST</th>
+                    <th class="px-3 py-3 text-right">Total</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+                <tfoot class="bg-slate-50 font-semibold border-t-2 border-slate-200 text-sm">
+                    <tr>
+                        <td colspan="5" class="px-3 py-3">Total (${d.count} bills)</td>
+                        <td class="px-3 py-3 text-right">${fmt(t.taxable_value)}</td>
+                        <td class="px-3 py-3 text-right">${fmt(t.cgst)}</td>
+                        <td class="px-3 py-3 text-right">${fmt(t.sgst)}</td>
+                        <td class="px-3 py-3 text-right">${fmt(t.igst)}</td>
+                        <td class="px-3 py-3 text-right">${fmt(t.total_amount)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>`;
+}
+
+function exportPureG() {
+    if (!_puregData) { alert('Load Purchase Register first'); return; }
+    const cols = ['Date','Vendor','GSTIN','Bill No.','Category','Drop','Taxable Value','CGST','SGST','IGST','Total','Status'];
+    const csvRows = [cols, ..._puregData.rows.map(r => [
+        r.bill_date || '',
+        r.vendor_name || '',
+        r.vendor_gstin || '',
+        r.bill_number || '',
+        r.category_group || '',
+        r.drop_name || '',
+        r.taxable_value || 0,
+        r.cgst || 0,
+        r.sgst || 0,
+        r.igst || 0,
+        r.total_amount || 0,
+        r.payment_status || ''
+    ])];
+    const csv = csvRows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = `purchase-register-${_puregData.start_date}-to-${_puregData.end_date}.csv`;
     a.click();
 }
 

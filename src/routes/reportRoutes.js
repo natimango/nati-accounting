@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getAPAging,
+  getPurchaseRegister,
   getProfitLoss,
   getPLTrend,
   getBalanceSheet,
@@ -62,5 +63,6 @@ router.get('/reports/vendor-analysis', getVendorAnalysis);
 router.get('/reports/cash-flow', getCashFlow);
 router.post('/reports/journal-entries', authorize('manager', 'admin'), createJournalEntry);
 router.get('/reports/ap-aging', getAPAging);
+router.get('/reports/purchase-register', getPurchaseRegister);
 
 module.exports = router;
