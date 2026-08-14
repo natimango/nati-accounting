@@ -33,7 +33,7 @@ async function listDrops(req, res) {
   try {
     const showAll = req.query.all === '1';
     const result = await pool.query(
-      `SELECT drop_id, drop_name, drop_number, description, launch_date, season, is_active, created_at
+      `SELECT drop_id, drop_name, drop_number, description, launch_date, season, is_active
        FROM drops
        ${showAll ? '' : 'WHERE is_active'}
        ORDER BY drop_number NULLS LAST, drop_name`
