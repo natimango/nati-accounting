@@ -7,6 +7,7 @@ const {
   uploadBill,
   getDocuments,
   getDocument,
+  getDocumentHistory,
   getVerificationSummary,
   deleteDocument,
   rerunAIForDocuments,
@@ -27,6 +28,9 @@ router.get('/documents', getDocuments);
 
 // Get single document
 router.get('/documents/:id', getDocument);
+
+// Get document audit history
+router.get('/documents/:id/history', getDocumentHistory);
 
 // Delete document
 router.delete('/documents/:id', deleteDocument);

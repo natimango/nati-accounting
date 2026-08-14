@@ -1809,11 +1809,41 @@ async function recategorizeAllBills(req, res) {
   }
 }
 
+const getDocumentHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `SELECT
+         h.history_id,
+         h.field_name,
+         h.old_value,
+         h.new_value,
+         h.actor_type,
+         h.actor_id,
+         h.reason,
+         h.confidence,
+         h.source_action,
+         h.created_at,
+         u.email AS actor_email
+       FROM document_field_history h
+       LEFT JOIN users u ON u.user_id = h.actor_id::int
+       WHERE h.document_id = $1
+       ORDER BY h.created_at DESC
+       LIMIT 200`,
+      [id]
+    );
+    res.json({ success: true, history: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 module.exports = {
   upload,
   uploadBill,
   getDocuments,
   getDocument,
+  getDocumentHistory,
   getVerificationSummary,
   deleteDocument,
   rerunAIForDocuments,

@@ -680,6 +680,7 @@ async function openBillModal(id) {
     titleEl.textContent = 'Loading…';
     subEl.textContent = '';
     body.innerHTML = `<div class="p-8 text-sm text-slate-500 text-center"><i class="fas fa-spinner fa-spin mr-2"></i>Loading bill…</div>`;
+    _activityLogLoaded = false;
 
     try {
         const detailResp = window.apiFetch
@@ -889,6 +890,16 @@ async function openBillModal(id) {
                 ${lineItemsHtml}
             </div>` : ''}
 
+            <!-- Activity Log -->
+            <div>
+                <button onclick="toggleActivityLog(${id})" class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-indigo-600 transition-colors">
+                    <i id="activity-chevron" class="fas fa-chevron-right text-[10px]"></i> Activity Log
+                </button>
+                <div id="activity-log-panel" class="hidden mt-3">
+                    <div id="activity-log-content" class="text-xs text-slate-400 italic">Loading…</div>
+                </div>
+            </div>
+
             <!-- Actions -->
             <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
                 ${canPreview ? `<button onclick="actionPreview(${d.document_id}, '${(fileName).replace(/'/g,'')}', '${d.file_type}')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2"><i class="fas fa-eye"></i>View Document</button>` : ''}
@@ -955,6 +966,52 @@ function toggleQuickEdit() {
     if (!panel) return;
     const open = panel.classList.toggle('hidden');
     if (chevron) chevron.className = open ? 'fas fa-chevron-right text-[10px]' : 'fas fa-chevron-down text-[10px]';
+}
+
+let _activityLogLoaded = false;
+
+async function toggleActivityLog(docId) {
+    const panel = document.getElementById('activity-log-panel');
+    const chevron = document.getElementById('activity-chevron');
+    if (!panel) return;
+    const nowHidden = panel.classList.toggle('hidden');
+    if (chevron) chevron.className = nowHidden ? 'fas fa-chevron-right text-[10px]' : 'fas fa-chevron-down text-[10px]';
+    if (!nowHidden && !_activityLogLoaded) {
+        _activityLogLoaded = true;
+        await _loadActivityLog(docId);
+    }
+}
+
+async function _loadActivityLog(docId) {
+    const el = document.getElementById('activity-log-content');
+    if (!el) return;
+    try {
+        const resp = window.apiFetch
+            ? await window.apiFetch(`${API_URL}/documents/${docId}/history`, { method: 'GET' })
+            : await authFetch(`${API_URL}/documents/${docId}/history`).then(r => r.json());
+        if (!resp || !resp.success) { el.textContent = 'Failed to load history.'; return; }
+        const rows = resp.history || [];
+        if (!rows.length) { el.innerHTML = '<p class="text-slate-400 italic">No changes recorded yet.</p>'; return; }
+        el.innerHTML = `<div class="space-y-1">
+            ${rows.map(r => {
+                const who = r.actor_email ? r.actor_email.split('@')[0] : (r.actor_type || 'system');
+                const when = new Date(r.created_at).toLocaleString('en-IN', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+                const field = (r.field_name || '').replace(/_/g,' ');
+                const oldV = r.old_value != null ? String(r.old_value).slice(0,40) : '—';
+                const newV = r.new_value != null ? String(r.new_value).slice(0,40) : '—';
+                const action = r.source_action ? `<span class="text-slate-400">[${r.source_action}]</span> ` : '';
+                return `<div class="flex items-start gap-2 py-1.5 border-b border-slate-100 last:border-0">
+                    <div class="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1.5 flex-shrink-0"></div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-slate-700">${action}<span class="font-medium">${escapeHTML(field)}</span>: <span class="text-rose-500 line-through">${escapeHTML(oldV)}</span> → <span class="text-emerald-600">${escapeHTML(newV)}</span></p>
+                        <p class="text-slate-400">${when} · ${escapeHTML(who)}</p>
+                    </div>
+                </div>`;
+            }).join('')}
+        </div>`;
+    } catch (err) {
+        if (el) el.textContent = 'Error loading history.';
+    }
 }
 
 async function _populateQeDropList() {
