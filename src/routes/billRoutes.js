@@ -13,7 +13,8 @@ const {
   bulkUpdateBillMeta,
   listPayments,
   createStandaloneBill,
-  updateBillCore
+  updateBillCore,
+  importBankCSV
 } = require('../controllers/billController');
 const { authorize } = require('../middleware/auth');
 
@@ -56,5 +57,8 @@ router.get('/payments/ledger', listPayments);
 
 // Create a standalone bill (no document upload needed)
 router.post('/bills/manual', authorize('manager', 'admin'), createStandaloneBill);
+
+// Import bank statement CSV to auto-match payments
+router.post('/payments/import-bank-csv', authorize('manager', 'admin'), upload.single('file'), importBankCSV);
 
 module.exports = router;

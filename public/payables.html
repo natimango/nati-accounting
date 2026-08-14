@@ -220,6 +220,7 @@
                             </select>
                             <button onclick="loadHistory()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs hover:bg-indigo-700 flex items-center gap-1"><i class="fas fa-sync"></i> Load</button>
                             <button onclick="exportHistoryCSV()" class="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs hover:bg-slate-50 flex items-center gap-1"><i class="fas fa-download"></i> CSV</button>
+                            <label class="px-3 py-1.5 bg-emerald-50 border border-emerald-300 text-emerald-700 rounded-lg text-xs hover:bg-emerald-100 flex items-center gap-1 cursor-pointer" title="Import bank CSV to auto-match payments"><i class="fas fa-file-import"></i> Bank CSV<input type="file" accept=".csv" class="hidden" onchange="importBankCSV(this)"></label>
                         </div>
                     </div>
                     <div id="hist-summary" class="px-6 py-3 border-b border-slate-100 hidden flex items-center gap-6 text-sm"></div>
@@ -1248,6 +1249,25 @@ function exportHistoryCSV() {
     a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
     a.download = 'payment-history.csv';
     a.click();
+}
+
+async function importBankCSV(input) {
+    const file = input.files[0];
+    if (!file) return;
+    input.value = '';
+    const formData = new FormData();
+    formData.append('file', file);
+    showToast('Importing bank CSV…', 'success');
+    try {
+        const resp = await authFetch(`${API}/payments/import-bank-csv`, { method: 'POST', body: formData }).then(r => r.json());
+        if (!resp.success) throw new Error(resp.error || 'Import failed');
+        const m = resp.matched || 0;
+        const u = resp.unmatched || 0;
+        showToast(`Imported: ${m} matched, ${u} unmatched`, 'success');
+        if (m > 0) { _histData = null; loadHistory(); loadPayables(); }
+    } catch (e) {
+        showToast('Import error: ' + e.message, 'error');
+    }
 }
 
 function showToast(msg, type) {

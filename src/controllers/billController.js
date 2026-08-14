@@ -1294,5 +1294,6 @@ module.exports = {
   recordSimplePayment,
   listPayments,
   createStandaloneBill,
-  updateBillCore
+  updateBillCore,
+  importBankCSV
 };
