@@ -66,6 +66,7 @@ app.use('/api', authenticate, require('./routes/tagRoutes'));
 app.use('/api', authenticate, require('./routes/skuRoutes'));
 app.use('/api/brain', authenticate, brainRoutes);
 app.use('/api', authenticate, qualityRoutes);
+app.use('/api', authenticate, require('./routes/vendorRoutes'));
 
 app.get('/api/health', async (req, res) => {
   try {
