@@ -19,7 +19,7 @@ async function loadDrops() {
         drops.forEach(d => {
             const opt = document.createElement('option');
             opt.value = d.drop_name || d.name;
-            opt.textContent = d.drop_name || d.name;
+            opt.textContent = d.drop_number ? `#${d.drop_number} – ${d.drop_name || d.name}` : (d.drop_name || d.name);
             sel.appendChild(opt);
         });
     } catch (e) { /* keep static fallback */ }

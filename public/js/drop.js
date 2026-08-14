@@ -48,7 +48,8 @@ async function loadDropList() {
       const opt = document.createElement('option');
       opt.value = d.drop_name;
       opt.dataset.dropId = d.drop_id;
-      opt.textContent = d.drop_name;
+      opt.dataset.dropNumber = d.drop_number || '';
+      opt.textContent = d.drop_number ? `#${d.drop_number} – ${d.drop_name}` : d.drop_name;
       sel.appendChild(opt);
     });
 
@@ -509,6 +510,7 @@ function showNewDropModal() {
   document.getElementById('new-drop-name').focus();
   document.getElementById('new-drop-error').classList.add('hidden');
   document.getElementById('new-drop-name').value = '';
+  document.getElementById('new-drop-number').value = '';
   document.getElementById('new-drop-season').value = '';
   document.getElementById('new-drop-launch').value = '';
   document.getElementById('new-drop-desc').value = '';
@@ -520,6 +522,7 @@ function hideNewDropModal() {
 
 async function createDrop() {
   const name = document.getElementById('new-drop-name').value.trim();
+  const dropNum = document.getElementById('new-drop-number').value.trim();
   const season = document.getElementById('new-drop-season').value.trim();
   const launch = document.getElementById('new-drop-launch').value;
   const desc = document.getElementById('new-drop-desc').value.trim();
@@ -535,7 +538,7 @@ async function createDrop() {
     const r = await authFetch(`${META_URL}/drops`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ drop_name: name, description: desc || null, launch_date: launch || null, season: season || null })
+      body: JSON.stringify({ drop_name: name, description: desc || null, launch_date: launch || null, season: season || null, drop_number: dropNum ? parseInt(dropNum, 10) : null })
     });
     const data = await r.json();
     if (!r.ok || !data.success) throw new Error(data.error || 'Failed to create drop');

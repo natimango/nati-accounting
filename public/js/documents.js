@@ -574,7 +574,9 @@ function renderTable(documents) {
         const grp = getCategoryGroup(doc);
         const fileNumber = `#${String(doc.document_id || idx + 1).padStart(4, '0')}`;
         const section = doc.bill_section || doc.section || null;
-        const drop = doc.bill_drop_name || doc.drop_name || null;
+        const dropName = doc.bill_drop_name || doc.drop_name || null;
+        const dropMeta = dropName && _metaDrops ? _metaDrops.find(d => d.drop_name === dropName) : null;
+        const drop = dropMeta?.drop_number ? `#${dropMeta.drop_number} ${dropName}` : dropName;
         const payStatus = doc.bill_payment_status || doc.payment_status || null;
         const docStatus = getStatusBadge(doc.status);
         const isOverdue = payStatus === 'pending' && doc.bill_payment_due_date && new Date(doc.bill_payment_due_date) < new Date();
@@ -748,7 +750,9 @@ async function openBillModal(id) {
         const catLabel    = category && category !== '—'
             ? category.replace(/_/g, ' ').replace(/\b\w/g, x => x.toUpperCase())
             : '—';
-        const drop        = d.bill_drop_name || d.drop_name || '—';
+        const _dropRaw    = d.bill_drop_name || d.drop_name || null;
+        const _dropMeta   = _dropRaw && _metaDrops ? _metaDrops.find(m => m.drop_name === _dropRaw) : null;
+        const drop        = _dropRaw ? (_dropMeta?.drop_number ? `#${_dropMeta.drop_number} – ${_dropRaw}` : _dropRaw) : '—';
         const section     = d.bill_section || d.section || '—';
         const payMethod   = d.bill_payment_method || d.payment_method || '—';
         const payStatus   = d.bill_payment_status || '—';
@@ -2441,7 +2445,7 @@ async function loadManualDropList(currentDrop) {
         drops.forEach(d => {
             const opt = document.createElement('option');
             opt.value = d.drop_name;
-            opt.textContent = d.drop_name;
+            opt.textContent = d.drop_number ? `#${d.drop_number} – ${d.drop_name}` : d.drop_name;
             sel.appendChild(opt);
         });
         if (currentDrop) sel.value = currentDrop;
