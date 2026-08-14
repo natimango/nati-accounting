@@ -751,33 +751,34 @@ async function openBillModal(id) {
         };
 
         // ── Line items ───────────────────────────────────────────────────
-        const lineItemsHtml = currentBillItems.length
-            ? `<div class="overflow-auto rounded-xl border border-slate-200">
+        const lineItemsHtml = `<div class="overflow-auto rounded-xl border border-slate-200">
                 <table class="min-w-full text-sm">
                     <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
                         <tr>
                             <th class="px-4 py-2 text-left">Description</th>
                             <th class="px-4 py-2 text-left">SKU</th>
+                            <th class="px-4 py-2 text-right">Qty</th>
                             <th class="px-4 py-2 text-right">Amount</th>
                             <th class="px-4 py-2 text-center">Status</th>
-                            <th class="px-4 py-2 text-center">Post</th>
+                            <th class="px-4 py-2 text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100" id="line-items-tbody">
-                        ${currentBillItems.map(item => `
+                        ${currentBillItems.length ? currentBillItems.map(item => `
                             <tr class="hover:bg-slate-50" data-item-id="${item.item_id}">
                                 <td class="px-4 py-2 max-w-[180px] truncate" title="${escapeHTML(item.description || '')}">${escapeHTML(item.description || '—')}</td>
                                 <td class="px-4 py-2 text-slate-500 text-xs">${escapeHTML(item.sku_code || '—')}</td>
+                                <td class="px-4 py-2 text-right text-slate-500 text-xs">${item.quantity != null ? Number(item.quantity) : '—'}</td>
                                 <td class="px-4 py-2 text-right font-medium">₹${Number(item.amount || 0).toLocaleString('en-IN')}</td>
                                 <td class="px-4 py-2 text-center">${_postingBadge(item)}</td>
-                                <td class="px-4 py-2 text-center">
-                                    ${item.is_postable ? `<button onclick="openItemPostModal(${item.item_id})" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium"><i class="fas fa-edit"></i></button>` : ''}
+                                <td class="px-4 py-2 text-center flex items-center justify-center gap-2">
+                                    ${item.is_postable ? `<button onclick="openItemPostModal(${item.item_id})" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium" title="Edit posting"><i class="fas fa-edit"></i></button>` : ''}
+                                    ${item.posting_status !== 'posted' ? `<button onclick="deleteLineItem(${item.item_id})" class="text-xs text-rose-400 hover:text-rose-600 font-medium" title="Delete item"><i class="fas fa-trash"></i></button>` : ''}
                                 </td>
-                            </tr>`).join('')}
+                            </tr>`).join('') : '<tr><td colspan="6" class="px-4 py-3 text-center text-xs text-slate-400">No line items yet</td></tr>'}
                     </tbody>
                 </table>
-               </div>`
-            : '';
+               </div>`;
 
         // ── Actions ──────────────────────────────────────────────────────
         const canPreview = canPreviewFile(d.file_type);
@@ -931,9 +932,12 @@ async function openBillModal(id) {
                 <button onclick="saveTagsForBill(${d.bill_id})" class="mt-2 px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Save tags</button>
             </div>` : ''}
 
-            <!-- Line items (if any) -->
-            ${lineItemsHtml ? `<div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Line Items</p>
+            <!-- Line items -->
+            ${d.bill_id ? `<div>
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Line Items</p>
+                    <button onclick="openAddLineItemModal(${d.bill_id})" class="px-2.5 py-1 text-xs bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 font-medium flex items-center gap-1"><i class="fas fa-plus"></i> Add Item</button>
+                </div>
                 ${lineItemsHtml}
             </div>` : ''}
 
@@ -954,6 +958,7 @@ async function openBillModal(id) {
                 ${needsMarkPaid ? `<button onclick="actionMarkPaid(${d.bill_id}, '${(vendor).replace(/'/g,'')}', ${total})" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 flex items-center gap-2"><i class="fas fa-check"></i>Mark Paid</button>` : ''}
                 ${notYetProcessed && d.can_process !== false ? `<button onclick="actionProcessAI(${d.document_id})" class="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 flex items-center gap-2"><i class="fas fa-robot"></i>Extract with AI</button>` : ''}
                 <button onclick="actionDownload(${d.document_id})" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 flex items-center gap-2"><i class="fas fa-download"></i>Download</button>
+                ${d.bill_id && d.bill_status !== 'void' ? `<button onclick="actionPostAllItems(${d.bill_id})" class="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-100 flex items-center gap-2"><i class="fas fa-check-double"></i>Post All Items</button>` : ''}
                 ${d.bill_id && d.bill_status !== 'void' ? `<button onclick="actionVoid(${d.bill_id})" class="px-4 py-2 bg-amber-50 text-amber-700 rounded-lg text-sm font-medium hover:bg-amber-100 flex items-center gap-2"><i class="fas fa-ban"></i>Void Bill</button>` : ''}
                 ${d.can_delete !== false ? `<button onclick="actionDelete(${d.document_id}, ${d.bill_id || 'null'})" class="ml-auto px-4 py-2 bg-rose-50 text-rose-600 rounded-lg text-sm font-medium hover:bg-rose-100 flex items-center gap-2"><i class="fas fa-trash"></i>Delete</button>` : ''}
             </div>
@@ -1155,6 +1160,135 @@ async function submitCoreEdit(billId) {
     } catch (e) {
         if (status) { status.textContent = 'Network error'; status.className = 'text-xs text-rose-600'; }
     }
+}
+
+async function deleteLineItem(itemId) {
+    if (!confirm('Delete this line item? This cannot be undone.')) return;
+    try {
+        const resp = await authFetch(`${API_URL}/bill-items/${itemId}`, { method: 'DELETE' }).then(r => r.json());
+        if (!resp.success) throw new Error(resp.error || 'Failed to delete');
+        currentBillItems = currentBillItems.filter(i => i.item_id !== itemId);
+        const row = document.querySelector(`[data-item-id="${itemId}"]`);
+        if (row) row.remove();
+        showToast('Line item deleted.');
+    } catch (e) {
+        showToast('Delete failed: ' + e.message);
+    }
+}
+
+function openAddLineItemModal(billId) {
+    let modal = document.getElementById('_add-item-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = '_add-item-modal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center';
+        modal.innerHTML = `
+            <div style="background:#fff;border-radius:16px;padding:24px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
+                <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;color:#1e293b">Add Line Item</h3>
+                <div style="margin-bottom:10px">
+                    <label style="font-size:11px;color:#64748b;display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Description</label>
+                    <input id="_ai-desc" type="text" placeholder="e.g. Fabric purchase" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+                    <div>
+                        <label style="font-size:11px;color:#64748b;display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Qty</label>
+                        <input id="_ai-qty" type="number" min="0" step="0.01" placeholder="1" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box">
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:#64748b;display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Unit Price</label>
+                        <input id="_ai-uprice" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box">
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:#64748b;display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Total Amount</label>
+                        <input id="_ai-amount" type="number" min="0" step="0.01" placeholder="Auto" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box">
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+                    <div>
+                        <label style="font-size:11px;color:#64748b;display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Tax Rate %</label>
+                        <input id="_ai-taxrate" type="number" min="0" step="0.01" placeholder="18" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box">
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:#64748b;display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">SKU Code</label>
+                        <input id="_ai-sku" type="text" placeholder="Optional" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box">
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+                    <input id="_ai-postable" type="checkbox" checked style="accent-color:#4f46e5">
+                    <label for="_ai-postable" style="font-size:13px;color:#475569">Postable (will appear in quality checks)</label>
+                </div>
+                <p id="_ai-msg" style="font-size:12px;color:#ef4444;min-height:16px;margin-bottom:10px"></p>
+                <div style="display:flex;gap:8px;justify-content:flex-end">
+                    <button id="_ai-cancel" style="padding:8px 16px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;cursor:pointer;background:#fff">Cancel</button>
+                    <button id="_ai-save" style="padding:8px 16px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Add Item</button>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+        document.getElementById('_ai-cancel').onclick = () => modal.remove();
+    }
+    document.getElementById('_ai-desc').value = '';
+    document.getElementById('_ai-qty').value = '';
+    document.getElementById('_ai-uprice').value = '';
+    document.getElementById('_ai-amount').value = '';
+    document.getElementById('_ai-taxrate').value = '';
+    document.getElementById('_ai-sku').value = '';
+    document.getElementById('_ai-postable').checked = true;
+    document.getElementById('_ai-msg').textContent = '';
+    document.getElementById('_ai-save').onclick = async () => {
+        const desc = document.getElementById('_ai-desc').value.trim();
+        const qty = document.getElementById('_ai-qty').value;
+        const uprice = document.getElementById('_ai-uprice').value;
+        const amount = document.getElementById('_ai-amount').value;
+        const taxrate = document.getElementById('_ai-taxrate').value;
+        const sku = document.getElementById('_ai-sku').value.trim();
+        const postable = document.getElementById('_ai-postable').checked;
+        const msg = document.getElementById('_ai-msg');
+        if (!amount && !uprice) { msg.textContent = 'Enter a total amount or unit price.'; return; }
+        msg.textContent = '';
+        try {
+            const resp = await authFetch(`${API_URL}/bills/${billId}/items`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    description: desc || null,
+                    quantity: qty ? Number(qty) : null,
+                    unit_price: uprice ? Number(uprice) : null,
+                    amount: amount ? Number(amount) : null,
+                    tax_rate: taxrate ? Number(taxrate) : null,
+                    sku_code: sku || null,
+                    is_postable: postable
+                })
+            }).then(r => r.json());
+            if (!resp.success) throw new Error(resp.error || 'Failed to add item');
+            currentBillItems.push(resp.item);
+            const tbody = document.getElementById('line-items-tbody');
+            if (tbody) {
+                const item = resp.item;
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50';
+                tr.dataset.itemId = item.item_id;
+                tr.innerHTML = `
+                    <td class="px-4 py-2 max-w-[180px] truncate">${escapeHTML(item.description || '—')}</td>
+                    <td class="px-4 py-2 text-slate-500 text-xs">${escapeHTML(item.sku_code || '—')}</td>
+                    <td class="px-4 py-2 text-right text-slate-500 text-xs">${item.quantity != null ? Number(item.quantity) : '—'}</td>
+                    <td class="px-4 py-2 text-right font-medium">₹${Number(item.amount || 0).toLocaleString('en-IN')}</td>
+                    <td class="px-4 py-2 text-center">${_postingBadge(item)}</td>
+                    <td class="px-4 py-2 text-center flex items-center justify-center gap-2">
+                        ${item.is_postable ? `<button onclick="openItemPostModal(${item.item_id})" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium" title="Edit posting"><i class="fas fa-edit"></i></button>` : ''}
+                        <button onclick="deleteLineItem(${item.item_id})" class="text-xs text-rose-400 hover:text-rose-600 font-medium" title="Delete item"><i class="fas fa-trash"></i></button>
+                    </td>`;
+                // Remove empty state row if present
+                const empty = tbody.querySelector('td[colspan]');
+                if (empty) empty.closest('tr').remove();
+                tbody.appendChild(tr);
+            }
+            modal.remove();
+            showToast('Line item added.');
+        } catch (e) {
+            msg.textContent = 'Error: ' + e.message;
+        }
+    };
+    document.body.appendChild(modal);
 }
 
 // Item posting modal state
@@ -2378,6 +2512,21 @@ function actionManual(documentId) {
 function actionDelete(documentId, billId) {
     if (billId) return deleteBill(billId);
     return deleteDocument(documentId);
+}
+
+async function actionPostAllItems(billId) {
+    try {
+        const resp = await authFetch(`${API_URL}/bills/${billId}/post-all-items`, { method: 'POST' }).then(r => r.json());
+        if (!resp.success) throw new Error(resp.error || 'Failed to post items');
+        if (resp.posted === 0) {
+            showToast(resp.message || 'No eligible items to post (need COA, department, and drop assigned).');
+        } else {
+            showToast(`${resp.posted} item${resp.posted !== 1 ? 's' : ''} posted successfully.`);
+            if (selectedDocId) openBillModal(selectedDocId);
+        }
+    } catch (e) {
+        showToast('Post failed: ' + e.message);
+    }
 }
 
 async function actionVoid(billId) {

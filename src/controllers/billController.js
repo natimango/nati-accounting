@@ -851,7 +851,7 @@ async function importBankCSV(req, res) {
           'BANK_IMPORT',
           row.description || row.reference || null,
           row.reference || null,
-          1
+          req.user?.user_id || null
         ]
       );
 
