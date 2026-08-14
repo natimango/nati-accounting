@@ -1139,6 +1139,68 @@ async function listPayments(req, res) {
   }
 }
 
+// Create a standalone bill without a document upload (petty cash, manual expenses)
+async function createStandaloneBill(req, res) {
+  const {
+    vendor_name, bill_number, bill_date, total_amount, subtotal, tax_amount,
+    category, category_group, drop_name, section, payment_method,
+    payment_status = 'PENDING', due_date, notes
+  } = req.body;
+
+  if (!vendor_name)   return res.status(400).json({ error: 'vendor_name is required' });
+  if (!total_amount)  return res.status(400).json({ error: 'total_amount is required' });
+  if (!bill_date)     return res.status(400).json({ error: 'bill_date is required' });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Create a synthetic document record
+    const docRes = await client.query(
+      `INSERT INTO documents (file_name, file_type, status, uploaded_at, uploaded_by)
+       VALUES ($1, 'manual', 'processed', NOW(), $2)
+       RETURNING document_id`,
+      [`MANUAL-${vendor_name.replace(/\s+/g,'-')}-${bill_date}`, req.user?.user_id || null]
+    );
+    const documentId = docRes.rows[0].document_id;
+
+    const grp = (category_group || 'OPERATIONS').toUpperCase();
+    const billRes = await client.query(
+      `INSERT INTO bills
+         (document_id, vendor_name, bill_number, bill_date, subtotal, tax_amount, total_amount,
+          category, category_group, drop_name, section, payment_method, payment_status, notes,
+          status, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'processed', NOW())
+       RETURNING bill_id`,
+      [
+        documentId, vendor_name, bill_number || null,
+        bill_date, subtotal || total_amount, tax_amount || 0, total_amount,
+        category || null, grp, drop_name || null, section || null,
+        payment_method || 'UNSPECIFIED', payment_status, notes || null
+      ]
+    );
+    const billId = billRes.rows[0].bill_id;
+
+    // Create simple payment schedule if due_date provided
+    if (due_date && payment_status !== 'PAID') {
+      await client.query(
+        `INSERT INTO payment_schedule (bill_id, installment_number, due_date, amount_due)
+         VALUES ($1, 1, $2, $3)`,
+        [billId, due_date, total_amount]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, bill_id: billId, document_id: documentId });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('createStandaloneBill error:', err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   processBillWithAI,
   processBillManual,
@@ -1148,5 +1210,6 @@ module.exports = {
   updateBillMeta,
   bulkUpdateBillMeta,
   recordSimplePayment,
-  listPayments
+  listPayments,
+  createStandaloneBill
 };

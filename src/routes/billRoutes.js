@@ -10,7 +10,8 @@ const {
   deleteBill,
   updateBillMeta,
   bulkUpdateBillMeta,
-  listPayments
+  listPayments,
+  createStandaloneBill
 } = require('../controllers/billController');
 const { authorize } = require('../middleware/auth');
 
@@ -44,5 +45,8 @@ router.patch('/bills/bulk-meta', authorize('manager', 'admin'), bulkUpdateBillMe
 
 // Payment ledger — all recorded payments with vendor/bill context
 router.get('/payments/ledger', listPayments);
+
+// Create a standalone bill (no document upload needed)
+router.post('/bills/manual', authorize('manager', 'admin'), createStandaloneBill);
 
 module.exports = router;
