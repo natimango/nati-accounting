@@ -97,19 +97,28 @@ async function spawnFromTemplate(req, res) {
 
     await client.query('BEGIN');
 
+    // Create synthetic document so bill appears in documents list
+    const docRes = await client.query(
+      `INSERT INTO documents (file_name, file_type, status, uploaded_at, uploaded_by)
+       VALUES ($1, 'manual', 'processed', NOW(), $2)
+       RETURNING document_id`,
+      [`RECURRING-${vendorName.replace(/\s+/g, '-')}-${billDate}`, req.user?.user_id || null]
+    );
+    const documentId = docRes.rows[0].document_id;
+
     // Insert bill
     const billRes = await client.query(`
-      INSERT INTO bills (vendor_name, vendor_id, bill_date, total_amount, outstanding_amount, category, category_group, status, notes, drop_id)
-      VALUES ($1,$2,$3,$4,$4,$5,$6,'pending',$7,$8) RETURNING bill_id
-    `, [vendorName, t.vendor_id, billDate, t.amount || 0, t.category, t.category_group,
+      INSERT INTO bills (document_id, vendor_name, vendor_id, bill_date, total_amount, outstanding_amount, category, category_group, status, notes, drop_id)
+      VALUES ($1,$2,$3,$4,$5,$5,$6,$7,'processed',$8,$9) RETURNING bill_id
+    `, [documentId, vendorName, t.vendor_id, billDate, t.amount || 0, t.category, t.category_group,
         `[Auto] From recurring template: ${t.template_name}${t.notes ? '\n' + t.notes : ''}`, t.drop_id]);
     const billId = billRes.rows[0].bill_id;
 
     // Insert payment schedule if due_date
     if (dueDate) {
       await client.query(`
-        INSERT INTO payment_schedule (bill_id, due_date, amount, status)
-        VALUES ($1, $2, $3, 'pending')
+        INSERT INTO payment_schedule (bill_id, installment_number, due_date, amount_due, payment_status)
+        VALUES ($1, 1, $2, $3, 'PENDING')
       `, [billId, dueDate, t.amount || 0]);
     }
 
