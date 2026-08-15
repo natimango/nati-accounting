@@ -20,9 +20,21 @@ const CATEGORY_MAP = {
   accessories:      { key: 'trims',            group: 'COGS',        account_code: '5050' },
   buttons:          { key: 'trims',            group: 'COGS',        account_code: '5050' },
   packaging:        { key: 'packaging',        group: 'COGS',        account_code: '5060' },
+  packing:          { key: 'packaging',        group: 'COGS',        account_code: '5060' },
+  'poly bags':      { key: 'packaging',        group: 'COGS',        account_code: '5060' },
+  boxes:            { key: 'packaging',        group: 'COGS',        account_code: '5060' },
+  hangtags:         { key: 'packaging',        group: 'COGS',        account_code: '5060' },
+  labels:           { key: 'packaging',        group: 'COGS',        account_code: '5060' },
   'quality check':  { key: 'quality',          group: 'COGS',        account_code: '5070' },
+  quality:          { key: 'quality',          group: 'COGS',        account_code: '5070' },
   qc:               { key: 'quality',          group: 'COGS',        account_code: '5070' },
   'inbound freight':{ key: 'inbound_freight',  group: 'COGS',        account_code: '5080' },
+  dyeing:           { key: 'washing',          group: 'COGS',        account_code: '5040' },
+  'hand work':      { key: 'embroidery',       group: 'COGS',        account_code: '5030' },
+  'mirror work':    { key: 'embroidery',       group: 'COGS',        account_code: '5030' },
+  cutting:          { key: 'manufacturing',    group: 'COGS',        account_code: '5020' },
+  sewing:           { key: 'manufacturing',    group: 'COGS',        account_code: '5020' },
+  production:       { key: 'manufacturing',    group: 'COGS',        account_code: '5020' },
   vendor:           { key: 'manufacturing',    group: 'COGS',        account_code: '5020' },
 
   // ── FULFILLMENT (6xxx) ─────────────────────────────────────────────────────
@@ -50,6 +62,10 @@ const CATEGORY_MAP = {
   'content creation':{ key: 'content',         group: 'MARKETING',   account_code: '7030' },
   photography:      { key: 'content',          group: 'MARKETING',   account_code: '7030' },
   shoots:           { key: 'content',          group: 'MARKETING',   account_code: '7030' },
+  shoot:            { key: 'content',          group: 'MARKETING',   account_code: '7030' },
+  'photo shoot':    { key: 'content',          group: 'MARKETING',   account_code: '7030' },
+  video:            { key: 'content',          group: 'MARKETING',   account_code: '7030' },
+  content:          { key: 'content',          group: 'MARKETING',   account_code: '7030' },
   'platform fees':  { key: 'platform_fees',    group: 'MARKETING',   account_code: '7040' },
   shopify:          { key: 'platform_fees',    group: 'MARKETING',   account_code: '7040' },
   pr:               { key: 'pr',               group: 'MARKETING',   account_code: '7050' },
@@ -63,6 +79,11 @@ const CATEGORY_MAP = {
   salaries:         { key: 'salary',           group: 'OPERATIONS',  account_code: '8020' },
   wages:            { key: 'salary',           group: 'OPERATIONS',  account_code: '8020' },
   hr:               { key: 'salary',           group: 'OPERATIONS',  account_code: '8020' },
+  intern:           { key: 'salary',           group: 'OPERATIONS',  account_code: '8020' },
+  'intern salary':  { key: 'salary',           group: 'OPERATIONS',  account_code: '8020' },
+  internship:       { key: 'salary',           group: 'OPERATIONS',  account_code: '8020' },
+  stipend:          { key: 'salary',           group: 'OPERATIONS',  account_code: '8020' },
+  payroll:          { key: 'salary',           group: 'OPERATIONS',  account_code: '8020' },
   contractor:       { key: 'contractor',       group: 'OPERATIONS',  account_code: '8030' },
   freelancer:       { key: 'contractor',       group: 'OPERATIONS',  account_code: '8030' },
   tech:             { key: 'software',         group: 'OPERATIONS',  account_code: '8040' },
@@ -121,7 +142,7 @@ function _fuzzyMatch(key) {
   if (key.includes('market') || key.includes(' ad') || key.includes('ads')) return CATEGORY_MAP.marketing;
   if (key.includes('influenc'))  return CATEGORY_MAP.influencer;
   if (key.includes('content') || key.includes('photo') || key.includes('shoot')) return CATEGORY_MAP.photography;
-  if (key.includes('salary') || key.includes('wage') || key.includes('payroll')) return CATEGORY_MAP.salary;
+  if (key.includes('salary') || key.includes('wage') || key.includes('payroll') || key.includes('intern') || key.includes('stipend')) return CATEGORY_MAP.salary;
   if (key.includes('rent'))      return CATEGORY_MAP.rent;
   if (key.includes('software') || key.includes('tech') || key.includes('saas')) return CATEGORY_MAP.software;
   if (key.includes('legal') || key.includes('profession')) return CATEGORY_MAP.legal;

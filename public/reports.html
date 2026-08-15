@@ -465,18 +465,26 @@ function getDrop()    { return document.getElementById('filterDrop').value    ||
 
 async function loadDrops() {
     try {
-        const r = await fetch('/api/meta/drops', { credentials: 'include' });
+        const r = await fetch('/api/meta/drops?all=1', { credentials: 'include' });
+        if (!r.ok) return;
         const d = await r.json();
+        const drops = (d.drops || []).filter(x => x.is_active !== false);
         ['filterDrop', 'cmDropFilter', 'ueDropFilter'].forEach(selId => {
             const sel = document.getElementById(selId);
             if (!sel) return;
-            (d.drops || []).forEach(drop => {
+            drops.forEach(drop => {
                 const o = document.createElement('option');
-                o.value = drop.drop_id;
-                o.textContent = drop.drop_name;
+                o.value = drop.drop_name;
+                o.textContent = drop.drop_number ? `#${drop.drop_number} – ${drop.drop_name}` : drop.drop_name;
                 sel.appendChild(o);
             });
         });
+        // Pre-select from URL ?drop= param
+        const urlDrop = new URLSearchParams(window.location.search).get('drop');
+        if (urlDrop) {
+            const sel = document.getElementById('filterDrop');
+            if (sel) { sel.value = urlDrop; applyFilters(); }
+        }
     } catch (_) {}
 }
 
