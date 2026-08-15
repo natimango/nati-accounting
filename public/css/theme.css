@@ -264,6 +264,13 @@ table caption {
     display: none;
     margin-top: 0.25rem;
     gap: 0.4rem;
+    /* Slide-down animation */
+    animation: navSlideIn 0.2s ease;
+  }
+
+  @keyframes navSlideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
   .nati-nav.is-open {
@@ -273,9 +280,11 @@ table caption {
   .nati-nav-link {
     width: 100%;
     justify-content: flex-start;
-    padding: 0.55rem 0.85rem;
+    padding: 0.65rem 0.85rem;
     border: 1px solid rgba(255, 255, 255, 0.25);
     background: rgba(255, 255, 255, 0.08);
+    min-height: 48px; /* WCAG touch target */
+    -webkit-tap-highlight-color: transparent;
   }
 
   main {
@@ -296,12 +305,63 @@ table caption {
 
   .nati-table-wrapper,
   .nati-table-container,
-  .overflow-auto {
+  .overflow-auto,
+  [class*="overflow-x"] {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .nati-hero img {
     height: 3.5rem;
     width: 3.5rem;
   }
+
+  /* Larger touch targets for buttons */
+  .btn-primary, .btn-outline {
+    min-height: 48px;
+    padding: 0.75rem 1.4rem;
+  }
 }
+
+/* Safe area padding for iPhone notch / Dynamic Island */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .nati-hero {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 0px);
+  }
+}
+
+/* Bottom nav bar styles (for pages that use it) */
+.nati-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0; right: 0;
+  height: calc(64px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: flex-start;
+  z-index: 100;
+}
+
+.nati-bnav-item {
+  flex: 1;
+  height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  color: #64748b;
+  text-decoration: none;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  transition: color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nati-bnav-item.active { color: #818cf8; }

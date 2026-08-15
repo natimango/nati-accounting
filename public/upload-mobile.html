@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="NATI">
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <title>Upload Bill — NATI</title>
+  <link rel="stylesheet" href="css/tailwind.css">
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bottom-nav-h: 64px;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    body {
+      background: #0f172a;
+      color: #f8fafc;
+      padding-bottom: calc(var(--bottom-nav-h) + var(--safe-bottom));
+    }
+
+    /* Top bar */
+    .mob-header {
+      background: linear-gradient(120deg, #4f46e5, #1e3a8a, #0f172a);
+      padding: calc(env(safe-area-inset-top, 0px) + 0.75rem) 1rem 0.75rem;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+
+    /* Camera zone */
+    .camera-zone {
+      background: linear-gradient(135deg, #1e1b4b 0%, #1e3a8a 100%);
+      border: 2px dashed rgba(99,102,241,0.5);
+      border-radius: 1.25rem;
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .camera-zone:hover, .camera-zone.drag-over {
+      border-color: #6366f1;
+      background: linear-gradient(135deg, #2d2b72 0%, #1e40af 100%);
+    }
+
+    .preview-img {
+      width: 100%;
+      height: 220px;
+      object-fit: cover;
+      border-radius: 1rem;
+    }
+
+    /* Form fields */
+    .mob-label {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #94a3b8;
+      margin-bottom: 0.4rem;
+    }
+    .mob-select, .mob-input {
+      width: 100%;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 0.75rem;
+      color: #f1f5f9;
+      padding: 0.8rem 1rem;
+      font-size: 1rem;
+      appearance: none;
+      -webkit-appearance: none;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .mob-select:focus, .mob-input:focus {
+      border-color: #6366f1;
+      background: rgba(99,102,241,0.12);
+    }
+    .mob-select option {
+      background: #1e293b;
+      color: #f1f5f9;
+    }
+
+    /* Upload button */
+    .upload-btn {
+      width: 100%;
+      height: 56px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: #fff;
+      border: none;
+      border-radius: 1rem;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 8px 24px rgba(79,70,229,0.4);
+    }
+    .upload-btn:active { transform: scale(0.97); }
+    .upload-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Pick buttons */
+    .pick-btn {
+      flex: 1;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      border-radius: 0.75rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: transform 0.15s;
+    }
+    .pick-btn:active { transform: scale(0.96); }
+    .pick-btn.camera {
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      color: #fff;
+    }
+    .pick-btn.gallery {
+      background: rgba(255,255,255,0.1);
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    /* Progress */
+    .progress-bar {
+      height: 6px;
+      border-radius: 9999px;
+      background: rgba(255,255,255,0.1);
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #818cf8);
+      border-radius: 9999px;
+      transition: width 0.3s ease;
+    }
+
+    /* Card */
+    .mob-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 1rem;
+      padding: 1.1rem;
+    }
+
+    /* Recent item */
+    .recent-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.7rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .recent-item:last-child { border-bottom: none; }
+    .recent-icon {
+      width: 40px; height: 40px;
+      border-radius: 0.6rem;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(99,102,241,0.2);
+      flex-shrink: 0;
+    }
+
+    /* Bottom nav */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0; right: 0;
+      height: calc(var(--bottom-nav-h) + var(--safe-bottom));
+      padding-bottom: var(--safe-bottom);
+      background: rgba(15,23,42,0.95);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      align-items: flex-start;
+      z-index: 100;
+    }
+    .bottom-nav-inner {
+      display: flex;
+      width: 100%;
+      height: var(--bottom-nav-h);
+    }
+    .bnav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.25rem;
+      color: #64748b;
+      text-decoration: none;
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      transition: color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .bnav-item i { font-size: 1.25rem; }
+    .bnav-item.active { color: #818cf8; }
+    .bnav-item:active { color: #a5b4fc; }
+
+    /* Install banner */
+    .install-banner {
+      background: linear-gradient(135deg, #1e1b4b, #312e81);
+      border: 1px solid rgba(99,102,241,0.4);
+      border-radius: 1rem;
+      padding: 0.9rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    /* Success state */
+    .success-state {
+      text-align: center;
+      padding: 2rem 1rem;
+    }
+    .success-circle {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #059669, #10b981);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1rem;
+      box-shadow: 0 8px 24px rgba(16,185,129,0.35);
+    }
+
+    input[type="file"] { display: none; }
+
+    /* Datalist styling hint */
+    input[list] { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; }
+  </style>
+</head>
+<body>
+
+<!-- Top header -->
+<div class="mob-header">
+  <div style="display:flex;align-items:center;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:0.6rem">
+      <a href="index.html"><img src="logo.jpg" alt="NATI" style="width:40px;height:40px;border-radius:10px;border:2px solid rgba(255,255,255,0.3);object-fit:cover"></a>
+      <div>
+        <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.15em;color:rgba(255,255,255,0.6)">NATI Collective</div>
+        <div style="font-size:1rem;font-weight:700;color:#fff">Bill Upload</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.5rem">
+      <div id="user-pill-mob" style="font-size:0.75rem;font-weight:600;color:rgba(255,255,255,0.75);background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:9999px;padding:0.35rem 0.75rem;display:none"></div>
+      <button id="logout-btn-mob" style="display:none;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:9999px;padding:0.35rem 0.75rem;color:rgba(255,255,255,0.8);font-size:0.75rem;cursor:pointer" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i></button>
+    </div>
+  </div>
+</div>
+
+<!-- PWA install banner -->
+<div id="install-banner" style="display:none;padding:0.75rem 1rem 0">
+  <div class="install-banner">
+    <i class="fas fa-download" style="color:#818cf8;font-size:1.2rem;flex-shrink:0"></i>
+    <div style="flex:1">
+      <div style="font-size:0.85rem;font-weight:600;color:#e2e8f0">Add to Home Screen</div>
+      <div style="font-size:0.75rem;color:#94a3b8">Install for quick access from your phone</div>
+    </div>
+    <button id="install-btn" style="background:#4f46e5;color:#fff;border:none;border-radius:0.5rem;padding:0.4rem 0.8rem;font-size:0.8rem;font-weight:600;cursor:pointer">Install</button>
+    <button onclick="document.getElementById('install-banner').style.display='none'" style="background:none;border:none;color:#64748b;cursor:pointer;padding:0.25rem"><i class="fas fa-times"></i></button>
+  </div>
+</div>
+
+<!-- Main content -->
+<main style="padding:1rem;max-width:480px;margin:0 auto">
+
+  <!-- Upload form -->
+  <div id="upload-section">
+
+    <!-- File picker area -->
+    <div class="mob-card" style="margin-bottom:1rem">
+      <div id="camera-zone" class="camera-zone" onclick="triggerGallery()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <div id="empty-state" style="text-align:center;padding:1.5rem">
+          <i class="fas fa-camera" style="font-size:3rem;color:#6366f1;margin-bottom:0.75rem;display:block"></i>
+          <div style="font-size:1rem;font-weight:600;color:#e2e8f0;margin-bottom:0.3rem">Add Bill Photo</div>
+          <div style="font-size:0.8rem;color:#64748b">Tap to choose from gallery<br>or drag & drop a file</div>
+        </div>
+        <img id="preview-img" class="preview-img" style="display:none" alt="Preview">
+        <div id="preview-info" style="display:none;padding:0.5rem 1rem;background:rgba(0,0,0,0.6);position:absolute;bottom:0;left:0;right:0;font-size:0.8rem;color:#e2e8f0;border-radius:0 0 1rem 1rem"></div>
+      </div>
+
+      <!-- Pick buttons -->
+      <div style="display:flex;gap:0.6rem;margin-top:0.75rem">
+        <button class="pick-btn camera" onclick="triggerCamera()">
+          <i class="fas fa-camera"></i> Take Photo
+        </button>
+        <button class="pick-btn gallery" onclick="triggerGallery()">
+          <i class="fas fa-images"></i> Gallery / File
+        </button>
+      </div>
+
+      <!-- Hidden inputs -->
+      <input type="file" id="file-camera" accept="image/*" capture="environment">
+      <input type="file" id="file-gallery" accept="image/*,application/pdf,.pdf">
+    </div>
+
+    <!-- Form fields -->
+    <div class="mob-card" style="margin-bottom:1rem">
+      <div style="margin-bottom:1rem">
+        <label class="mob-label" for="sel-drop">Drop <span style="color:#ef4444">*</span></label>
+        <select id="sel-drop" class="mob-select" required>
+          <option value="">— Select drop —</option>
+        </select>
+      </div>
+      <div style="margin-bottom:1rem">
+        <label class="mob-label" for="sel-category">Category</label>
+        <input id="sel-category" class="mob-input" list="category-list" placeholder="e.g. Fabric, Packaging…">
+        <datalist id="category-list">
+          <option value="Fabric">
+          <option value="Packaging">
+          <option value="Labour">
+          <option value="Logistics">
+          <option value="Printing">
+          <option value="Accessories">
+          <option value="Miscellaneous">
+        </datalist>
+      </div>
+      <div>
+        <label class="mob-label" for="sel-section">Section</label>
+        <input id="sel-section" class="mob-input" placeholder="e.g. Production, Marketing…">
+      </div>
+    </div>
+
+    <!-- Upload button + progress -->
+    <button id="upload-btn" class="upload-btn" onclick="doUpload()" disabled>
+      <i class="fas fa-cloud-upload-alt"></i> Upload Bill
+    </button>
+
+    <div id="progress-wrap" style="display:none;margin-top:0.75rem">
+      <div style="font-size:0.8rem;color:#94a3b8;margin-bottom:0.4rem" id="progress-label">Uploading…</div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div id="error-msg" style="display:none;margin-top:0.75rem;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);border-radius:0.75rem;padding:0.75rem 1rem;font-size:0.875rem;color:#fca5a5"></div>
+  </div>
+
+  <!-- Success state -->
+  <div id="success-section" style="display:none">
+    <div class="success-state">
+      <div class="success-circle">
+        <i class="fas fa-check" style="font-size:2rem;color:#fff"></i>
+      </div>
+      <div style="font-size:1.25rem;font-weight:700;color:#e2e8f0;margin-bottom:0.5rem">Bill Uploaded!</div>
+      <div style="font-size:0.875rem;color:#94a3b8;margin-bottom:1.5rem" id="success-detail">Your bill has been uploaded successfully.</div>
+      <div style="display:flex;flex-direction:column;gap:0.75rem">
+        <button class="upload-btn" onclick="resetForm()">
+          <i class="fas fa-plus"></i> Upload Another
+        </button>
+        <a href="documents.html" style="display:flex;align-items:center;justify-content:center;gap:0.5rem;height:48px;border:1px solid rgba(255,255,255,0.2);border-radius:1rem;color:#e2e8f0;text-decoration:none;font-weight:600;font-size:0.9rem">
+          <i class="fas fa-folder-open"></i> View in Documents
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent uploads -->
+  <div style="margin-top:1.5rem">
+    <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.15em;color:#64748b;font-weight:700;margin-bottom:0.6rem">Recent Uploads</div>
+    <div class="mob-card" id="recent-list">
+      <div style="text-align:center;padding:1.5rem;color:#475569;font-size:0.875rem">
+        <i class="fas fa-clock" style="display:block;margin-bottom:0.5rem;font-size:1.5rem"></i>
+        No recent uploads yet
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Bottom nav -->
+<nav class="bottom-nav">
+  <div class="bottom-nav-inner">
+    <a href="upload-mobile.html" class="bnav-item active">
+      <i class="fas fa-camera"></i>
+      <span>Upload</span>
+    </a>
+    <a href="documents.html" class="bnav-item">
+      <i class="fas fa-folder-open"></i>
+      <span>Documents</span>
+    </a>
+    <a href="payables.html" class="bnav-item">
+      <i class="fas fa-file-invoice-dollar"></i>
+      <span>Payables</span>
+    </a>
+    <a href="index.html" class="bnav-item">
+      <i class="fas fa-gauge"></i>
+      <span>Dashboard</span>
+    </a>
+  </div>
+</nav>
+
+<script>
+// ── Auth ──────────────────────────────────────────────────────────────────────
+async function initAuth() {
+  try {
+    const res = await fetch('/api/auth/me', { credentials: 'include' });
+    if (!res.ok) throw new Error('unauth');
+    const { user } = await res.json();
+    if (!user) throw new Error('no user');
+    const pill = document.getElementById('user-pill-mob');
+    const logoutBtn = document.getElementById('logout-btn-mob');
+    if (pill) { pill.textContent = user.name || user.email; pill.style.display = ''; }
+    if (logoutBtn) logoutBtn.style.display = '';
+    return user;
+  } catch {
+    window.location.href = 'login.html';
+  }
+}
+
+async function doLogout() {
+  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+  window.location.href = 'login.html';
+}
+
+// ── Drops ─────────────────────────────────────────────────────────────────────
+async function loadDrops() {
+  try {
+    const res = await fetch('/api/meta/drops?all=1', { credentials: 'include' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const drops = data.drops || data || [];
+    const sel = document.getElementById('sel-drop');
+    drops.forEach(d => {
+      const name = typeof d === 'string' ? d : (d.name || d.drop_name || '');
+      if (!name) return;
+      const opt = document.createElement('option');
+      opt.value = name; opt.textContent = name;
+      sel.appendChild(opt);
+    });
+  } catch {}
+}
+
+// ── File handling ─────────────────────────────────────────────────────────────
+let selectedFile = null;
+
+function triggerCamera() {
+  document.getElementById('file-camera').click();
+}
+function triggerGallery() {
+  document.getElementById('file-gallery').click();
+}
+
+document.getElementById('file-camera').addEventListener('change', e => handleFile(e.target.files[0]));
+document.getElementById('file-gallery').addEventListener('change', e => handleFile(e.target.files[0]));
+
+function onDragOver(e) {
+  e.preventDefault();
+  document.getElementById('camera-zone').classList.add('drag-over');
+}
+function onDragLeave(e) {
+  document.getElementById('camera-zone').classList.remove('drag-over');
+}
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('camera-zone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+}
+
+function handleFile(file) {
+  if (!file) return;
+  selectedFile = file;
+
+  const emptyState = document.getElementById('empty-state');
+  const previewImg = document.getElementById('preview-img');
+  const previewInfo = document.getElementById('preview-info');
+
+  emptyState.style.display = 'none';
+  previewInfo.style.display = 'block';
+  previewInfo.textContent = file.name + ' (' + (file.size / 1024).toFixed(0) + ' KB)';
+
+  if (file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      previewImg.src = e.target.result;
+      previewImg.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  } else {
+    previewImg.style.display = 'none';
+    const emptyEl = document.createElement('div');
+    emptyEl.style.cssText = 'text-align:center;padding:2rem';
+    emptyEl.innerHTML = '<i class="fas fa-file-pdf" style="font-size:3rem;color:#f87171"></i><div style="margin-top:0.5rem;color:#e2e8f0;font-size:0.9rem">PDF selected</div>';
+    const zone = document.getElementById('camera-zone');
+    const existing = zone.querySelector('.pdf-placeholder');
+    if (existing) existing.remove();
+    emptyEl.classList.add('pdf-placeholder');
+    zone.insertBefore(emptyEl, previewInfo);
+  }
+
+  document.getElementById('upload-btn').disabled = false;
+}
+
+// ── Upload ────────────────────────────────────────────────────────────────────
+async function doUpload() {
+  if (!selectedFile) return;
+  const drop = document.getElementById('sel-drop').value;
+  if (!drop) {
+    showError('Please select a drop before uploading.');
+    return;
+  }
+
+  hideError();
+  const btn = document.getElementById('upload-btn');
+  btn.disabled = true;
+
+  const progressWrap = document.getElementById('progress-wrap');
+  const progressFill = document.getElementById('progress-fill');
+  const progressLabel = document.getElementById('progress-label');
+  progressWrap.style.display = 'block';
+  progressFill.style.width = '10%';
+  progressLabel.textContent = 'Uploading…';
+
+  const fd = new FormData();
+  fd.append('bill', selectedFile);
+  fd.append('drop_name', drop);
+  fd.append('category', document.getElementById('sel-category').value || '');
+  fd.append('section', document.getElementById('sel-section').value || '');
+
+  // Fake progress animation while uploading
+  let pct = 10;
+  const timer = setInterval(() => {
+    pct = Math.min(pct + Math.random() * 15, 85);
+    progressFill.style.width = pct + '%';
+  }, 400);
+
+  try {
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      credentials: 'include',
+      body: fd
+    });
+    clearInterval(timer);
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Upload failed (' + res.status + ')');
+    }
+
+    const data = await res.json();
+    progressFill.style.width = '100%';
+    progressLabel.textContent = 'Done!';
+
+    // Store in recent uploads
+    storeRecent({
+      vendor: data.vendor_name || data.vendor || selectedFile.name,
+      amount: data.amount || null,
+      drop: drop,
+      category: document.getElementById('sel-category').value,
+      status: data.status || 'uploaded',
+      ts: Date.now()
+    });
+
+    setTimeout(() => {
+      progressWrap.style.display = 'none';
+      showSuccess(data);
+    }, 500);
+
+  } catch (err) {
+    clearInterval(timer);
+    progressWrap.style.display = 'none';
+    btn.disabled = false;
+    showError(err.message || 'Upload failed. Please try again.');
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideError() {
+  document.getElementById('error-msg').style.display = 'none';
+}
+
+function showSuccess(data) {
+  document.getElementById('upload-section').style.display = 'none';
+  document.getElementById('success-section').style.display = 'block';
+  const vendor = data.vendor_name || data.vendor || '';
+  const amount = data.amount ? '₹' + Number(data.amount).toLocaleString('en-IN') : '';
+  document.getElementById('success-detail').textContent =
+    [vendor, amount].filter(Boolean).join(' · ') || 'Your bill has been uploaded successfully.';
+  renderRecent();
+}
+
+function resetForm() {
+  selectedFile = null;
+  document.getElementById('upload-section').style.display = 'block';
+  document.getElementById('success-section').style.display = 'none';
+  document.getElementById('empty-state').style.display = 'block';
+  document.getElementById('preview-img').style.display = 'none';
+  document.getElementById('preview-info').style.display = 'none';
+  const pdf = document.querySelector('.pdf-placeholder');
+  if (pdf) pdf.remove();
+  document.getElementById('sel-drop').value = '';
+  document.getElementById('sel-category').value = '';
+  document.getElementById('sel-section').value = '';
+  document.getElementById('upload-btn').disabled = true;
+  document.getElementById('file-camera').value = '';
+  document.getElementById('file-gallery').value = '';
+  hideError();
+}
+
+// ── Recent uploads ────────────────────────────────────────────────────────────
+const RECENT_KEY = 'nati_recent_uploads';
+
+function storeRecent(item) {
+  try {
+    const list = JSON.parse(sessionStorage.getItem(RECENT_KEY) || '[]');
+    list.unshift(item);
+    sessionStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, 10)));
+  } catch {}
+}
+
+function renderRecent() {
+  const list = (() => { try { return JSON.parse(sessionStorage.getItem(RECENT_KEY) || '[]'); } catch { return []; } })();
+  const el = document.getElementById('recent-list');
+  if (!list.length) return;
+
+  el.innerHTML = list.slice(0, 5).map(item => {
+    const ts = item.ts ? new Date(item.ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '';
+    const amount = item.amount ? '₹' + Number(item.amount).toLocaleString('en-IN') : '';
+    const statusColor = item.status === 'uploaded' ? '#10b981' : '#f59e0b';
+    return `<div class="recent-item">
+      <div class="recent-icon"><i class="fas fa-receipt" style="color:#818cf8"></i></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:0.875rem;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.vendor || 'Bill'}</div>
+        <div style="font-size:0.75rem;color:#64748b">${[item.drop, item.category].filter(Boolean).join(' · ')}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        ${amount ? `<div style="font-size:0.875rem;font-weight:700;color:#e2e8f0">${amount}</div>` : ''}
+        <div style="font-size:0.7rem;color:${statusColor};font-weight:600">${item.status || ''} ${ts}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── PWA Install prompt ────────────────────────────────────────────────────────
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('install-banner').style.display = 'block';
+});
+document.getElementById('install-btn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('install-banner').style.display = 'none';
+});
+window.addEventListener('appinstalled', () => {
+  document.getElementById('install-banner').style.display = 'none';
+});
+
+// ── Service Worker ────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+initAuth().then(() => {
+  loadDrops();
+  renderRecent();
+});
+</script>
+</body>
+</html>
