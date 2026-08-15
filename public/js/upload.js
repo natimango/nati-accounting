@@ -8,13 +8,15 @@ function togglePaymentFields() {
     document.getElementById('due-fields')?.classList.toggle('hidden', status !== 'pending');
 }
 
-// Load real drops into the drop selector
+// Load real drops into the drop selector, pre-select from URL ?drop= param
 async function loadDrops() {
     try {
-        const r = await authFetch(`${API_URL}/meta/drops`);
+        const r = await authFetch(`${API_URL}/meta/drops?all=1`);
+        if (!r.ok) return;
         const data = await r.json();
-        const drops = data.drops || data || [];
+        const drops = (data.drops || []).filter(d => d.is_active !== false);
         const sel = document.getElementById('drop_name');
+        if (!sel) return;
         sel.innerHTML = '<option value="Unassigned">Unassigned</option>';
         drops.forEach(d => {
             const opt = document.createElement('option');
@@ -22,6 +24,19 @@ async function loadDrops() {
             opt.textContent = d.drop_number ? `#${d.drop_number} – ${d.drop_name || d.name}` : (d.drop_name || d.name);
             sel.appendChild(opt);
         });
+        // Pre-select drop from URL param (e.g. upload.html?drop=Hemp+Hase+Drop+1)
+        const urlDrop = new URLSearchParams(window.location.search).get('drop');
+        if (urlDrop) {
+            sel.value = urlDrop;
+            // If not found, append it
+            if (sel.value !== urlDrop) {
+                const opt = document.createElement('option');
+                opt.value = urlDrop;
+                opt.textContent = urlDrop;
+                sel.appendChild(opt);
+                sel.value = urlDrop;
+            }
+        }
     } catch (e) { /* keep static fallback */ }
 }
 document.addEventListener('DOMContentLoaded', loadDrops);

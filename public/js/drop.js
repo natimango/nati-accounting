@@ -79,6 +79,10 @@ function onDropChange() {
   currentDrop = name;
   const link = document.getElementById('view-bills-link');
   if (link) link.href = `documents.html?drop=${encodeURIComponent(name)}`;
+  const upLink = document.getElementById('upload-bill-link');
+  if (upLink) { upLink.href = `upload.html?drop=${encodeURIComponent(name)}`; upLink.classList.remove('hidden'); }
+  const upMobLink = document.getElementById('upload-mobile-link');
+  if (upMobLink) { upMobLink.href = `upload-mobile.html?drop=${encodeURIComponent(name)}`; upMobLink.classList.remove('hidden'); }
   const plLink = document.getElementById('view-pl-link');
   if (plLink) { plLink.href = `reports.html?drop=${encodeURIComponent(name)}`; plLink.classList.remove('hidden'); }
   const archBtn = document.getElementById('archive-drop-btn');
@@ -96,6 +100,10 @@ function showEmptyState() {
   if (plSec) plSec.classList.add('hidden');
   const grSec = document.getElementById('guardrails-section');
   if (grSec) grSec.classList.add('hidden');
+  const upLink = document.getElementById('upload-bill-link');
+  if (upLink) upLink.classList.add('hidden');
+  const upMobLink = document.getElementById('upload-mobile-link');
+  if (upMobLink) upMobLink.classList.add('hidden');
 }
 
 function showDropContent() {
