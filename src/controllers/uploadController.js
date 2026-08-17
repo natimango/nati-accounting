@@ -1452,13 +1452,18 @@ const getDocuments = async (req, res) => {
       }
       const ownsDoc = row.uploaded_by === userId;
       const verification = buildVerificationSnapshot(row);
+      // Coerce BigInt/string counts to numbers so JSON.stringify doesn't throw
+      row.unposted_count    = Number(row.unposted_count    || 0);
+      row.unposted_amount   = Number(row.unposted_amount   || 0);
+      row.outstanding_amount = Number(row.outstanding_amount || 0);
+      row.missing_dims_count = Number(row.missing_dims_count || 0);
       return {
         ...row,
         can_delete: canManageAll || ownsDoc,
         can_manual: canManageAll,
         can_process: canManageAll,
-        verification
-        ,missing_dimensions: row.missing_dims_count || 0
+        verification,
+        missing_dimensions: row.missing_dims_count || 0
       };
     });
 

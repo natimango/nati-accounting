@@ -141,6 +141,14 @@ app.get('/api/version', (_req, res) => {
   });
 });
 
+// Global error handler — catches serialization errors that escape route handlers
+app.use((err, req, res, next) => {
+  console.error(`[UNHANDLED] ${req.method} ${req.path}:`, err.message);
+  if (!res.headersSent) {
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
