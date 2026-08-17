@@ -5,7 +5,7 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const { execSync } = require('child_process');
 const pool = require('./config/database');
-const { authenticate } = require('./middleware/auth');
+const { authenticate, authorize } = require('./middleware/auth');
 const { runMigrations } = require('./utils/runMigrations');
 
 const app = express();
