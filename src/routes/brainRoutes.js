@@ -19,4 +19,13 @@ router.get('/invariants/check', authorize('manager', 'admin'), brainController.c
 router.get('/max-cac/tiers', authorize('manager', 'admin'), brainController.getMaxCacTiers);
 router.get('/max-cac/sizes', authorize('manager', 'admin'), brainController.getMaxCacSizes);
 
+// Finance Brain AI chat
+router.post('/chat', authorize('manager', 'admin'), brainController.chatWithBrain);
+
+// Drops list (for close-drop UI)
+router.get('/drops', authorize('manager', 'admin'), brainController.getDropsList);
+
+// Drop close
+router.patch('/drops/:drop_id/close', authorize('admin'), brainController.closeDrop);
+
 module.exports = router;

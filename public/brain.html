@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance Brain — NATI</title>
+  <link rel="stylesheet" href="css/tailwind.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#4f46e5">
+  <style>
+    /* ── Brain page layout ─────────────────────────────────────────────── */
+    .brain-grid {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 1.25rem;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .brain-grid { grid-template-columns: 1fr; }
+      .brain-sidebar { order: -1; }
+    }
+
+    /* ── Chat panel ─────────────────────────────────────────────────────── */
+    .chat-wrap {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 1rem;
+      display: flex;
+      flex-direction: column;
+      height: 70vh;
+      min-height: 440px;
+    }
+    .chat-header {
+      padding: .875rem 1.25rem;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex;
+      align-items: center;
+      gap: .625rem;
+    }
+    .brain-icon {
+      width: 2rem; height: 2rem;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border-radius: .5rem;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: .875rem; flex-shrink: 0;
+    }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: .75rem;
+    }
+    .msg {
+      max-width: 85%;
+      padding: .625rem .875rem;
+      border-radius: .875rem;
+      font-size: .875rem;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+    .msg-user {
+      align-self: flex-end;
+      background: #4f46e5;
+      color: #fff;
+      border-bottom-right-radius: .25rem;
+    }
+    .msg-assistant {
+      align-self: flex-start;
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      color: #1e293b;
+      border-bottom-left-radius: .25rem;
+    }
+    .msg-thinking {
+      align-self: flex-start;
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      color: #94a3b8;
+      font-style: italic;
+      border-bottom-left-radius: .25rem;
+    }
+    .chat-input-row {
+      padding: .75rem 1rem;
+      border-top: 1px solid #f3f4f6;
+      display: flex;
+      gap: .5rem;
+    }
+    .chat-input {
+      flex: 1;
+      border: 1px solid #e2e8f0;
+      border-radius: .625rem;
+      padding: .5rem .875rem;
+      font-size: .875rem;
+      outline: none;
+      resize: none;
+      font-family: inherit;
+      line-height: 1.5;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    .chat-input:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,.1); }
+    .chat-send {
+      width: 2.5rem; height: 2.5rem;
+      background: #4f46e5;
+      color: #fff;
+      border: none;
+      border-radius: .625rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .875rem;
+      flex-shrink: 0;
+      align-self: flex-end;
+      transition: background .15s;
+    }
+    .chat-send:hover { background: #4338ca; }
+    .chat-send:disabled { background: #c7d2fe; cursor: not-allowed; }
+
+    /* Suggestion chips */
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .375rem;
+      padding: .5rem 1.25rem .25rem;
+    }
+    .chip-btn {
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 2rem;
+      padding: .25rem .75rem;
+      font-size: .75rem;
+      color: #475569;
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .chip-btn:hover { background: #e0e7ff; border-color: #a5b4fc; color: #3730a3; }
+
+    /* ── Sidebar KPI cards ──────────────────────────────────────────────── */
+    .kpi-stack { display: flex; flex-direction: column; gap: .75rem; }
+    .kpi-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: .875rem;
+      padding: 1rem 1.125rem;
+    }
+    .kpi-card-label {
+      font-size: .6875rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: #94a3b8;
+      margin-bottom: .25rem;
+    }
+    .kpi-card-value {
+      font-size: 1.375rem;
+      font-weight: 700;
+      color: #0f172a;
+      font-variant-numeric: tabular-nums;
+    }
+    .kpi-card-sub {
+      font-size: .75rem;
+      color: #64748b;
+      margin-top: .125rem;
+    }
+    .kpi-red .kpi-card-value { color: #dc2626; }
+    .kpi-amber .kpi-card-value { color: #d97706; }
+    .kpi-green .kpi-card-value { color: #16a34a; }
+
+    /* Alerts list */
+    .alert-list { display: flex; flex-direction: column; gap: .375rem; }
+    .alert-row {
+      display: flex; align-items: flex-start; gap: .5rem;
+      font-size: .8rem;
+      padding: .5rem .625rem;
+      background: #fafafa;
+      border-radius: .5rem;
+      border-left: 3px solid #e5e7eb;
+      line-height: 1.4;
+    }
+    .alert-row.critical { border-left-color: #ef4444; }
+    .alert-row.warning  { border-left-color: #f59e0b; }
+    .alert-row.info     { border-left-color: #3b82f6; }
+
+    /* Upcoming payments */
+    .pay-list { display: flex; flex-direction: column; gap: .25rem; }
+    .pay-row {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: .8rem;
+      padding: .375rem 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .pay-row:last-child { border-bottom: none; }
+    .pay-vendor { color: #334155; font-weight: 500; }
+    .pay-due    { color: #64748b; font-size: .7rem; }
+    .pay-amt    { color: #0f172a; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .pay-overdue { color: #dc2626; }
+
+    /* ── Close drop section ─────────────────────────────────────────────── */
+    .close-drop-wrap {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: .875rem;
+      padding: 1rem 1.125rem;
+    }
+    .close-drop-wrap select, .close-drop-wrap textarea {
+      width: 100%;
+      border: 1px solid #e2e8f0;
+      border-radius: .5rem;
+      padding: .4rem .625rem;
+      font-size: .8125rem;
+      font-family: inherit;
+      outline: none;
+    }
+    .close-drop-wrap select:focus,
+    .close-drop-wrap textarea:focus { border-color: #4f46e5; }
+    .close-drop-wrap textarea { resize: vertical; min-height: 3rem; }
+
+    /* Empty / welcome state */
+    .chat-welcome {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      gap: .75rem;
+      color: #94a3b8;
+      padding: 2rem;
+      text-align: center;
+    }
+    .chat-welcome .wi { font-size: 2.5rem; opacity: .4; }
+    .chat-welcome h3 { font-size: 1rem; font-weight: 600; color: #64748b; margin: 0; }
+    .chat-welcome p  { font-size: .8125rem; margin: 0; max-width: 280px; line-height: 1.55; }
+  </style>
+</head>
+<body class="bg-gray-50">
+<div class="app-layout">
+  <div class="app-content">
+    <div class="app-topbar">
+      <span class="topbar-title">Finance Brain</span>
+    </div>
+
+    <main class="app-main">
+      <div class="page-hd">
+        <div>
+          <h1 class="page-title">Finance Brain</h1>
+          <p class="page-sub">Ask anything about NATI's finances — spend, cash, drops, vendors</p>
+        </div>
+        <button onclick="refreshSidebar()" class="btn btn-secondary btn-sm">
+          <i class="fas fa-rotate-right"></i> Refresh data
+        </button>
+      </div>
+
+      <div class="brain-grid">
+        <!-- ── Chat panel ───────────────────────────────────────────────── -->
+        <div>
+          <div class="chat-wrap">
+            <div class="chat-header">
+              <div class="brain-icon"><i class="fas fa-brain"></i></div>
+              <div>
+                <div style="font-weight:600;font-size:.9rem;color:#0f172a;">NATI Finance Brain</div>
+                <div style="font-size:.75rem;color:#94a3b8;">Powered by live financial data</div>
+              </div>
+              <button onclick="clearChat()" title="Clear conversation" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#94a3b8;font-size:.875rem;">
+                <i class="fas fa-trash-can"></i>
+              </button>
+            </div>
+
+            <div class="chips" id="suggestion-chips">
+              <button class="chip-btn" onclick="suggest('What is our current cash position?')">Cash position</button>
+              <button class="chip-btn" onclick="suggest('Which payments are overdue?')">Overdue payments</button>
+              <button class="chip-btn" onclick="suggest('How is Hemp Hase Drop 1 performing?')">Drop 1 status</button>
+              <button class="chip-btn" onclick="suggest('What should I prioritize paying this week?')">Pay priorities</button>
+              <button class="chip-btn" onclick="suggest('Are there any budget alerts I should know about?')">Budget alerts</button>
+            </div>
+
+            <div class="chat-messages" id="chat-messages">
+              <div class="chat-welcome" id="chat-welcome">
+                <div class="wi"><i class="fas fa-brain"></i></div>
+                <h3>Ask your finance brain anything</h3>
+                <p>Get instant answers about spend, payables, drop economics, and cash flow — in plain language.</p>
+              </div>
+            </div>
+
+            <div class="chat-input-row">
+              <textarea class="chat-input" id="chat-input" placeholder="Ask about spend, cash, drops, vendors…" rows="1"
+                onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+              <button class="chat-send" id="chat-send" onclick="sendMessage()">
+                <i class="fas fa-paper-plane"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Sidebar ─────────────────────────────────────────────────── -->
+        <div class="brain-sidebar">
+          <div class="kpi-stack">
+            <!-- Live KPIs -->
+            <div class="kpi-card" id="kpi-committed">
+              <div class="kpi-card-label">Total committed spend</div>
+              <div class="kpi-card-value" id="val-committed">—</div>
+              <div class="kpi-card-sub" id="val-bills">Loading…</div>
+            </div>
+            <div class="kpi-card kpi-red" id="kpi-overdue">
+              <div class="kpi-card-label">Overdue payments</div>
+              <div class="kpi-card-value" id="val-overdue">—</div>
+              <div class="kpi-card-sub" id="val-pending-docs">—</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-card-label">Paid this month vs last</div>
+              <div class="kpi-card-value" id="val-paid-this">—</div>
+              <div class="kpi-card-sub" id="val-paid-last">—</div>
+            </div>
+
+            <!-- Open alerts -->
+            <div class="kpi-card">
+              <div class="kpi-card-label" style="margin-bottom:.5rem;">Open alerts</div>
+              <div class="alert-list" id="alert-list">
+                <div style="font-size:.8rem;color:#94a3b8;">Loading…</div>
+              </div>
+            </div>
+
+            <!-- Upcoming payments -->
+            <div class="kpi-card">
+              <div class="kpi-card-label" style="margin-bottom:.5rem;">Next 30-day payments</div>
+              <div class="pay-list" id="pay-list">
+                <div style="font-size:.8rem;color:#94a3b8;">Loading…</div>
+              </div>
+            </div>
+
+            <!-- Close a drop -->
+            <div class="close-drop-wrap">
+              <div class="kpi-card-label" style="margin-bottom:.625rem;">Close a drop</div>
+              <select id="drop-select" style="margin-bottom:.5rem;">
+                <option value="">Select active drop…</option>
+              </select>
+              <textarea id="close-notes" placeholder="Closing notes (optional)…" rows="2" style="margin-bottom:.5rem;"></textarea>
+              <button class="btn btn-danger btn-sm w-full" onclick="closeDrop()" id="close-btn" disabled>
+                <i class="fas fa-lock"></i> Close drop &amp; record P&L
+              </button>
+              <div id="close-result" style="margin-top:.5rem;font-size:.8rem;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="js/session.js"></script>
+<script src="js/nav.js"></script>
+<script>
+  let chatHistory = [];
+  let sidebarCtx = null;
+
+  // ── Sidebar data ──────────────────────────────────────────────────────────
+  async function refreshSidebar() {
+    try {
+      // Fetch a quick context snapshot via chat with empty ping
+      const resp = await apiFetch('/api/brain/chat', {
+        method: 'POST',
+        body: JSON.stringify({ message: 'Give me a one-sentence financial health check.', history: [] })
+      });
+      sidebarCtx = resp.context;
+      renderSidebar(resp.context);
+    } catch (e) {
+      console.error('sidebar load error', e);
+    }
+  }
+
+  function fmt(n) {
+    return '₹' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  }
+
+  function renderSidebar(ctx) {
+    if (!ctx) return;
+
+    document.getElementById('val-committed').textContent = fmt(ctx.total_committed);
+    document.getElementById('val-bills').textContent = `${ctx.total_bills} bills processed`;
+
+    const overdueEl = document.getElementById('val-overdue');
+    overdueEl.textContent = fmt(ctx.overdue_amount);
+    overdueEl.closest('.kpi-card').className = 'kpi-card ' + (ctx.overdue_amount > 0 ? 'kpi-red' : 'kpi-green');
+
+    document.getElementById('val-paid-this').textContent = fmt(ctx.paid_this_month);
+    document.getElementById('val-paid-last').textContent = `vs ${fmt(ctx.paid_last_month)} last month`;
+    document.getElementById('val-pending-docs').textContent = `${ctx.pending_docs} docs pending review`;
+
+    // Alerts
+    const alertList = document.getElementById('alert-list');
+    if (!ctx.open_alerts || ctx.open_alerts.length === 0) {
+      alertList.innerHTML = '<div style="font-size:.8rem;color:#16a34a;"><i class="fas fa-check-circle"></i> All clear</div>';
+    } else {
+      alertList.innerHTML = ctx.open_alerts.map(a => `
+        <div class="alert-row ${a.severity || 'info'}">
+          <i class="fas fa-${a.severity === 'critical' ? 'circle-exclamation' : 'triangle-exclamation'}" style="margin-top:.1rem;color:${a.severity === 'critical' ? '#ef4444' : '#f59e0b'};flex-shrink:0;"></i>
+          <span>${escHtml(a.message)}</span>
+        </div>
+      `).join('');
+    }
+
+    // Upcoming payments
+    const payList = document.getElementById('pay-list');
+    if (!ctx.upcoming_payments || ctx.upcoming_payments.length === 0) {
+      payList.innerHTML = '<div style="font-size:.8rem;color:#94a3b8;">No payments due in 30 days</div>';
+    } else {
+      const now = new Date();
+      payList.innerHTML = ctx.upcoming_payments.map(p => {
+        const due = new Date(p.due_date);
+        const overdue = due < now;
+        return `<div class="pay-row">
+          <div>
+            <div class="pay-vendor">${escHtml(p.vendor_name || 'Unknown')}</div>
+            <div class="pay-due ${overdue ? 'pay-overdue' : ''}">${overdue ? 'Overdue · ' : ''}${due.toLocaleDateString('en-IN', { day:'numeric', month:'short' })}</div>
+          </div>
+          <div class="pay-amt ${overdue ? 'pay-overdue' : ''}">${fmt(p.outstanding)}</div>
+        </div>`;
+      }).join('');
+    }
+
+    // Populate drop selector from dedicated endpoint
+    loadDropsSelector();
+  }
+
+  // ── Drop selector ─────────────────────────────────────────────────────────
+  let allDrops = [];
+  async function loadDropsSelector() {
+    try {
+      const resp = await apiFetch('/api/brain/drops');
+      allDrops = resp.drops || [];
+      const active = allDrops.filter(d => d.is_active);
+      const sel = document.getElementById('drop-select');
+      sel.innerHTML = '<option value="">Select active drop…</option>' +
+        active.map(d => `<option value="${d.drop_id}">${escHtml(d.drop_name)}</option>`).join('');
+      sel.onchange = () => { document.getElementById('close-btn').disabled = !sel.value; };
+    } catch (e) { /* silent */ }
+  }
+
+  // ── Close drop ────────────────────────────────────────────────────────────
+  async function closeDrop() {
+    const sel    = document.getElementById('drop-select');
+    const dropId = sel.value;
+    const dropName = sel.options[sel.selectedIndex]?.text || dropId;
+    const notes  = document.getElementById('close-notes').value.trim();
+    if (!dropId) return;
+    if (!confirm(`Close "${dropName}"? This marks it inactive and records the final P&L snapshot.`)) return;
+
+    const btn = document.getElementById('close-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Closing…';
+
+    try {
+      const result = await apiFetch(`/api/brain/drops/${dropId}/close`, {
+        method: 'PATCH',
+        body: JSON.stringify({ notes })
+      });
+
+      document.getElementById('close-result').innerHTML =
+        `<span style="color:#16a34a;"><i class="fas fa-check-circle"></i> ${escHtml(result.drop)} closed. Committed: ${fmt(result.committed)} · Paid: ${fmt(result.paid)}</span>`;
+      loadDropsSelector();
+      refreshSidebar();
+    } catch (e) {
+      document.getElementById('close-result').innerHTML =
+        `<span style="color:#dc2626;"><i class="fas fa-exclamation-circle"></i> ${escHtml(e.message)}</span>`;
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-lock"></i> Close drop &amp; record P&L';
+    }
+  }
+
+  // ── Chat ──────────────────────────────────────────────────────────────────
+  function suggest(text) {
+    document.getElementById('chat-input').value = text;
+    autoResize(document.getElementById('chat-input'));
+    sendMessage();
+  }
+
+  function clearChat() {
+    chatHistory = [];
+    const msgs = document.getElementById('chat-messages');
+    msgs.innerHTML = `<div class="chat-welcome" id="chat-welcome">
+      <div class="wi"><i class="fas fa-brain"></i></div>
+      <h3>Ask your finance brain anything</h3>
+      <p>Get instant answers about spend, payables, drop economics, and cash flow — in plain language.</p>
+    </div>`;
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  }
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
+
+  function appendMsg(role, text) {
+    const welcome = document.getElementById('chat-welcome');
+    if (welcome) welcome.remove();
+
+    const msgs = document.getElementById('chat-messages');
+    const div  = document.createElement('div');
+    div.className = role === 'user' ? 'msg msg-user' : role === 'thinking' ? 'msg msg-thinking' : 'msg msg-assistant';
+    div.textContent = text;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+  }
+
+  async function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const msg   = input.value.trim();
+    if (!msg) return;
+
+    input.value = '';
+    input.style.height = 'auto';
+
+    const sendBtn = document.getElementById('chat-send');
+    sendBtn.disabled = true;
+
+    appendMsg('user', msg);
+    const thinking = appendMsg('thinking', 'Thinking…');
+
+    try {
+      const resp = await apiFetch('/api/brain/chat', {
+        method: 'POST',
+        body: JSON.stringify({ message: msg, history: chatHistory })
+      });
+
+      thinking.remove();
+      appendMsg('assistant', resp.reply);
+
+      chatHistory.push({ role: 'user', content: msg });
+      chatHistory.push({ role: 'assistant', content: resp.reply });
+      if (chatHistory.length > 12) chatHistory = chatHistory.slice(-12);
+
+      // Update sidebar if context changed
+      if (resp.context) renderSidebar(resp.context);
+    } catch (e) {
+      thinking.remove();
+      appendMsg('assistant', 'Sorry, something went wrong: ' + e.message);
+    } finally {
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  window.sessionReady?.then(() => {
+    refreshSidebar();
+    loadDropsSelector();
+  }).catch(() => {});
+</script>
+</body>
+</html>

@@ -611,7 +611,10 @@ async function runBudgetAlertsJob(actor = 'system') {
           actual,
           ratio
         );
-        if (inserted) created += 1;
+        if (inserted) {
+          created += 1;
+          notifySlackBudgetAlert(row.drop_name, row.category_group, severity, ratio, actual, budget).catch(() => {});
+        }
       } else {
         await resolveBudgetAlert(row.drop_name, row.category_group, actor);
       }
@@ -1160,6 +1163,201 @@ async function resolveAlert(req, res) {
   }
 }
 
+// ── Drops list ───────────────────────────────────────────────────────────────
+async function getDropsList(req, res) {
+  try {
+    const result = await pool.query(
+      `SELECT drop_id, drop_name, is_active, closed_at FROM drops WHERE drop_name != 'Unassigned' ORDER BY drop_number ASC NULLS LAST`
+    );
+    res.json({ success: true, drops: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// ── Slack notification helper ────────────────────────────────────────────────
+async function notifySlack(text) {
+  const url = process.env.SLACK_WEBHOOK_URL;
+  if (!url) return;
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+  } catch (e) {
+    console.error('[slack]', e.message);
+  }
+}
+
+// ── Drop close ───────────────────────────────────────────────────────────────
+async function closeDrop(req, res) {
+  const { drop_id } = req.params;
+  const { notes } = req.body || {};
+  try {
+    const actor = req.user?.name || req.user?.email || 'admin';
+    const result = await pool.query(
+      `UPDATE drops SET closed_at = NOW(), closed_by = $1, close_notes = $2, is_active = FALSE
+       WHERE drop_id = $3 RETURNING drop_id, drop_name, closed_at`,
+      [actor, notes || null, drop_id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ success: false, error: 'Drop not found' });
+
+    const drop = result.rows[0];
+
+    // Pull final P&L snapshot for the closed drop
+    const plResult = await pool.query(`
+      SELECT
+        COALESCE(SUM(bi.amount) FILTER (WHERE bi.is_postable), 0) AS total_committed,
+        COALESCE(SUM(p.amount), 0) AS total_paid
+      FROM drops dr
+      LEFT JOIN bill_items bi ON bi.drop_id = dr.drop_id
+      LEFT JOIN bills b ON b.bill_id = bi.bill_id
+      LEFT JOIN payments p ON p.bill_id = b.bill_id
+      WHERE dr.drop_id = $1
+    `, [drop_id]);
+
+    const pl = plResult.rows[0];
+    const committed = Number(pl.total_committed || 0);
+    const paid = Number(pl.total_paid || 0);
+
+    await notifySlack(
+      `🔒 *Drop closed: ${drop.drop_name}*\n` +
+      `Committed: ₹${committed.toLocaleString('en-IN', { maximumFractionDigits: 0 })} | ` +
+      `Paid: ₹${paid.toLocaleString('en-IN', { maximumFractionDigits: 0 })} | ` +
+      `Outstanding: ₹${(committed - paid).toLocaleString('en-IN', { maximumFractionDigits: 0 })}\n` +
+      `Closed by ${actor}`
+    );
+
+    res.json({ success: true, drop: drop.drop_name, closed_at: drop.closed_at, committed, paid });
+  } catch (err) {
+    console.error('closeDrop error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// ── Finance Brain AI chat ────────────────────────────────────────────────────
+async function chatWithBrain(req, res) {
+  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+  const OPENAI_MODEL   = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+  if (!OPENAI_API_KEY) return res.status(503).json({ success: false, error: 'AI not configured' });
+
+  const { message, history = [] } = req.body || {};
+  if (!message || !message.trim()) return res.status(400).json({ success: false, error: 'No message' });
+
+  try {
+    // Pull live financial context from DB in parallel
+    const [summaryR, alertsR, forecastR, cashR, dropsR] = await Promise.all([
+      pool.query(`
+        SELECT
+          COALESCE(SUM(b.total_amount) FILTER (WHERE b.status NOT IN ('void')), 0) AS total_committed,
+          COALESCE(SUM(ps.amount - ps.amount_paid) FILTER (WHERE ps.status = 'pending' AND ps.due_date < NOW()), 0) AS overdue_amount,
+          COUNT(DISTINCT b.bill_id) FILTER (WHERE b.status NOT IN ('void')) AS total_bills,
+          COUNT(DISTINCT d.document_id) FILTER (WHERE d.status = 'pending') AS pending_docs
+        FROM documents d
+        LEFT JOIN bills b ON b.document_id = d.document_id
+        LEFT JOIN payment_schedule ps ON ps.bill_id = b.bill_id
+      `),
+      pool.query(`SELECT alert_type, severity, message FROM alerts WHERE resolved_at IS NULL ORDER BY created_at DESC LIMIT 5`),
+      pool.query(`
+        SELECT vendor_name, due_date, (amount - amount_paid) AS outstanding
+        FROM payment_schedule ps
+        JOIN bills b ON b.bill_id = ps.bill_id
+        LEFT JOIN vendors v ON v.vendor_id = b.vendor_id
+        WHERE ps.status = 'pending' AND ps.due_date <= NOW() + INTERVAL '30 days'
+        ORDER BY ps.due_date ASC LIMIT 10
+      `),
+      pool.query(`
+        SELECT
+          COALESCE(SUM(amount) FILTER (WHERE paid_at >= date_trunc('month', NOW())), 0) AS paid_this_month,
+          COALESCE(SUM(amount) FILTER (WHERE paid_at >= date_trunc('month', NOW()) - INTERVAL '1 month'
+                                        AND paid_at < date_trunc('month', NOW())), 0) AS paid_last_month
+        FROM payments
+      `),
+      pool.query(`SELECT drop_name, is_active, closed_at FROM drops WHERE drop_name != 'Unassigned' ORDER BY drop_number ASC NULLS LAST`)
+    ]);
+
+    const ctx = {
+      total_committed: Number(summaryR.rows[0]?.total_committed || 0),
+      overdue_amount: Number(summaryR.rows[0]?.overdue_amount || 0),
+      total_bills: Number(summaryR.rows[0]?.total_bills || 0),
+      pending_docs: Number(summaryR.rows[0]?.pending_docs || 0),
+      open_alerts: alertsR.rows,
+      upcoming_payments: forecastR.rows,
+      paid_this_month: Number(cashR.rows[0]?.paid_this_month || 0),
+      paid_last_month: Number(cashR.rows[0]?.paid_last_month || 0),
+      drops: dropsR.rows
+    };
+
+    const fmt = n => `₹${Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+    const systemPrompt = `You are NATI Finance Brain — the AI financial advisor for NATI, an Indian D2C clothing brand.
+You have access to live financial data as of today. Answer concisely and precisely. Use ₹ for all amounts.
+Always give actionable insight, not just raw numbers. When you cite numbers, be specific.
+
+LIVE FINANCIAL SNAPSHOT:
+- Total bills committed: ${fmt(ctx.total_committed)}
+- Overdue payments: ${fmt(ctx.overdue_amount)}
+- Total bills processed: ${ctx.total_bills}
+- Documents pending review: ${ctx.pending_docs}
+- Paid this month: ${fmt(ctx.paid_this_month)}
+- Paid last month: ${fmt(ctx.paid_last_month)}
+
+ACTIVE DROPS: ${ctx.drops.filter(d => d.is_active).map(d => d.drop_name).join(', ') || 'none'}
+CLOSED DROPS: ${ctx.drops.filter(d => !d.is_active).map(d => d.drop_name).join(', ') || 'none'}
+
+OPEN ALERTS (${ctx.open_alerts.length}):
+${ctx.open_alerts.map(a => `- [${a.severity}] ${a.message}`).join('\n') || 'No open alerts'}
+
+UPCOMING PAYMENTS (next 30 days):
+${ctx.upcoming_payments.map(p => `- ${p.vendor_name || 'Unknown'}: ${fmt(p.outstanding)} due ${new Date(p.due_date).toLocaleDateString('en-IN')}`).join('\n') || 'None due'}
+
+When asked about specific drops, SKUs, or vendors not in this snapshot, acknowledge the data is limited to this summary and suggest checking the relevant page.`;
+
+    const messages = [
+      ...history.slice(-6).map(h => ({ role: h.role, content: h.content })),
+      { role: 'user', content: message }
+    ];
+
+    const aiResp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_API_KEY}` },
+      body: JSON.stringify({ model: OPENAI_MODEL, messages: [{ role: 'system', content: systemPrompt }, ...messages], max_tokens: 600, temperature: 0.3 })
+    });
+
+    if (!aiResp.ok) {
+      const errText = await aiResp.text();
+      return res.status(502).json({ success: false, error: 'AI service error', detail: errText });
+    }
+
+    const aiData = await aiResp.json();
+    const reply = aiData.choices?.[0]?.message?.content || 'No response from AI';
+
+    // Log to brain_chat_log (best-effort)
+    pool.query(
+      `INSERT INTO brain_chat_log (role, content, actor_id) VALUES ('user', $1, $2), ('assistant', $3, $2)`,
+      [message, req.user?.userId || null, reply]
+    ).catch(() => {});
+
+    res.json({ success: true, reply, context: ctx });
+  } catch (err) {
+    console.error('chatWithBrain error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// ── Notify Slack on budget alert (called from runBudgetAlertsJob) ─────────────
+// Attach to export so server.js cron can also use it
+async function notifySlackBudgetAlert(dropName, group, severity, ratio, actual, budget) {
+  const emoji = severity === 'critical' ? '🔴' : '🟡';
+  const pct   = Math.round(ratio * 100);
+  const fmt   = n => `₹${Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+  await notifySlack(
+    `${emoji} *Budget Alert — ${dropName} / ${group}*\n` +
+    `Spent ${fmt(actual)} of ${fmt(budget)} budget (${pct}%)\n` +
+    `Severity: ${severity.toUpperCase()}`
+  );
+}
+
 module.exports = {
   getFinanceSummary,
   getDropOverview,
@@ -1174,5 +1372,9 @@ module.exports = {
   getDropCostOverview,
   getMaxCacTiers,
   getMaxCacSizes,
-  resolveAlert
+  resolveAlert,
+  chatWithBrain,
+  closeDrop,
+  getDropsList,
+  notifySlackBudgetAlert
 };

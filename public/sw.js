@@ -1,6 +1,6 @@
-const CACHE = 'nati-v15';
+const CACHE = 'nati-v16';
 const SHELL = [
-  '/', '/index.html', '/upload-mobile.html',
+  '/', '/index.html', '/upload-mobile.html', '/brain.html',
   '/css/tailwind.css', '/css/theme.css',
   '/js/session.js', '/js/nav.js', '/js/upload.js',
   '/logo.jpg', '/manifest.json'

@@ -21,6 +21,7 @@
   var LINKS = [
     { group: 'Overview' },
     { href: 'index.html',            icon: 'fa-gauge',               label: 'Dashboard' },
+    { href: 'brain.html',            icon: 'fa-brain',               label: 'Finance Brain' },
     { href: 'reports.html',          icon: 'fa-chart-line',          label: 'Reports & P&L' },
     { href: 'drop.html',             icon: 'fa-layer-group',         label: 'Drops' },
     { group: 'Finance' },
