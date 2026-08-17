@@ -55,6 +55,18 @@ const qualityRoutes = require('./routes/qualityRoutes');
 const metaRoutes = require('./routes/metaRoutes');
 const dropRoutes = require('./routes/dropRoutes');
 
+// Request logger for API errors
+app.use('/api', (req, res, next) => {
+  const orig = res.json.bind(res);
+  res.json = function(body) {
+    if (res.statusCode >= 400) {
+      console.error(`[API ${res.statusCode}] ${req.method} ${req.path}`, body?.error || body);
+    }
+    return orig(body);
+  };
+  next();
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api', authenticate, uploadRoutes);
 app.use('/api', authenticate, billRoutes);
@@ -68,6 +80,35 @@ app.use('/api/brain', authenticate, brainRoutes);
 app.use('/api', authenticate, qualityRoutes);
 app.use('/api', authenticate, require('./routes/vendorRoutes'));
 app.use('/api', authenticate, require('./routes/recurringRoutes'));
+
+app.get('/api/diag', async (req, res) => {
+  try {
+    const counts = await pool.query(`
+      SELECT
+        (SELECT COUNT(*) FROM documents) AS docs,
+        (SELECT COUNT(*) FROM bills) AS bills,
+        (SELECT COUNT(*) FROM payments) AS payments,
+        (SELECT COUNT(*) FROM bill_items) AS bill_items
+    `);
+    // Test the actual documents query with LIMIT 1
+    let queryErr = null;
+    try {
+      await pool.query(`
+        SELECT d.document_id, b.bill_id,
+          GREATEST(0, COALESCE(b.total_amount,0) - COALESCE(paid.total_paid,0)) AS outstanding_amount
+        FROM documents d
+        LEFT JOIN bills b ON b.document_id = d.document_id
+        LEFT JOIN LATERAL (
+          SELECT COALESCE(SUM(amount_paid),0) AS total_paid FROM payments WHERE bill_id = b.bill_id
+        ) paid ON true
+        LIMIT 1
+      `);
+    } catch(e) { queryErr = e.message; }
+    res.json({ ok: true, counts: counts.rows[0], queryErr });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
 
 app.get('/api/health', async (req, res) => {
   try {
