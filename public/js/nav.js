@@ -3,6 +3,9 @@
 (function () {
   'use strict';
 
+  // Force light theme — app runs light-only
+  document.documentElement.setAttribute('data-theme', 'light');
+
   var LINKS = [
     { group: 'Overview' },
     { href: 'index.html',            icon: 'fa-gauge',               label: 'Dashboard' },

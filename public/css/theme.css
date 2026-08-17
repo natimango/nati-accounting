@@ -36,42 +36,15 @@
   --nati-indigo:   #4338CA;
 }
 
+/* Dark mode intentionally disabled — app runs light-only for professional finance use */
+
+/* Prevent OS dark-mode from flipping Tailwind's dark: variants */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg:        #0F1117;
-    --surface:   #1C1F2E;
-    --surface-2: #22253A;
-    --border:    #2E3147;
-    --text:      #E8EAF4;
-    --text-2:    #9BA3BF;
-    --text-3:    #6B7385;
-    --shadow:    0 1px 3px rgba(0,0,0,0.25);
-    --shadow-md: 0 4px 16px rgba(0,0,0,0.3);
-    --shadow-lg: 0 12px 40px rgba(0,0,0,0.4);
-    --nati-bg:      #0F1117;
-    --nati-card-bg: #1C1F2E;
-    --nati-border:  #2E3147;
-    --nati-text:    #E8EAF4;
-    --nati-muted:   #9BA3BF;
+    color-scheme: light;
   }
 }
-:root[data-theme="dark"] {
-  --bg:        #0F1117;
-  --surface:   #1C1F2E;
-  --surface-2: #22253A;
-  --border:    #2E3147;
-  --text:      #E8EAF4;
-  --text-2:    #9BA3BF;
-  --text-3:    #6B7385;
-  --shadow:    0 1px 3px rgba(0,0,0,0.25);
-  --shadow-md: 0 4px 16px rgba(0,0,0,0.3);
-  --shadow-lg: 0 12px 40px rgba(0,0,0,0.4);
-  --nati-bg:      #0F1117;
-  --nati-card-bg: #1C1F2E;
-  --nati-border:  #2E3147;
-  --nati-text:    #E8EAF4;
-  --nati-muted:   #9BA3BF;
-}
+:root { color-scheme: light; }
 
 /* ══════════════════════════════════════════════════════════════
    RESET
