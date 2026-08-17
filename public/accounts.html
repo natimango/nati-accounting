@@ -51,6 +51,12 @@
   <div class="topbar-right" id="topbar-right"></div>
 </header>
 <div class="app-main">
+<div class="page-hd">
+  <div>
+    <h1>Chart of Accounts</h1>
+    <p>Chart of accounts, journal entries, and GL balances.</p>
+  </div>
+</div>
 <!-- Tab bar -->
         <div class="flex gap-2 mb-6 flex-wrap">
             <button class="tab-btn active" onclick="showTab('coa')"><i class="fas fa-list mr-1.5"></i>Chart of Accounts</button>
@@ -718,7 +724,7 @@
 </script>
 
 <!-- Add Account Modal -->
-<div id="add-account-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+<div id="add-account-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
     <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4">
         <div class="flex items-center justify-between mb-4">
             <h3 class="font-bold text-slate-800">Add Account</h3>

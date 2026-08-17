@@ -23,24 +23,30 @@
   <div class="topbar-right" id="topbar-right"></div>
 </header>
 <div class="app-main">
-<section class="nati-card bg-white/90 border border-slate-200 rounded-2xl shadow">
+<div class="page-hd">
+  <div>
+    <h1>Bills &amp; Documents</h1>
+    <p>Upload → OCR → AI parse → manual override. Every expense in one place.</p>
+  </div>
+  <div class="page-actions">
+    <button id="rerun-ai-btn" onclick="triggerRerunAI()" class="btn btn-secondary">
+      <i class="fas fa-robot"></i> Re-run AI
+    </button>
+    <button onclick="window.location.href='reports.html'" class="btn btn-secondary">
+      <i class="fas fa-chart-line"></i> Reports
+    </button>
+    <button onclick="window.location.href='upload.html'" class="btn btn-primary">
+      <i class="fas fa-plus"></i> Upload Bill
+    </button>
+  </div>
+</div>
+<section class="nati-card rounded-2xl">
                 <div class="px-6 py-5 border-b border-slate-100 flex flex-wrap items-start gap-4 justify-between">
                     <div>
                         <p class="text-xs text-slate-500 uppercase tracking-[0.2em]">Work queue</p>
                         <h2 class="text-2xl font-semibold text-slate-900">Every bill lives here first</h2>
-                        <p class="text-sm text-slate-500 mt-1">Upload → OCR → AI parse → manual override. Calendar filters, payments, and drop context keep everyone aligned.</p>
+                        <p class="text-sm text-slate-500 mt-1">Calendar filters, payments, and drop context keep everyone aligned.</p>
                     </div>
-                        <div class="flex flex-wrap gap-2">
-                            <button onclick="window.location.href='upload.html'" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition flex items-center gap-2 shadow">
-                                <i class="fas fa-bolt"></i><span>Upload</span>
-                            </button>
-                            <button onclick="window.location.href='reports.html'" class="px-4 py-2 bg-slate-100 text-slate-800 rounded-lg text-sm hover:bg-slate-200 transition flex items-center gap-2">
-                                <i class="fas fa-chart-area"></i><span>Reports</span>
-                            </button>
-                            <button id="rerun-ai-btn" onclick="triggerRerunAI()" class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition flex items-center gap-2 shadow">
-                                <i class="fas fa-robot"></i><span>Re-run AI</span>
-                            </button>
-                        </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-6">
                     <div class="rounded-2xl border border-slate-100 p-4 bg-gradient-to-br from-indigo-50 to-white shadow-sm">
@@ -69,7 +75,7 @@
                 </div>
             </section>
 
-            <section class="nati-card bg-white border border-slate-200 rounded-2xl shadow">
+            <section class="nati-card rounded-2xl">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                     <div>
                         <h2 class="text-lg font-semibold">Filters</h2>
@@ -202,7 +208,7 @@
                 <button onclick="clearFilters()" class="text-xs font-semibold hover:underline">Clear all</button>
             </section>
 
-            <section class="nati-card bg-white border border-slate-200 rounded-2xl shadow">
+            <section class="nati-card rounded-2xl">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                     <div>
                         <h3 class="text-md font-semibold">Calendar</h3>
@@ -224,7 +230,7 @@
                 <div id="calendar-grid" class="p-4 grid grid-cols-7 gap-2 text-center text-sm text-slate-700"></div>
             </section>
 
-            <section class="nati-card bg-white border border-slate-200 rounded-2xl shadow">
+            <section class="nati-card rounded-2xl">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                     <div class="flex items-center gap-2">
                         <h3 class="text-md font-semibold">Documents</h3>
@@ -275,7 +281,7 @@
 
     <div id="detail-pane" class="hidden"></div>
 
-    <div id="preview-modal" class="nati-modal fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-40">
+    <div id="preview-modal" class="nati-modal fixed inset-0 bg-black/50 hidden items-center justify-center z-40">
         <div class="nati-modal-panel bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4">
             <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
                 <h3 id="modal-title" class="text-lg font-semibold">Preview</h3>
@@ -285,7 +291,7 @@
         </div>
     </div>
 
-    <div id="ai-modal" class="nati-modal fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-40">
+    <div id="ai-modal" class="nati-modal fixed inset-0 bg-black/50 hidden items-center justify-center z-40">
         <div class="nati-modal-panel bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4">
             <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
                 <h3 class="text-lg font-semibold">AI Extraction</h3>
@@ -296,7 +302,7 @@
         </div>
     </div>
 
-    <div id="bill-modal" class="nati-modal fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-40">
+    <div id="bill-modal" class="nati-modal fixed inset-0 bg-black/50 hidden items-center justify-center z-40">
         <div class="nati-modal-panel bg-white rounded-xl shadow-xl max-w-6xl w-full mx-4 max-h-[85vh] overflow-auto">
             <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
                 <div>
@@ -309,7 +315,7 @@
         </div>
     </div>
 
-    <div id="manual-modal" class="nati-modal fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-start justify-center z-40 overflow-auto">
+    <div id="manual-modal" class="nati-modal fixed inset-0 bg-black/50 hidden items-start justify-center z-40 overflow-auto">
         <div class="nati-modal-panel bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 my-8">
             <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
                 <div>

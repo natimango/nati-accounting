@@ -23,7 +23,13 @@
   <div class="topbar-right" id="topbar-right"></div>
 </header>
 <div class="app-main">
-<div class="max-w-5xl mx-auto space-y-6">
+<div class="page-hd">
+  <div>
+    <h1>Payables</h1>
+    <p>Outstanding bills, due dates, and payment tracking.</p>
+  </div>
+</div>
+<div style="display:flex;flex-direction:column;gap:20px">
 
                 <!-- Summary tiles -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -50,7 +56,7 @@
                 </div>
 
                 <!-- Payment schedule installments -->
-                <section id="schedule-section" class="nati-card bg-white/90 border border-indigo-200 rounded-2xl shadow hidden">
+                <section id="schedule-section" class="nati-card rounded-2xl hidden">
                     <div class="px-6 py-4 border-b border-indigo-100 flex items-center justify-between">
                         <div>
                             <h2 class="text-lg font-semibold text-slate-900">Payment Schedule Installments</h2>
@@ -85,7 +91,7 @@
                 </div>
 
                 <!-- All unpaid bills table -->
-                <section id="section-unpaid" class="nati-card bg-white/90 border border-slate-200 rounded-2xl shadow">
+                <section id="section-unpaid" class="nati-card rounded-2xl">
                     <div class="px-6 py-4 border-b border-slate-100 space-y-3">
                         <div class="flex items-center justify-between gap-4 flex-wrap">
                             <div>
@@ -148,7 +154,7 @@
                 </section>
 
                 <!-- Aging Report section -->
-                <section id="section-aging" class="hidden nati-card bg-white/90 border border-slate-200 rounded-2xl shadow">
+                <section id="section-aging" class="hidden nati-card rounded-2xl">
                     <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                         <div>
                             <h2 class="text-lg font-semibold text-slate-900">AP Aging Report</h2>
@@ -162,7 +168,7 @@
                 </section>
 
                 <!-- Payment History section -->
-                <section id="section-history" class="hidden nati-card bg-white/90 border border-slate-200 rounded-2xl shadow">
+                <section id="section-history" class="hidden nati-card rounded-2xl">
                     <div class="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center gap-3 justify-between">
                         <div>
                             <h2 class="text-lg font-semibold text-slate-900">Payment History</h2>
@@ -208,7 +214,7 @@
                 </section>
 
                 <!-- Recurring Bill Templates -->
-                <section id="section-recurring" class="hidden nati-card bg-white/90 border border-slate-200 rounded-2xl shadow">
+                <section id="section-recurring" class="hidden nati-card rounded-2xl">
                     <div class="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center gap-3 justify-between">
                         <div>
                             <h2 class="text-lg font-semibold text-slate-900">Recurring Bills</h2>

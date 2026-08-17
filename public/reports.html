@@ -64,20 +64,22 @@
   <div class="topbar-right" id="topbar-right"></div>
 </header>
 <div class="app-main">
+<div class="page-hd">
+  <div>
+    <h1>Reports &amp; P&amp;L</h1>
+    <p>Profit &amp; loss by month, drop, and category. Full chart of accounts.</p>
+  </div>
+  <div class="page-actions">
+    <button onclick="exportCSV()" class="btn btn-secondary"><i class="fas fa-file-csv"></i> Export CSV</button>
+    <button onclick="window.print()" class="btn btn-secondary"><i class="fas fa-print"></i> Print / PDF</button>
+  </div>
+</div>
 <!-- ── Period & filter bar ── -->
-            <section class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 no-print">
+            <section class="nati-card rounded-xl p-5 no-print">
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                     <div>
                         <h2 class="text-base font-semibold">Period</h2>
                         <p class="text-xs text-slate-400 mt-0.5">Click a month or set a custom range</p>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="exportCSV()" class="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-50">
-                            <i class="fas fa-file-csv text-slate-500"></i> CSV
-                        </button>
-                        <button onclick="window.print()" class="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-50">
-                            <i class="fas fa-print text-slate-500"></i> Print / PDF
-                        </button>
                     </div>
                 </div>
 
