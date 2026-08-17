@@ -1251,7 +1251,7 @@ async function chatWithBrain(req, res) {
       pool.query(`
         SELECT
           COALESCE(SUM(b.total_amount) FILTER (WHERE b.status NOT IN ('void')), 0) AS total_committed,
-          COALESCE(SUM(ps.amount - ps.amount_paid) FILTER (WHERE ps.status = 'pending' AND ps.due_date < NOW()), 0) AS overdue_amount,
+          COALESCE(SUM(ps.amount_due - ps.amount_paid) FILTER (WHERE ps.payment_status = 'pending' AND ps.due_date < NOW()), 0) AS overdue_amount,
           COUNT(DISTINCT b.bill_id) FILTER (WHERE b.status NOT IN ('void')) AS total_bills,
           COUNT(DISTINCT d.document_id) FILTER (WHERE d.status = 'pending') AS pending_docs
         FROM documents d
@@ -1260,11 +1260,12 @@ async function chatWithBrain(req, res) {
       `),
       pool.query(`SELECT alert_type, severity, message FROM alerts WHERE resolved_at IS NULL ORDER BY created_at DESC LIMIT 5`),
       pool.query(`
-        SELECT vendor_name, due_date, (amount - amount_paid) AS outstanding
+        SELECT COALESCE(v.vendor_name, b.vendor_id::text) AS vendor_name,
+               ps.due_date, (ps.amount_due - ps.amount_paid) AS outstanding
         FROM payment_schedule ps
         JOIN bills b ON b.bill_id = ps.bill_id
         LEFT JOIN vendors v ON v.vendor_id = b.vendor_id
-        WHERE ps.status = 'pending' AND ps.due_date <= NOW() + INTERVAL '30 days'
+        WHERE ps.payment_status = 'pending' AND ps.due_date <= NOW() + INTERVAL '30 days'
         ORDER BY ps.due_date ASC LIMIT 10
       `),
       pool.query(`
