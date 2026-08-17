@@ -1383,7 +1383,7 @@ const getDocuments = async (req, res) => {
         ps.due_date AS bill_payment_due_date,
         COALESCE(unposted.unposted_amount, 0) AS unposted_amount,
         COALESCE(unposted.unposted_count, 0) AS unposted_line_count,
-        b.outstanding_amount,
+        GREATEST(0, COALESCE(b.total_amount, 0) - COALESCE(paid.total_paid, 0)) AS outstanding_amount,
         COALESCE(v.vendor_name, b.vendor_name) AS bill_vendor_name
        FROM documents d
        LEFT JOIN bills b ON b.document_id = d.document_id
@@ -1420,6 +1420,11 @@ const getDocuments = async (req, res) => {
               OR bi.drop_id IS NULL
             )
         ) dims ON true
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(SUM(amount_paid), 0) AS total_paid
+         FROM payments
+         WHERE bill_id = b.bill_id
+       ) paid ON true
        ORDER BY d.uploaded_at DESC`
     );
     const userId = req.user?.userId;
