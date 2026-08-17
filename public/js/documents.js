@@ -733,11 +733,10 @@ async function openBillModal(id) {
     const body = document.getElementById('bill-modal-body');
     const titleEl = document.getElementById('bill-modal-title');
     const subEl = document.getElementById('bill-modal-sub');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    modal.classList.add('modal-open');
     titleEl.textContent = 'Loading…';
     subEl.textContent = '';
-    body.innerHTML = `<div class="p-8 text-sm text-slate-500 text-center"><i class="fas fa-spinner fa-spin mr-2"></i>Loading bill…</div>`;
+    body.innerHTML = `<div style="padding:2rem;text-align:center;color:#94a3b8;font-size:.875rem"><i class="fas fa-spinner fa-spin" style="margin-right:.5rem"></i>Loading bill…</div>`;
     _activityLogLoaded = false;
 
     try {
@@ -1559,10 +1558,7 @@ async function _submitItemPost() {
 
 function closeBillModal() {
     const modal = document.getElementById('bill-modal');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    if (modal) modal.classList.remove('modal-open');
 }
 function toggleSection(bodyId, btnId) {
     const body = document.getElementById(bodyId);
@@ -2436,7 +2432,7 @@ function populateManualForm(doc, billLineItems) {
     syncManualPaymentFields();
     updateManualAdvanceSummary();
     renderLineItems();
-    document.getElementById('manual-modal').classList.remove('hidden');
+    document.getElementById('manual-modal').classList.add('modal-open');
 }
 
 let _vendorDatalistLoaded = false;
@@ -2510,7 +2506,7 @@ function updateManualAdvanceSummary() {
 }
 
 function closeManualModal() {
-    document.getElementById('manual-modal').classList.add('hidden');
+    document.getElementById('manual-modal').classList.remove('modal-open');
     currentManualDoc = null;
     manualLineItems = [];
 }
