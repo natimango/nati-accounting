@@ -48,6 +48,15 @@
         .kpi.green .value { color: #059669; }
         .kpi.red .value { color: #dc2626; }
 
+        /* ── Tab transitions ── */
+        .print-area { transition: none; }
+        .tab-fade { animation: tabFadeIn .18s ease; }
+        @keyframes tabFadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ── Scrollable tab bar ── */
+        .tab-scroll-bar { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
+        .tab-scroll-bar::-webkit-scrollbar { display: none; }
+
         @media print {
             header, .no-print { display: none !important; }
             .print-area { box-shadow: none !important; border: none !important; }
@@ -121,28 +130,28 @@
             </div>
 
             <!-- ── Tabs ── -->
-            <div class="flex gap-2 no-print">
-                <button class="tab-btn active" onclick="showTab('pl')"><i class="fas fa-chart-line mr-1.5"></i>P&amp;L</button>
-                <button class="tab-btn" onclick="showTab('section')"><i class="fas fa-layer-group mr-1.5"></i>By Section</button>
-                <button class="tab-btn" onclick="showTab('gst')"><i class="fas fa-percent mr-1.5"></i>GST</button>
-                <button class="tab-btn" onclick="showTab('spend')"><i class="fas fa-receipt mr-1.5"></i>Spend Detail</button>
-                <button class="tab-btn" onclick="showTab('trend')"><i class="fas fa-chart-bar mr-1.5"></i>Trend</button>
-                <button class="tab-btn" onclick="showTab('drops')"><i class="fas fa-layer-group mr-1.5"></i>By Drop</button>
-                <button class="tab-btn" onclick="showTab('variance')"><i class="fas fa-bullseye mr-1.5"></i>Budget vs Actual</button>
-                <button class="tab-btn" onclick="showTab('cm')"><i class="fas fa-percent mr-1.5"></i>Contribution Margin</button>
-                <button class="tab-btn" onclick="showTab('ue')"><i class="fas fa-dollar-sign mr-1.5"></i>Unit Economics</button>
-                <button class="tab-btn" onclick="showTab('vendors')"><i class="fas fa-building mr-1.5"></i>Vendors</button>
-                <button class="tab-btn" onclick="showTab('fycomp')"><i class="fas fa-calendar-alt mr-1.5"></i>FY Compare</button>
-                <button class="tab-btn" onclick="showTab('pureg')"><i class="fas fa-file-invoice mr-1.5"></i>Purchase Register</button>
-                <button class="tab-btn" onclick="showTab('salesreg')"><i class="fas fa-store mr-1.5"></i>Sales Register</button>
-                <a href="balance-sheet.html" class="tab-btn flex items-center no-print" style="text-decoration:none"><i class="fas fa-scale-balanced mr-1.5"></i>Balance Sheet</a>
-                <a href="accounts.html" class="tab-btn flex items-center no-print" style="text-decoration:none"><i class="fas fa-book mr-1.5"></i>Accounts</a>
-                <a href="sku-catalog.html" class="tab-btn flex items-center no-print" style="text-decoration:none"><i class="fas fa-shirt mr-1.5"></i>SKU Catalog</a>
+            <div class="tab-scroll-bar no-print">
+                <button class="tab-btn active" data-tab="pl" onclick="showTab('pl')"><i class="fas fa-chart-line mr-1.5"></i>P&amp;L</button>
+                <button class="tab-btn" data-tab="section" onclick="showTab('section')"><i class="fas fa-layer-group mr-1.5"></i>By Section</button>
+                <button class="tab-btn" data-tab="gst" onclick="showTab('gst')"><i class="fas fa-percent mr-1.5"></i>GST</button>
+                <button class="tab-btn" data-tab="spend" onclick="showTab('spend')"><i class="fas fa-receipt mr-1.5"></i>Spend Detail</button>
+                <button class="tab-btn" data-tab="trend" onclick="showTab('trend')"><i class="fas fa-chart-bar mr-1.5"></i>Trend</button>
+                <button class="tab-btn" data-tab="drops" onclick="showTab('drops')"><i class="fas fa-layer-group mr-1.5"></i>By Drop</button>
+                <button class="tab-btn" data-tab="variance" onclick="showTab('variance')"><i class="fas fa-bullseye mr-1.5"></i>Budget vs Actual</button>
+                <button class="tab-btn" data-tab="cm" onclick="showTab('cm')"><i class="fas fa-percent mr-1.5"></i>Contribution Margin</button>
+                <button class="tab-btn" data-tab="ue" onclick="showTab('ue')"><i class="fas fa-dollar-sign mr-1.5"></i>Unit Economics</button>
+                <button class="tab-btn" data-tab="vendors" onclick="showTab('vendors')"><i class="fas fa-building mr-1.5"></i>Vendors</button>
+                <button class="tab-btn" data-tab="fycomp" onclick="showTab('fycomp')"><i class="fas fa-calendar-alt mr-1.5"></i>FY Compare</button>
+                <button class="tab-btn" data-tab="pureg" onclick="showTab('pureg')"><i class="fas fa-file-invoice mr-1.5"></i>Purchase Register</button>
+                <button class="tab-btn" data-tab="salesreg" onclick="showTab('salesreg')"><i class="fas fa-store mr-1.5"></i>Sales Register</button>
+                <a href="balance-sheet.html" class="tab-btn flex items-center no-print" style="text-decoration:none;white-space:nowrap"><i class="fas fa-scale-balanced mr-1.5"></i>Balance Sheet</a>
+                <a href="accounts.html" class="tab-btn flex items-center no-print" style="text-decoration:none;white-space:nowrap"><i class="fas fa-book mr-1.5"></i>Accounts</a>
+                <a href="sku-catalog.html" class="tab-btn flex items-center no-print" style="text-decoration:none;white-space:nowrap"><i class="fas fa-shirt mr-1.5"></i>SKU Catalog</a>
             </div>
 
             <!-- ── P&L ── -->
             <section id="tab-pl" class="print-area">
-                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm">
                     <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                         <div>
                             <h3 class="font-semibold text-base">Profit &amp; Loss Statement</h3>
@@ -155,6 +164,7 @@
                         <div id="plBadge" class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-400">—</div>
                     </div>
                     </div>
+                    <div class="overflow-x-auto">
                     <table class="rt" id="pl-table">
                         <thead id="pl-thead" class="hidden">
                             <tr class="grp-hdr">
@@ -169,6 +179,7 @@
                             <tr><td colspan="3" class="text-center py-10 text-slate-400">Select a period above</td></tr>
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </section>
 
@@ -192,11 +203,13 @@
                         <h3 class="font-semibold text-base">GST Summary</h3>
                         <p class="text-xs text-slate-400 mt-0.5">Output GST (collected from customers) vs Input Tax Credit (ITC on bills) — GSTR-3B</p>
                     </div>
+                    <div class="overflow-x-auto">
                     <table class="rt">
                         <tbody id="gstBody">
                             <tr><td colspan="4" class="text-center py-10 text-slate-400">Select a period above</td></tr>
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </section>
 
@@ -207,6 +220,7 @@
                         <h3 class="font-semibold text-base">Expense Detail</h3>
                         <p class="text-xs text-slate-400 mt-0.5">All bills by group and category — for audit &amp; filing</p>
                     </div>
+                    <div class="overflow-x-auto">
                     <table class="rt">
                         <thead>
                             <tr><th>Group</th><th>Category</th><th class="tr">Amount (₹)</th></tr>
@@ -215,6 +229,7 @@
                             <tr><td colspan="3" class="text-center py-10 text-slate-400">Select a period above</td></tr>
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </section>
 
@@ -904,14 +919,20 @@ function renderDropSpend(d) {
 // ── Tab switcher ──────────────────────────────────────────────────────────────
 const TABS = ['pl','section','gst','spend','trend','drops','variance','cm','ue','vendors','fycomp','pureg','salesreg'];
 function showTab(name) {
-    TABS.forEach(t => { document.getElementById('tab-' + t).classList.toggle('hidden', t !== name); });
-    document.querySelectorAll('.tab-btn').forEach((b, i) => { b.classList.toggle('active', TABS[i] === name); });
-    if (name === 'trend' && !trendLoaded) loadTrend();
+    TABS.forEach(t => {
+        const el = document.getElementById('tab-' + t);
+        if (!el) return;
+        const show = t === name;
+        el.classList.toggle('hidden', !show);
+        if (show) { el.classList.remove('tab-fade'); void el.offsetWidth; el.classList.add('tab-fade'); }
+    });
+    document.querySelectorAll('.tab-btn[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    if (name === 'trend'    && !trendLoaded)    loadTrend();
     if (name === 'variance' && !varianceLoaded) loadVariance();
-    if (name === 'cm' && !cmLoaded) loadCM();
-    if (name === 'ue' && !ueLoaded) loadUE();
-    if (name === 'vendors' && !vendorsLoaded) loadVendors();
-    if (name === 'fycomp' && !fycompLoaded) loadFYComp();
+    if (name === 'cm'       && !cmLoaded)       loadCM();
+    if (name === 'ue'       && !ueLoaded)       loadUE();
+    if (name === 'vendors'  && !vendorsLoaded)  loadVendors();
+    if (name === 'fycomp'   && !fycompLoaded)   loadFYComp();
     if (name === 'pureg'    && !puregLoaded)    loadPureG();
     if (name === 'salesreg' && !salesRegLoaded) loadSalesReg();
 }
@@ -1820,6 +1841,17 @@ function exportSalesReg() {
     a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
     a.download = `sales-register-${_salesRegData.start_date}-to-${_salesRegData.end_date}.csv`;
     a.click();
+}
+
+// ── Shared helpers ────────────────────────────────────────────────────────────
+function getDateRange() {
+    const today = new Date().toISOString().split('T')[0];
+    return { start: currentStart || today, end: currentEnd || today };
+}
+async function apiFetch(url) {
+    const r = await fetch(url, { credentials: 'include' });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || `HTTP ${r.status}`); }
+    return r.json();
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
