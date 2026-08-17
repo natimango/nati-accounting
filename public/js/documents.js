@@ -313,13 +313,17 @@ function getDocDate(doc) {
 async function loadDocuments() {
     try {
         const response = await authFetch(`${API_URL}/documents`);
+        if (!response.ok) {
+            const errText = await response.text();
+            showLoadError(`API ${response.status}: ${errText}`);
+            return;
+        }
         const data = await response.json();
-        
+
         if (data.success) {
             allDocuments = data.documents;
             filteredDocuments = allDocuments;
             populateFilterDropdowns(allDocuments);
-            // Apply pending drop filter from URL param (set before data loaded)
             if (window._pendingDropFilter) {
                 const el = document.getElementById('filter-drop');
                 if (el) el.value = window._pendingDropFilter;
@@ -329,10 +333,23 @@ async function loadDocuments() {
             await loadVerificationSummary();
             updateDocCount();
             renderCalendar();
+        } else {
+            showLoadError(data.error || 'API returned success:false');
         }
     } catch (error) {
         console.error('Error loading documents:', error);
+        showLoadError(error.message);
     }
+}
+
+function showLoadError(msg) {
+    const body = document.getElementById('documents-table-body');
+    if (body) {
+        body.innerHTML = `<tr><td colspan="11" class="px-4 py-6 text-center text-red-600 font-medium">
+            <i class="fas fa-exclamation-triangle mr-2"></i>Failed to load bills: ${msg}
+        </td></tr>`;
+    }
+    console.error('[documents] load failed:', msg);
 }
 
 async function loadVerificationSummary() {
