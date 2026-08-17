@@ -73,7 +73,7 @@ async function getQualityDocuments(req, res) {
 
     const result = await pool.query(
       `SELECT d.document_id,
-              d.vendor_name,
+              COALESCE(v.vendor_name, b.vendor_id::text) AS vendor_name,
               d.file_name,
               d.status,
               d.extraction_state,
@@ -90,6 +90,7 @@ async function getQualityDocuments(req, res) {
               (SELECT COUNT(*) FROM bill_items bi WHERE bi.bill_id = b.bill_id AND bi.is_postable AND bi.drop_id IS NULL) AS missing_drop
        FROM documents d
        LEFT JOIN bills b ON b.document_id = d.document_id
+       LEFT JOIN vendors v ON v.vendor_id = b.vendor_id
        ${whereClause}
        ORDER BY d.created_at DESC
        LIMIT $1 OFFSET $2`,
@@ -142,8 +143,11 @@ async function getQualityStats(req, res) {
         WHERE bi.is_postable
       `),
       pool.query(`
-        SELECT d.document_id, d.vendor_name, d.quality_score, d.verification_status, d.created_at
+        SELECT d.document_id, COALESCE(v.vendor_name, d.file_name) AS vendor_name,
+               d.quality_score, d.verification_status, d.created_at
         FROM documents d
+        LEFT JOIN bills b ON b.document_id = d.document_id
+        LEFT JOIN vendors v ON v.vendor_id = b.vendor_id
         WHERE d.quality_score < 60 OR d.verification_status IN ('unverified','needs_review')
         ORDER BY d.created_at DESC
         LIMIT 10
