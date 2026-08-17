@@ -20,10 +20,10 @@ Check logs after restart:
 docker compose logs -f app
 ```
 
-> **Always prompt the user to restart the server after pushing backend changes**
-> (new migrations, controller changes, route changes, server.js changes).
-> Frontend-only changes (HTML, CSS, JS in /public) are served as static files
-> and take effect immediately after git pull without a rebuild.
+> **ALL changes require a Docker rebuild** — the Dockerfile does `COPY . .` which
+> bakes everything (including /public) into the image at build time.
+> There is NO live-mount of /public. Always run `docker compose up -d --build`
+> after every push, whether backend or frontend.
 
 ## Dev branch
 - All work goes to branch: `claude/gallant-babbage-JMe69`
