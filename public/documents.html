@@ -281,7 +281,22 @@
 
     <div id="detail-pane" class="hidden"></div>
 
-    <div id="preview-modal" class="nt-overlay" style="z-index:9200">
+
+
+    <script src="js/session.js" defer></script>
+    <script src="js/nav.js" defer></script>
+<script src="js/search.js" defer></script>
+    <script src="js/apiFetch.js" defer></script>
+    <script src="js/store.js" defer></script>
+    <script src="js/documents.js" defer></script>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(function() {});
+}
+</script>
+
+<!-- === Portal modals: always at top of stacking order === -->
+<div id="preview-modal" class="nt-overlay" style="z-index:9200">
         <div class="nt-panel" style="max-width:860px">
             <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid #f1f5f9">
                 <div style="display:flex;align-items:center;gap:.75rem">
@@ -569,17 +584,5 @@
 </div>
 </div>
 
-
-    <script src="js/session.js" defer></script>
-    <script src="js/nav.js" defer></script>
-<script src="js/search.js" defer></script>
-    <script src="js/apiFetch.js" defer></script>
-    <script src="js/store.js" defer></script>
-    <script src="js/documents.js" defer></script>
-<script>
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js").catch(function() {});
-}
-</script>
 </body>
 </html>
