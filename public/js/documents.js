@@ -2831,10 +2831,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const qDoc  = urlParams.get('doc');
+    const qView = urlParams.get('view');  // read-only bill view (from alerts)
     const qBill = urlParams.get('bill');
 
     const afterLoad = () => {
-        if (qDoc) {
+        if (qView) {
+            const docId = parseInt(qView, 10);
+            if (docId) setTimeout(() => openBillModal(docId), 300);
+        } else if (qDoc) {
             const docId = parseInt(qDoc, 10);
             if (docId) setTimeout(() => openManualModal(docId), 300);
         } else if (qBill) {
