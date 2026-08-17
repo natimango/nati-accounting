@@ -6,6 +6,18 @@
   // Force light theme — app runs light-only
   document.documentElement.setAttribute('data-theme', 'light');
 
+  // ── Global apiFetch — available as window.apiFetch on every page ─────────────
+  window.apiFetch = async function apiFetch(url, options) {
+    options = options || {};
+    var resp = await fetch(url, Object.assign({ credentials: 'include' }, options, {
+      headers: Object.assign({ 'Content-Type': 'application/json' }, options.headers || {})
+    }));
+    if (resp.status === 401) { window.location.href = '/login.html'; return Promise.reject(new Error('Unauthorized')); }
+    if (!resp.ok) { var t = await resp.text(); throw new Error(t || ('Request failed ' + resp.status)); }
+    var ct = resp.headers.get('content-type') || '';
+    return ct.includes('application/json') ? resp.json() : resp.text();
+  };
+
   var LINKS = [
     { group: 'Overview' },
     { href: 'index.html',            icon: 'fa-gauge',               label: 'Dashboard' },

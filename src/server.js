@@ -81,7 +81,7 @@ app.use('/api', authenticate, qualityRoutes);
 app.use('/api', authenticate, require('./routes/vendorRoutes'));
 app.use('/api', authenticate, require('./routes/recurringRoutes'));
 
-app.get('/api/diag', async (req, res) => {
+app.get('/api/diag', authenticate, authorize('admin'), async (req, res) => {
   try {
     const counts = await pool.query(`
       SELECT

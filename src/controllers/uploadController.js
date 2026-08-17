@@ -20,15 +20,11 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-const DEFAULT_JOURNAL_USER_ID = parseInt(process.env.SYSTEM_USER_ID || '1', 10);
+const { DEFAULT_JOURNAL_USER_ID, resolveJournalUser } = require('../utils/journalUser');
 const REQUIRED_OCR_VERSION = parseInt(process.env.OCR_VERSION || '1', 10);
 const MIN_OCR_TEXT_LENGTH = Math.max(parseInt(process.env.OCR_TEXT_MIN_LEN || '200', 10), 32);
 const VERIFY_CONF_THRESHOLD = Math.min(Math.max(parseFloat(process.env.VERIFY_CONF_THRESHOLD || '0.85'), 0.5), 0.99);
 const MAX_REPROCESS_PER_DOC_PER_DAY = Math.max(parseInt(process.env.MAX_REPROCESS_PER_DOC_PER_DAY || '3', 10), 1);
-
-function resolveJournalUser(preferred) {
-  return preferred || DEFAULT_JOURNAL_USER_ID;
-}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {

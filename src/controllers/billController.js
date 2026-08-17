@@ -9,14 +9,7 @@ const { getRawTextFromDoc } = require('../utils/ocrCache');
 const { getDefaultDropId } = require('../utils/metaCache');
 const { logDocumentFieldChange } = require('../utils/documentAudit');
 const { processDocumentWithAI } = require('./uploadController');
-
-const DEFAULT_JOURNAL_USER_ID = parseInt(process.env.SYSTEM_USER_ID || '1', 10);
-const resolveJournalUser = (preferred) => preferred || DEFAULT_JOURNAL_USER_ID;
-
-function validateDimensions(category, dropName, channel, campaign) {
-  const isCOGS = false; // drop/channel validation removed
-  return null;
-}
+const { DEFAULT_JOURNAL_USER_ID, resolveJournalUser } = require('../utils/journalUser');
 
 function hasActionablePaymentTerms(terms) {
   if (!terms) return false;
@@ -159,15 +152,6 @@ async function processBillManual(req, res) {
     const categoryGroup = VALID_GROUPS.includes((department || '').toUpperCase())
       ? department.toUpperCase()
       : categoryInfo.category_group;
-
-    const dimError = validateDimensions(normalizedCategory, drop_name, channel, campaign);
-    if (dimError) {
-      await pool.query(
-        'UPDATE documents SET status = $1, notes = COALESCE(notes, $2) WHERE document_id = $3',
-        ['manual_required', dimError, document_id]
-      );
-      return res.status(400).json({ error: dimError });
-    }
 
     // Create or update vendor
     let vendorId = null;

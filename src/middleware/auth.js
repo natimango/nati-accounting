@@ -1,6 +1,11 @@
 const jwt = require('jsonwebtoken');
 
 const COOKIE_NAME = 'nati_token';
+
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET env var must be set in production');
+  process.exit(1);
+}
 const JWT_SECRET = process.env.JWT_SECRET || 'nati-dev-secret';
 
 function getTokenFromRequest(req) {
