@@ -50,13 +50,16 @@
   <div class="topbar-right" id="topbar-right"></div>
 </header>
 <div class="app-main">
-    <!-- Sidebar -->
-<!-- Main -->
-<div class="flex gap-2 items-center">
-                <button onclick="exportCSV()" class="nati-btn nati-btn-secondary"><i class="fas fa-download mr-1.5"></i>Export CSV</button>
-                <button onclick="loadAll()" class="nati-btn nati-btn-primary"><i class="fas fa-rotate mr-1.5"></i>Refresh</button>
-            </div>
-        </div>
+<div class="page-hd">
+  <div>
+    <h1>Data Quality</h1>
+    <p>Document health, extraction scores, and posting completeness</p>
+  </div>
+  <div class="page-actions">
+    <button onclick="exportCSV()" class="nati-btn nati-btn-secondary"><i class="fas fa-download mr-1.5"></i>Export CSV</button>
+    <button onclick="loadAll()" class="nati-btn nati-btn-primary"><i class="fas fa-rotate mr-1.5"></i>Refresh</button>
+  </div>
+</div>
 
         <!-- KPI tiles -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="kpi-row">
@@ -348,6 +351,10 @@ fetch('/api/auth/me', { credentials: 'include' })
     })
     .catch(() => { window.location.href = 'login.html'; });
 </script>
+</div>
+</div>
+</div>
+
 <script src="js/nav.js" defer></script>
 <script src="js/search.js" defer></script>
 <script>
