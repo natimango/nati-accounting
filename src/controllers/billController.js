@@ -1186,7 +1186,7 @@ async function listPayments(req, res) {
     const conditions = ['p.payment_date BETWEEN $1 AND $2'];
 
     if (payment_method) { params.push(payment_method); conditions.push(`p.payment_method = $${params.length}`); }
-    if (vendor_name)    { params.push(`%${vendor_name}%`); conditions.push(`COALESCE(b.vendor_name,'') ILIKE $${params.length}`); }
+    if (vendor_name)    { params.push(`%${vendor_name}%`); conditions.push(`COALESCE(v.vendor_name,'') ILIKE $${params.length}`); }
 
     params.push(Math.min(parseInt(limit, 10) || 200, 500));
     const where = conditions.join(' AND ');
@@ -1202,12 +1202,13 @@ async function listPayments(req, res) {
         p.recorded_by,
         p.created_at,
         b.bill_id,
-        b.vendor_name,
+        v.vendor_name,
         COALESCE(b.category_group, 'OPERATIONS') AS category_group,
         b.total_amount AS bill_total,
         d.document_id
       FROM payments p
       LEFT JOIN bills b ON p.bill_id = b.bill_id
+      LEFT JOIN vendors v ON b.vendor_id = v.vendor_id
       LEFT JOIN documents d ON b.document_id = d.document_id
       WHERE ${where}
       ORDER BY p.payment_date DESC, p.payment_id DESC

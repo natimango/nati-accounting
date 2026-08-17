@@ -34,9 +34,9 @@ async function getQualitySummary(req, res) {
     const missingResult = await pool.query(
       `
       SELECT
-        COALESCE(SUM(bi.amount), 0) FILTER (WHERE bi.coa_account_id IS NULL) AS missing_coa_amount,
-        COALESCE(SUM(bi.amount), 0) FILTER (WHERE bi.department_id IS NULL) AS missing_department_amount,
-        COALESCE(SUM(bi.amount), 0) FILTER (WHERE bi.drop_id IS NULL) AS missing_drop_amount
+        COALESCE(SUM(bi.amount) FILTER (WHERE bi.coa_account_id IS NULL), 0) AS missing_coa_amount,
+        COALESCE(SUM(bi.amount) FILTER (WHERE bi.department_id IS NULL), 0) AS missing_department_amount,
+        COALESCE(SUM(bi.amount) FILTER (WHERE bi.drop_id IS NULL), 0) AS missing_drop_amount
       FROM bill_items bi
       WHERE bi.is_postable
         AND bi.posting_status <> 'posted'

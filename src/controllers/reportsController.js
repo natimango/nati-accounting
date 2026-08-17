@@ -168,13 +168,13 @@ async function getProfitLoss(req, res) {
         [startDate, endDate]
       );
       const secBills = await pool.query(
-        `SELECT section, category_group, SUM(total_amount) AS total
+        `SELECT b.section, b.category_group, SUM(b.total_amount) AS total
          FROM bills b LEFT JOIN documents d ON b.document_id = d.document_id
          WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
            AND ${ACTIVE_BILL_FILTER}
            AND b.section IS NOT NULL
            AND b.category_group IN ('COGS', 'FULFILLMENT')
-         GROUP BY section, category_group`,
+         GROUP BY b.section, b.category_group`,
         [startDate, endDate]
       );
       const secMap = {};
@@ -1208,8 +1208,8 @@ async function getVendorAnalysis(req, res) {
 
     const result = await pool.query(`
       SELECT
-        COALESCE(b.vendor_name, 'Unknown Vendor') AS vendor_name,
-        COALESCE(b.vendor_type, 'Other')          AS vendor_type,
+        COALESCE(v.vendor_name, 'Unknown Vendor') AS vendor_name,
+        COALESCE(v.vendor_type, 'Other')          AS vendor_type,
         COALESCE(b.category_group, 'OPERATIONS')  AS category_group,
         COUNT(*)                                   AS bill_count,
         SUM(b.total_amount)                        AS total_spend,
@@ -1217,10 +1217,11 @@ async function getVendorAnalysis(req, res) {
         MIN(${BILL_DATE_SQL})                      AS first_bill,
         MAX(${BILL_DATE_SQL})                      AS last_bill
       FROM bills b
+      LEFT JOIN vendors v ON b.vendor_id = v.vendor_id
       LEFT JOIN documents d ON b.document_id = d.document_id
       WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
         AND ${ACTIVE_BILL_FILTER}
-      GROUP BY b.vendor_name, b.vendor_type, COALESCE(b.category_group, 'OPERATIONS')
+      GROUP BY v.vendor_name, b.vendor_type, COALESCE(b.category_group, 'OPERATIONS')
       ORDER BY total_spend DESC NULLS LAST
       LIMIT 100
     `, [startDate, endDate]);
@@ -1391,7 +1392,7 @@ async function getPaymentForecast(req, res) {
         ps.due_date,
         ps.amount_due - COALESCE(ps.amount_paid, 0) AS balance_due,
         ps.payment_status,
-        COALESCE(b.vendor_name, v.vendor_name, 'Unknown') AS vendor_name,
+        COALESCE(v.vendor_name, 'Unknown') AS vendor_name,
         b.bill_number,
         b.category_group,
         b.drop_name,
@@ -1516,8 +1517,8 @@ async function getPurchaseRegister(req, res) {
         b.bill_id,
         b.bill_number,
         ${BILL_DATE_SQL} AS bill_date,
-        COALESCE(b.vendor_name, v.vendor_name, 'Unknown') AS vendor_name,
-        COALESCE(v.gstin, b.vendor_gstin) AS vendor_gstin,
+        COALESCE(v.vendor_name, 'Unknown') AS vendor_name,
+        v.gstin AS vendor_gstin,
         b.category_group,
         b.drop_name,
         COALESCE(b.total_amount, 0) AS total_amount,
@@ -1567,7 +1568,7 @@ async function getAPAging(req, res) {
       WITH outstanding AS (
         SELECT
           b.bill_id,
-          COALESCE(b.vendor_name, v.vendor_name, 'Unknown') AS vendor_name,
+          COALESCE(v.vendor_name, 'Unknown') AS vendor_name,
           b.bill_number,
           b.total_amount,
           b.bill_date,
