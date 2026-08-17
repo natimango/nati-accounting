@@ -1810,11 +1810,11 @@ function viewDocument(id, fileName, fileType) {
         previewContent.innerHTML = `<div class="flex items-center justify-center"><img src="${API_URL}/files/${id}" alt="${fileName}" class="max-w-full max-h-[70vh] object-contain"></div>`;
     }
     
-    modal.classList.remove('hidden');
+    modal.classList.add('modal-open');
 }
 
 function closePreview() {
-    document.getElementById('preview-modal').classList.add('hidden');
+    document.getElementById('preview-modal').classList.remove('modal-open');
 }
 
 function downloadDocument(id) {
