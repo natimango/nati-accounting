@@ -329,8 +329,9 @@ function renderVendorDetail(name, vData, docs, payments) {
                         ${vData?.last_bill ? `<span class="text-xs text-slate-400"><i class="fas fa-calendar mr-1"></i>Last bill: ${vData.last_bill}</span>` : ''}
                     </div>
                 </div>
-                <div class="text-right">
+                <div class="text-right flex flex-col items-end gap-1.5">
                     <a href="documents.html?q=${encodeURIComponent(name)}" class="text-xs text-indigo-600 hover:underline"><i class="fas fa-folder-open mr-1"></i>View all docs</a>
+                    ${_vendorRecord ? `<button onclick="openMergeVendor()" class="text-xs text-slate-400 hover:text-amber-600 border border-slate-200 hover:border-amber-300 rounded-lg px-2 py-1 transition"><i class="fas fa-code-merge mr-1"></i>Merge into…</button>` : ''}
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-3 mt-4">
@@ -590,6 +591,83 @@ document.getElementById('create-vendor-modal').addEventListener('keydown', e => 
 </div>
 </div>
 
+
+<!-- Merge Vendor Modal -->
+<div id="merge-vendor-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-slate-800">Merge Vendor</h3>
+            <button onclick="closeMergeVendor()" class="text-slate-400 hover:text-slate-700"><i class="fas fa-times"></i></button>
+        </div>
+        <p class="text-sm text-slate-600 mb-1">All bills from <strong id="mv-from-name" class="text-slate-800"></strong> will be reassigned to the target vendor, and the source will be archived.</p>
+        <p class="text-xs text-amber-600 mb-4"><i class="fas fa-triangle-exclamation mr-1"></i>This action cannot be undone.</p>
+        <label class="block text-xs text-slate-500 mb-1">Merge into vendor *</label>
+        <select id="mv-target" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm mb-4 focus:ring-2 focus:ring-indigo-500">
+            <option value="">— Select target vendor —</option>
+        </select>
+        <div class="flex items-center gap-3">
+            <button onclick="submitMergeVendor()" class="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-semibold hover:bg-amber-700">Merge</button>
+            <button onclick="closeMergeVendor()" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm hover:bg-slate-50">Cancel</button>
+            <span id="mv-msg" class="text-xs text-slate-400 ml-1"></span>
+        </div>
+    </div>
+</div>
+
+<script>
+function openMergeVendor() {
+    if (!_vendorRecord) return;
+    document.getElementById('mv-from-name').textContent = _vendorRecord.vendor_name;
+    document.getElementById('mv-msg').textContent = '';
+    const sel = document.getElementById('mv-target');
+    sel.innerHTML = '<option value="">— Select target vendor —</option>' +
+        _vendors
+            .filter(v => v.vendor_name !== _vendorRecord.vendor_name)
+            .map(v => `<option value="${v.vendor_id || ''}" data-name="${v.vendor_name.replace(/"/g,'&quot;')}">${v.vendor_name}</option>`)
+            .join('');
+    // Populate vendor_ids if missing (from the vendors endpoint)
+    authFetch(`${API}/vendors`).then(r => r.json()).then(d => {
+        const byName = {};
+        (d.vendors || []).forEach(v => { byName[v.vendor_name] = v.vendor_id; });
+        Array.from(sel.options).forEach(opt => {
+            if (opt.value === '' && opt.dataset.name && byName[opt.dataset.name]) {
+                opt.value = byName[opt.dataset.name];
+            }
+        });
+        // Rebuild with proper IDs
+        sel.innerHTML = '<option value="">— Select target vendor —</option>' +
+            (d.vendors || [])
+                .filter(v => v.vendor_id !== _vendorRecord.vendor_id)
+                .map(v => `<option value="${v.vendor_id}">${v.vendor_name}</option>`)
+                .join('');
+    }).catch(() => {});
+    document.getElementById('merge-vendor-modal').classList.remove('hidden');
+}
+
+function closeMergeVendor() {
+    document.getElementById('merge-vendor-modal').classList.add('hidden');
+}
+
+async function submitMergeVendor() {
+    const msg = document.getElementById('mv-msg');
+    const targetId = document.getElementById('mv-target').value;
+    if (!targetId) { msg.className = 'text-xs text-red-500'; msg.textContent = 'Select a target vendor.'; return; }
+    msg.className = 'text-xs text-slate-400'; msg.textContent = 'Merging…';
+    try {
+        const r = await authFetch(`${API}/vendors/${_vendorRecord.vendor_id}/merge`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ merge_into_vendor_id: parseInt(targetId, 10) })
+        }).then(r => r.json());
+        if (!r.success) throw new Error(r.error);
+        closeMergeVendor();
+        const targetName = r.merged_into;
+        await loadVendors();
+        selectVendor(targetName);
+    } catch (e) {
+        msg.className = 'text-xs text-red-500'; msg.textContent = e.message;
+    }
+}
+</script>
 
 <script src="js/session.js" defer></script>
 <script src="js/nav.js" defer></script>

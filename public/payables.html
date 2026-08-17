@@ -930,6 +930,7 @@ function renderRecurringList() {
                 ${t.is_active ? `<button onclick="spawnRecurring(${t.template_id})" title="Generate bill now" class="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs hover:bg-emerald-700"><i class="fas fa-plus mr-1"></i>Spawn Bill</button>` : ''}
                 <button onclick="editRecurring(${t.template_id})" class="px-2.5 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-xs hover:bg-slate-50"><i class="fas fa-pencil"></i></button>
                 <button onclick="toggleRecurring(${t.template_id}, ${!t.is_active})" class="px-2.5 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-xs hover:bg-slate-50" title="${t.is_active ? 'Pause' : 'Activate'}"><i class="fas fa-${t.is_active ? 'pause' : 'play'}"></i></button>
+                <button onclick="deleteRecurring(${t.template_id})" class="px-2.5 py-1.5 border border-red-100 text-red-400 rounded-lg text-xs hover:bg-red-50 hover:text-red-600" title="Delete template"><i class="fas fa-trash"></i></button>
             </div>
         </div>`;
     }).join('');
@@ -1013,6 +1014,19 @@ async function toggleRecurring(id, makeActive) {
             body: JSON.stringify({ is_active: makeActive })
         }).then(r => r.json());
         if (!data.success) throw new Error(data.error || 'Update failed');
+        _recurringLoaded = false;
+        loadRecurringTemplates();
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function deleteRecurring(id) {
+    if (!confirm('Delete this recurring template? This cannot be undone.')) return;
+    try {
+        const data = await authFetch(`${API}/recurring/templates/${id}`, { method: 'DELETE' }).then(r => r.json());
+        if (!data.success) throw new Error(data.error || 'Delete failed');
+        showToast('Template deleted');
         _recurringLoaded = false;
         loadRecurringTemplates();
     } catch (e) {

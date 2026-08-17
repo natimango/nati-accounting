@@ -1348,8 +1348,13 @@ async function recategorizeBill(billId) {
 // Get all documents
 const getDocuments = async (req, res) => {
   try {
+    const limitRaw  = parseInt(req.query.limit,  10);
+    const offsetRaw = parseInt(req.query.offset, 10);
+    const limitClause  = Number.isFinite(limitRaw)  && limitRaw  > 0 ? `LIMIT ${limitRaw}`         : '';
+    const offsetClause = Number.isFinite(offsetRaw) && offsetRaw > 0 ? `OFFSET ${offsetRaw}` : '';
+
     const result = await pool.query(
-      `SELECT 
+      `SELECT
         d.*,
         d.payment_method AS document_payment_method,
         v.vendor_name,
@@ -1421,7 +1426,7 @@ const getDocuments = async (req, res) => {
          FROM payments
          WHERE bill_id = b.bill_id
        ) paid ON true
-       ORDER BY d.uploaded_at DESC`
+       ORDER BY d.uploaded_at DESC ${limitClause} ${offsetClause}`
     );
     const userId = req.user?.userId;
     const role = req.user?.role || 'uploader';
@@ -1466,7 +1471,8 @@ const getDocuments = async (req, res) => {
     res.json({
       success: true,
       documents: docs,
-      count: docs.length
+      count: docs.length,
+      ...(Number.isFinite(limitRaw) && { limit: limitRaw, offset: offsetRaw || 0 }),
     });
   } catch (error) {
     console.error('Get documents error:', error);
