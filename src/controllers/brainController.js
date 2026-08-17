@@ -574,10 +574,8 @@ async function getAlerts(req, res) {
   }
 }
 
-async function runBudgetAlerts(req, res) {
-  try {
-    const actor = (req.user && (req.user.email || req.user.name)) || 'system';
-    const budgets = await pool.query(`
+async function runBudgetAlertsJob(actor = 'system') {
+  const budgets = await pool.query(`
       SELECT db.drop_name,
              db.department AS category_group,
              db.amount,
@@ -620,7 +618,14 @@ async function runBudgetAlerts(req, res) {
     }
 
     const verificationCreated = await evaluateVerificationAlerts(actor);
-    res.json({ success: true, created: created + verificationCreated });
+    return created + verificationCreated;
+}
+
+async function runBudgetAlerts(req, res) {
+  try {
+    const actor = (req.user && (req.user.email || req.user.name)) || 'system';
+    const created = await runBudgetAlertsJob(actor);
+    res.json({ success: true, created });
   } catch (err) {
     console.error('runBudgetAlerts error', err);
     res.status(500).json({ error: 'Failed to evaluate budgets' });
@@ -1162,6 +1167,7 @@ module.exports = {
   getWatchdog,
   getAlerts,
   runBudgetAlerts,
+  runBudgetAlertsJob,
   getAlertSummary,
   getGuardrails,
   checkInvariants,

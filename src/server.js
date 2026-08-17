@@ -153,8 +153,23 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
+async function runAlertsCron() {
+  try {
+    const { runBudgetAlertsJob } = require('./controllers/brainController');
+    const count = await runBudgetAlertsJob('system');
+    console.log(`[cron] Brain alerts refreshed — ${count} alert(s) created/updated`);
+  } catch (err) {
+    console.error('[cron] Alert run failed:', err.message);
+  }
+}
+
 app.listen(PORT, async () => {
   await runMigrations();
+
+  // Run alerts immediately on start, then every 6 hours
+  runAlertsCron();
+  setInterval(runAlertsCron, 6 * 60 * 60 * 1000);
+
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('🚀 NATI Accounting System Started!');
   console.log(`📍 Dashboard: http://localhost:${PORT}`);
