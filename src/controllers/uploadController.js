@@ -1350,14 +1350,32 @@ const getDocuments = async (req, res) => {
   try {
     const limitRaw  = parseInt(req.query.limit,  10);
     const offsetRaw = parseInt(req.query.offset, 10);
-    const limitClause  = Number.isFinite(limitRaw)  && limitRaw  > 0 ? `LIMIT ${limitRaw}`         : '';
-    const offsetClause = Number.isFinite(offsetRaw) && offsetRaw > 0 ? `OFFSET ${offsetRaw}` : '';
+    const limit  = Number.isFinite(limitRaw)  && limitRaw  > 0 ? limitRaw  : 200;
+    const offset = Number.isFinite(offsetRaw) && offsetRaw >= 0 ? offsetRaw : 0;
+    const search = (req.query.search || '').trim();
 
+    // Build optional search WHERE clause
+    const params = [limit, offset];
+    let searchClause = '';
+    if (search) {
+      params.push(`%${search.toLowerCase()}%`);
+      const idx = params.length;
+      searchClause = `AND (
+        LOWER(d.file_name) LIKE $${idx}
+        OR LOWER(v.vendor_name) LIKE $${idx}
+        OR LOWER(b.bill_number) LIKE $${idx}
+        OR LOWER(b.category) LIKE $${idx}
+        OR LOWER(b.drop_name) LIKE $${idx}
+      )`;
+    }
+
+    // Single-pass aggregation — no correlated laterals
     const result = await pool.query(
       `SELECT
         d.*,
         d.payment_method AS document_payment_method,
         v.vendor_name,
+        v.vendor_name AS bill_vendor_name,
         b.bill_id,
         b.bill_number,
         b.bill_date,
@@ -1375,74 +1393,65 @@ const getDocuments = async (req, res) => {
         b.channel,
         b.campaign,
         b.department,
-        b.status as bill_status,
+        b.status AS bill_status,
         b.payment_status AS bill_payment_status,
         b.payment_status,
-        pt.payment_type AS bill_payment_type,
-        pt.advance_percentage AS bill_advance_percentage,
-        pt.terms_text AS bill_payment_terms_text,
-        ps.due_date AS bill_payment_due_date,
-        COALESCE(unposted.unposted_amount, 0) AS unposted_amount,
-        COALESCE(unposted.unposted_count, 0) AS unposted_line_count,
-        GREATEST(0, COALESCE(b.total_amount, 0) - COALESCE(paid.total_paid, 0)) AS outstanding_amount,
-        v.vendor_name AS bill_vendor_name
+        b.outstanding_amount,
+        -- Aggregated bill_items (one pass, uses composite index)
+        COALESCE(bi_agg.unposted_count,    0) AS unposted_line_count,
+        COALESCE(bi_agg.unposted_amount,   0) AS unposted_amount,
+        COALESCE(bi_agg.missing_dims,      0) AS missing_dims_count,
+        -- Latest payment terms via aggregation
+        pt_agg.payment_type       AS bill_payment_type,
+        pt_agg.advance_percentage AS bill_advance_percentage,
+        pt_agg.terms_text         AS bill_payment_terms_text,
+        -- Earliest pending due date
+        ps_agg.due_date           AS bill_payment_due_date
        FROM documents d
        LEFT JOIN bills b ON b.document_id = d.document_id
        LEFT JOIN vendors v ON b.vendor_id = v.vendor_id
-       LEFT JOIN LATERAL (
-         SELECT payment_type, advance_percentage, terms_text
-         FROM payment_terms
-         WHERE bill_id = b.bill_id
-         ORDER BY term_id DESC
-         LIMIT 1
-       ) pt ON true
-       LEFT JOIN LATERAL (
-         SELECT due_date
-         FROM payment_schedule
-         WHERE bill_id = b.bill_id
-         ORDER BY due_date ASC
-         LIMIT 1
-       ) ps ON true
-       LEFT JOIN LATERAL (
+       -- Single aggregation over bill_items (replaces 2 laterals)
+       LEFT JOIN (
          SELECT
-           COUNT(*) FILTER (WHERE bi.is_postable AND bi.posting_status <> 'posted') AS unposted_count,
-           COALESCE(SUM(bi.amount) FILTER (WHERE bi.is_postable AND bi.posting_status <> 'posted'), 0) AS unposted_amount
-         FROM bill_items bi
-         WHERE bi.bill_id = b.bill_id
-       ) unposted ON true
-        LEFT JOIN LATERAL (
-          SELECT COUNT(*) AS missing_dims_count
-          FROM bill_items bi
-          WHERE bi.bill_id = b.bill_id
-            AND bi.is_postable
-            AND (
-              bi.coa_account_id IS NULL
-              OR bi.department_id IS NULL
-              OR bi.drop_id IS NULL
-            )
-        ) dims ON true
-       LEFT JOIN LATERAL (
-         SELECT COALESCE(SUM(amount_paid), 0) AS total_paid
-         FROM payments
-         WHERE bill_id = b.bill_id
-       ) paid ON true
-       ORDER BY d.uploaded_at DESC ${limitClause} ${offsetClause}`
+           bill_id,
+           COUNT(*) FILTER (WHERE is_postable AND posting_status <> 'posted')  AS unposted_count,
+           SUM(amount) FILTER (WHERE is_postable AND posting_status <> 'posted') AS unposted_amount,
+           COUNT(*) FILTER (WHERE is_postable AND (coa_account_id IS NULL OR department_id IS NULL OR drop_id IS NULL)) AS missing_dims
+         FROM bill_items
+         GROUP BY bill_id
+       ) bi_agg ON bi_agg.bill_id = b.bill_id
+       -- Latest payment terms (replaces 1 lateral)
+       LEFT JOIN (
+         SELECT DISTINCT ON (bill_id)
+           bill_id, payment_type, advance_percentage, terms_text
+         FROM payment_terms
+         ORDER BY bill_id, term_id DESC
+       ) pt_agg ON pt_agg.bill_id = b.bill_id
+       -- Earliest pending due date (replaces 1 lateral)
+       LEFT JOIN (
+         SELECT DISTINCT ON (bill_id)
+           bill_id, due_date
+         FROM payment_schedule
+         WHERE payment_status = 'pending'
+         ORDER BY bill_id, due_date ASC
+       ) ps_agg ON ps_agg.bill_id = b.bill_id
+       WHERE 1=1 ${searchClause}
+       ORDER BY d.uploaded_at DESC
+       LIMIT $1 OFFSET $2`,
+      params
     );
+
     const userId = req.user?.userId;
     const role = req.user?.role || 'uploader';
     const canManageAll = role === 'manager' || role === 'admin';
+
     const docs = result.rows.map((row) => {
       const parsedGemini = safeParseJSON(row.gemini_data);
-      if (parsedGemini) {
-        row.gemini_data = parsedGemini;
-      }
-      const effectivePayment =
-        row.bill_payment_method ||
-        row.document_payment_method ||
-        row.payment_method ||
-        null;
-      row.payment_method = effectivePayment;
+      if (parsedGemini) row.gemini_data = parsedGemini;
+
+      row.payment_method = row.bill_payment_method || row.document_payment_method || row.payment_method || null;
       row.category = row.bill_category || row.document_category || row.category;
+
       if (row.bill_payment_type || row.bill_advance_percentage || row.bill_payment_due_date || row.bill_payment_terms_text) {
         row.payment_terms = {
           type: row.bill_payment_type || 'FULL',
@@ -1451,29 +1460,23 @@ const getDocuments = async (req, res) => {
           description: row.bill_payment_terms_text || null
         };
       }
-      const ownsDoc = row.uploaded_by === userId;
-      const verification = buildVerificationSnapshot(row);
-      // Coerce BigInt/string counts to numbers so JSON.stringify doesn't throw
-      row.unposted_count    = Number(row.unposted_count    || 0);
-      row.unposted_amount   = Number(row.unposted_amount   || 0);
-      row.outstanding_amount = Number(row.outstanding_amount || 0);
-      row.missing_dims_count = Number(row.missing_dims_count || 0);
+
+      row.unposted_count     = Number(row.unposted_line_count || 0);
+      row.unposted_amount    = Number(row.unposted_amount     || 0);
+      row.outstanding_amount = Number(row.outstanding_amount  || 0);
+      row.missing_dims_count = Number(row.missing_dims_count  || 0);
+
       return {
         ...row,
-        can_delete: canManageAll || ownsDoc,
+        can_delete: canManageAll || row.uploaded_by === userId,
         can_manual: canManageAll,
         can_process: canManageAll,
-        verification,
+        verification: buildVerificationSnapshot(row),
         missing_dimensions: row.missing_dims_count || 0
       };
     });
 
-    res.json({
-      success: true,
-      documents: docs,
-      count: docs.length,
-      ...(Number.isFinite(limitRaw) && { limit: limitRaw, offset: offsetRaw || 0 }),
-    });
+    res.json({ success: true, documents: docs, count: docs.length, limit, offset });
   } catch (error) {
     console.error('Get documents error:', error);
     res.status(500).json({ error: error.message });

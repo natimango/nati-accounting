@@ -310,9 +310,16 @@ function getDocDate(doc) {
     return doc.bill_date || doc.gemini_data?.bill_date || doc.uploaded_at;
 }
 
-async function loadDocuments() {
+const PAGE_SIZE = 150;
+let _searchDebounce = null;
+let _lastSearch = '';
+
+async function loadDocuments(search) {
+    const q = (search !== undefined ? search : document.getElementById('search-box')?.value || '').trim();
     try {
-        const response = await authFetch(`${API_URL}/documents`);
+        const qs = new URLSearchParams({ limit: PAGE_SIZE, offset: 0 });
+        if (q) qs.set('search', q);
+        const response = await authFetch(`${API_URL}/documents?${qs}`);
         if (!response.ok) {
             const errText = await response.text();
             showLoadError(`API ${response.status}: ${errText}`);
@@ -340,6 +347,19 @@ async function loadDocuments() {
         console.error('Error loading documents:', error);
         showLoadError(error.message);
     }
+}
+
+function scheduleSearch() {
+    clearTimeout(_searchDebounce);
+    _searchDebounce = setTimeout(() => {
+        const q = document.getElementById('search-box')?.value.trim() || '';
+        if (q !== _lastSearch) {
+            _lastSearch = q;
+            loadDocuments(q);
+        } else {
+            filterDocuments();
+        }
+    }, 300);
 }
 
 function showLoadError(msg) {
@@ -2075,8 +2095,9 @@ function clearFilters() {
         .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     populateCategoryDropdown('');
     verificationFilter = 'all';
+    _lastSearch = '';
     renderVerificationFilters();
-    filterDocuments();
+    loadDocuments('');
 }
 
 function sortDocuments() {
