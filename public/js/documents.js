@@ -329,7 +329,7 @@ async function loadDocuments() {
                 if (el) el.value = window._pendingDropFilter;
                 window._pendingDropFilter = null;
             }
-            displayDocuments(filteredDocuments);
+            filterDocuments();
             await loadVerificationSummary();
             updateDocCount();
             renderCalendar();
