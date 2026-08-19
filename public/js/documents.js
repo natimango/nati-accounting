@@ -628,8 +628,6 @@ function renderTable(documents) {
 let selectedDocId = null;
 function selectDocument(id) {
     selectedDocId = id;
-    const doc = filteredDocuments.find(d => d.document_id === id);
-    renderDetail(doc);
 }
 
 // ── Bulk selection ────────────────────────────────────────────────────────────
@@ -2158,7 +2156,6 @@ function updateFilterSummary() {
     }
 
     renderTable(filteredDocuments);
-    renderDetail(filteredDocuments[0]);
 }
 
 async function deleteDocument(id) {
