@@ -1350,7 +1350,7 @@ const getDocuments = async (req, res) => {
   try {
     const limitRaw  = parseInt(req.query.limit,  10);
     const offsetRaw = parseInt(req.query.offset, 10);
-    const limit  = Number.isFinite(limitRaw)  && limitRaw  > 0 ? limitRaw  : 200;
+    const limit  = Number.isFinite(limitRaw)  && limitRaw  > 0 ? limitRaw  : 2000;
     const offset = Number.isFinite(offsetRaw) && offsetRaw >= 0 ? offsetRaw : 0;
     const search = (req.query.search || '').trim();
 

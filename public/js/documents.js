@@ -310,7 +310,7 @@ function getDocDate(doc) {
     return doc.bill_date || doc.gemini_data?.bill_date || doc.uploaded_at;
 }
 
-const PAGE_SIZE = 150;
+const PAGE_SIZE = 1000;
 let _searchDebounce = null;
 let _lastSearch = '';
 
