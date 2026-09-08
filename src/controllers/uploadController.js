@@ -1971,6 +1971,45 @@ const deleteDocumentComment = async (req, res) => {
   }
 };
 
+const getDashboardStats = async (req, res) => {
+  try {
+    const [counts, payables, recent] = await Promise.all([
+      pool.query(`
+        SELECT
+          COUNT(*) AS total_bills,
+          COUNT(*) FILTER (WHERE uploaded_at >= date_trunc('month', NOW())) AS bills_this_month,
+          COUNT(*) FILTER (WHERE status IN ('uploaded', 'manual_required')) AS pending_review
+        FROM documents
+      `),
+      pool.query(`
+        SELECT
+          COALESCE(SUM(ps.amount_due) FILTER (WHERE ps.due_date < NOW() AND ps.payment_status = 'unpaid'), 0) AS overdue_amount,
+          COUNT(*) FILTER (WHERE ps.due_date < NOW() AND ps.payment_status = 'unpaid') AS overdue_count,
+          COALESCE(SUM(ps.amount_due) FILTER (WHERE ps.due_date BETWEEN NOW() AND NOW() + INTERVAL '7 days' AND ps.payment_status = 'unpaid'), 0) AS due_7d,
+          COALESCE(SUM(ps.amount_due) FILTER (WHERE ps.due_date BETWEEN NOW() AND NOW() + INTERVAL '30 days' AND ps.payment_status = 'unpaid'), 0) AS due_30d,
+          COALESCE(SUM(ps.amount_due) FILTER (WHERE ps.payment_status = 'unpaid'), 0) AS total_outstanding
+        FROM payment_schedule ps
+      `),
+      pool.query(`
+        SELECT d.document_id, d.file_name, d.status, d.uploaded_at, d.file_type,
+          b.vendor_name AS bill_vendor_name, b.total_amount AS bill_total_amount,
+          b.category_group AS bill_category_group
+        FROM documents d
+        LEFT JOIN bills b ON b.document_id = d.document_id
+        ORDER BY d.uploaded_at DESC LIMIT 8
+      `),
+    ]);
+    res.json({
+      success: true,
+      stats: counts.rows[0],
+      payables: payables.rows[0],
+      recent_docs: recent.rows,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 module.exports = {
   upload,
   uploadBill,
@@ -1987,5 +2026,6 @@ module.exports = {
   createDocumentComment,
   deleteDocumentComment,
   canAttemptReprocess,
-  buildVerificationSnapshot
+  buildVerificationSnapshot,
+  getDashboardStats,
 };

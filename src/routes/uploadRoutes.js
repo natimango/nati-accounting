@@ -15,11 +15,15 @@ const {
   recategorizeAllBills,
   getDocumentComments,
   createDocumentComment,
-  deleteDocumentComment
+  deleteDocumentComment,
+  getDashboardStats,
 } = require('../controllers/uploadController');
 const { authorize } = require('../middleware/auth');
 
 router.use(authorize('uploader', 'manager', 'admin'));
+
+// Lightweight dashboard stats (counts + payables + recent docs)
+router.get('/dashboard/stats', getDashboardStats);
 
 // Upload bill
 router.post('/upload', upload.single('bill'), uploadBill);
