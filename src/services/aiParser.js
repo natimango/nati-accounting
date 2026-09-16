@@ -140,6 +140,7 @@ function normalizeAiResponse(aiData, heuristicData) {
 
   const normalized = {
     vendor_name: aiData.vendor_name || heuristicData?.vendor_name || null,
+    vendor_gstin: aiData.vendor_gstin || null,
     bill_number: aiData.bill_number || heuristicData?.bill_number || null,
     bill_date: billDateField.value || heuristicData?.bill_date || null,
     amounts: {
@@ -153,6 +154,11 @@ function normalizeAiResponse(aiData, heuristicData) {
         ? totalField.value
         : (heuristicData?.amounts?.total || 0)
     },
+    cgst_amount: asNumber(aiData.cgst_amount),
+    sgst_amount: asNumber(aiData.sgst_amount),
+    igst_amount: asNumber(aiData.igst_amount),
+    gst_rate: asNumber(aiData.gst_rate),
+    hsn_code: aiData.hsn_code || null,
     payment_terms: aiData.payment_terms || null,
     confidence: totalField.confidence != null
       ? totalField.confidence

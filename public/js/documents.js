@@ -2406,6 +2406,8 @@ function populateManualForm(doc, billLineItems) {
 
     const vendorName = doc.bill_vendor_name || doc.vendor_name || gemData.vendor_name || '';
     document.getElementById('manual-vendor-name').value = vendorName;
+    const gstinEl = document.getElementById('manual-vendor-gstin');
+    if (gstinEl) gstinEl.value = doc.vendor_gstin || doc.bill_vendor_gstin || gemData.vendor_gstin || '';
 
     document.getElementById('manual-bill-number').value = doc.bill_number || gemData.bill_number || '';
     const rawBillDate = doc.bill_date || gemData.bill_date || '';
@@ -2420,6 +2422,12 @@ function populateManualForm(doc, billLineItems) {
     const taxGuess = (doc.bill_tax_amount ?? doc.tax_amount ?? amounts.tax_amount ??
         ((amounts.cgst || 0) + (amounts.sgst || 0) + (amounts.igst || 0))) || '';
     document.getElementById('manual-tax').value = taxGuess;
+
+    document.getElementById('manual-cgst').value = doc.cgst_amount ?? doc.bill_cgst_amount ?? amounts.cgst ?? '';
+    document.getElementById('manual-sgst').value = doc.sgst_amount ?? doc.bill_sgst_amount ?? amounts.sgst ?? '';
+    document.getElementById('manual-igst').value = doc.igst_amount ?? doc.bill_igst_amount ?? amounts.igst ?? '';
+    document.getElementById('manual-gst-rate').value = doc.gst_rate ?? doc.bill_gst_rate ?? '';
+    document.getElementById('manual-hsn').value = doc.hsn_code ?? doc.bill_hsn_code ?? '';
 
     const totalGuess = (doc.bill_total_amount ?? doc.total_amount ?? amounts.total) || '';
     document.getElementById('manual-total').value = totalGuess;
@@ -2585,6 +2593,7 @@ async function submitManual(event) {
 
     const payload = {
         vendor_name: document.getElementById('manual-vendor-name').value.trim(),
+        vendor_gstin: (document.getElementById('manual-vendor-gstin')?.value || '').trim().toUpperCase() || null,
         bill_number: document.getElementById('manual-bill-number').value.trim(),
         bill_date: document.getElementById('manual-bill-date').value || null,
         category: document.getElementById('manual-category').value || 'misc',
@@ -2593,6 +2602,11 @@ async function submitManual(event) {
         section: document.getElementById('manual-section').value || null,
         subtotal: parseFloat(document.getElementById('manual-subtotal').value || 0),
         tax_amount: parseFloat(document.getElementById('manual-tax').value || 0),
+        cgst_amount: document.getElementById('manual-cgst').value !== '' ? parseFloat(document.getElementById('manual-cgst').value) : null,
+        sgst_amount: document.getElementById('manual-sgst').value !== '' ? parseFloat(document.getElementById('manual-sgst').value) : null,
+        igst_amount: document.getElementById('manual-igst').value !== '' ? parseFloat(document.getElementById('manual-igst').value) : null,
+        gst_rate: document.getElementById('manual-gst-rate').value !== '' ? parseFloat(document.getElementById('manual-gst-rate').value) : null,
+        hsn_code: document.getElementById('manual-hsn').value.trim() || null,
         total_amount: parseFloat(document.getElementById('manual-total').value || 0),
         payment_method: document.getElementById('manual-payment-method').value || '',
         payment_terms: {

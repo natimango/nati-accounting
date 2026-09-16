@@ -103,6 +103,11 @@ async function processBillManual(req, res) {
       tags,
       subtotal,
     tax_amount,
+    cgst_amount,
+    sgst_amount,
+    igst_amount,
+    gst_rate,
+    hsn_code,
     total_amount,
     payment_terms,
     line_items = [],
@@ -194,7 +199,7 @@ async function processBillManual(req, res) {
     if (existingBill.rows.length > 0) {
       billId = existingBill.rows[0].bill_id;
       await pool.query(
-        `UPDATE bills SET 
+        `UPDATE bills SET
            vendor_id = $1,
            bill_number = $2,
            bill_date = $3,
@@ -213,7 +218,12 @@ async function processBillManual(req, res) {
            department = $16,
            tags = $17::jsonb,
            payment_method = $18,
-           section = $19
+           section = $19,
+           cgst_amount = $21,
+           sgst_amount = $22,
+           igst_amount = $23,
+           gst_rate = $24,
+           hsn_code = $25
          WHERE bill_id = $20`,
         [
           vendorId,
@@ -235,17 +245,23 @@ async function processBillManual(req, res) {
           tagsValue ? JSON.stringify(tagsValue) : null,
           normalizedPayment,
           section || null,
-          billId
+          billId,
+          cgst_amount != null ? Number(cgst_amount) : null,
+          sgst_amount != null ? Number(sgst_amount) : null,
+          igst_amount != null ? Number(igst_amount) : null,
+          gst_rate != null ? Number(gst_rate) : null,
+          hsn_code || null
         ]
       );
       // Clear old line items so we can replace with the manual ones
       await pool.query('DELETE FROM bill_items WHERE bill_id = $1', [billId]);
     } else {
       const billResult = await pool.query(
-        `INSERT INTO bills 
-         (document_id, vendor_id, bill_number, bill_date, subtotal, tax_amount, total_amount, 
-          category, category_group, confidence_score, status, payment_status, drop_name, trip_name, channel, campaign, department, tags, payment_method, section)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb, $19, $20)
+        `INSERT INTO bills
+         (document_id, vendor_id, bill_number, bill_date, subtotal, tax_amount, total_amount,
+          category, category_group, confidence_score, status, payment_status, drop_name, trip_name, channel, campaign, department, tags, payment_method, section,
+          cgst_amount, sgst_amount, igst_amount, gst_rate, hsn_code)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb, $19, $20, $21, $22, $23, $24, $25)
          RETURNING bill_id`,
         [
           document_id,
@@ -267,7 +283,12 @@ async function processBillManual(req, res) {
           department || null,
           tagsValue ? JSON.stringify(tagsValue) : null,
           normalizedPayment,
-          section || null
+          section || null,
+          cgst_amount != null ? Number(cgst_amount) : null,
+          sgst_amount != null ? Number(sgst_amount) : null,
+          igst_amount != null ? Number(igst_amount) : null,
+          gst_rate != null ? Number(gst_rate) : null,
+          hsn_code || null
         ]
       );
       billId = billResult.rows[0].bill_id;

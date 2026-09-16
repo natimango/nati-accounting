@@ -46,10 +46,11 @@ async function extractBillFromText(rawText, options = {}) {
     ? `\nAdditional context (use only if it matches the text):\n${hintSections.join('')}`
     : '';
 
-  const prompt = `You are an expert accountant extracting verification-ready metadata from noisy OCR text.
+  const prompt = `You are an expert accountant extracting verification-ready metadata from Indian business invoices (OCR text).
 Return STRICT JSON (no markdown) with this schema:
 {
-  "vendor_name": "Company or null",
+  "vendor_name": "Company name or null",
+  "vendor_gstin": "15-char GSTIN or null",
   "bill_number": "Invoice/bill number or null",
   "bill_date": {
     "value": "YYYY-MM-DD or null",
@@ -62,18 +63,25 @@ Return STRICT JSON (no markdown) with this schema:
     "evidence": "Exact quote from the text or null"
   },
   "subtotal": number or null,
-  "tax_amount": number or null,
+  "cgst_amount": number or null,
+  "sgst_amount": number or null,
+  "igst_amount": number or null,
+  "gst_rate": number or null,
+  "hsn_code": "HSN/SAC code or null",
   "quality_score": 0-100,
   "reason": "Why a field is missing/uncertain or null"
 }
 
 Rules:
-- Your #1 goal is the total payable in INR; treat "Rs", "INR", "₹" as currency markers. Ignore phone numbers, IDs, quantities.
-- Vendor name should be the legal entity on the invoice header; avoid line items or contact names.
-- Bill date must be the invoice/billing date; if ambiguous, return null.
-- subtotal / tax_amount are optional hints; if not explicit, return null.
-- Evidence must be a verbatim snippet from the OCR text (≤140 chars). If no precise quote exists, set evidence to null.
-- Confidence is your certainty that the evidence proves the field; use 0 if value is null.
+- #1 goal: total payable in INR. Treat "Rs", "INR", "₹" as currency markers. Ignore phone numbers, IDs, quantities.
+- Vendor name: legal entity on the invoice header, not line items or contact names.
+- vendor_gstin: 15-character alphanumeric GSTIN (e.g. 27AABCU9603R1ZX). Return null if absent.
+- Bill date: invoice/billing date only; if ambiguous return null.
+- cgst_amount / sgst_amount / igst_amount: the rupee amounts of each GST component as shown on the invoice. Return null if not shown.
+- gst_rate: the percentage GST rate (e.g. 5, 12, 18, 28). Return null if not determinable.
+- hsn_code: the primary HSN or SAC code on the invoice. Return null if absent.
+- Evidence must be a verbatim snippet (≤140 chars). If no precise quote, set evidence to null.
+- Confidence is certainty that evidence proves the field; use 0 if value is null.
 - Do NOT include markdown fences or prose outside the JSON object.
 
 ${hintText}

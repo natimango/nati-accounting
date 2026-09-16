@@ -919,8 +919,9 @@ async function processDocumentWithAI(
     const billUpsert = await pool.query(
       `INSERT INTO bills
          (document_id, vendor_id, bill_number, bill_date, subtotal, tax_amount, total_amount,
-          category, category_group, drop_name, section, confidence_score, status, payment_status, payment_method)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+          category, category_group, drop_name, section, confidence_score, status, payment_status, payment_method,
+          cgst_amount, sgst_amount, igst_amount, gst_rate, hsn_code)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
        ON CONFLICT ON CONSTRAINT ux_bills_document DO UPDATE SET
           vendor_id = EXCLUDED.vendor_id,
           bill_number = EXCLUDED.bill_number,
@@ -935,7 +936,12 @@ async function processDocumentWithAI(
           confidence_score = EXCLUDED.confidence_score,
           status = EXCLUDED.status,
           payment_status = EXCLUDED.payment_status,
-          payment_method = EXCLUDED.payment_method
+          payment_method = EXCLUDED.payment_method,
+          cgst_amount = COALESCE(EXCLUDED.cgst_amount, bills.cgst_amount),
+          sgst_amount = COALESCE(EXCLUDED.sgst_amount, bills.sgst_amount),
+          igst_amount = COALESCE(EXCLUDED.igst_amount, bills.igst_amount),
+          gst_rate = COALESCE(EXCLUDED.gst_rate, bills.gst_rate),
+          hsn_code = COALESCE(EXCLUDED.hsn_code, bills.hsn_code)
        RETURNING bill_id, bill_date, total_amount`,
       [
         document.document_id,
@@ -952,7 +958,12 @@ async function processDocumentWithAI(
         data.confidence || 0.8,
         'approved',
         'pending',
-        effectivePayment
+        effectivePayment,
+        data.cgst_amount ?? null,
+        data.sgst_amount ?? null,
+        data.igst_amount ?? null,
+        data.gst_rate ?? null,
+        data.hsn_code || null
       ]
     );
     const billId = billUpsert.rows[0].bill_id;
