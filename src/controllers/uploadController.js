@@ -800,6 +800,7 @@ async function processDocumentWithAI(
 
     const data = {
       vendor_name: finalVendorName,
+      vendor_gstin: rawData.vendor_gstin || null,
       bill_number: rawData.bill_number || null,
       bill_date: resolvedBillDate,
       amounts: {
@@ -807,6 +808,11 @@ async function processDocumentWithAI(
         tax_amount: rawData?.amounts?.tax_amount || 0,
         total: resolvedTotal
       },
+      cgst_amount:  rawData.cgst_amount  ?? null,
+      sgst_amount:  rawData.sgst_amount  ?? null,
+      igst_amount:  rawData.igst_amount  ?? null,
+      gst_rate:     rawData.gst_rate     ?? null,
+      hsn_code:     rawData.hsn_code     || null,
       payment_terms: rawData.payment_terms || null,
       confidence: rawData.confidence
         || aiTotalCandidate.confidence

@@ -324,7 +324,7 @@ async function getBalanceSheet(req, res) {
 
     // Input Tax Credit = GST on bills (cgst_amount + sgst_amount + igst_amount)
     const itcRow = await pool.query(
-      `SELECT COALESCE(SUM(b.cgst_amount + b.sgst_amount + b.igst_amount), 0) AS itc
+      `SELECT COALESCE(SUM(COALESCE(b.cgst_amount,0) + COALESCE(b.sgst_amount,0) + COALESCE(b.igst_amount,0)), 0) AS itc
        FROM bills b LEFT JOIN documents d ON b.document_id = d.document_id
        WHERE ${BILL_FILTER}`,
       [asOfDate]
