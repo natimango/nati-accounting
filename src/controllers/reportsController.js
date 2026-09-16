@@ -132,7 +132,8 @@ async function getProfitLoss(req, res) {
        FROM bills b
        LEFT JOIN documents d ON b.document_id = d.document_id
        WHERE ${BILL_DATE_SQL} BETWEEN $1 AND $2
-         AND ${ACTIVE_BILL_FILTER}${billExtra}`,
+         AND ${ACTIVE_BILL_FILTER}
+         AND b.status = 'approved'${billExtra}`,
       billParams
     );
     const cgstItc = parseFloat(itcRow.rows[0]?.cgst_itc || 0);
@@ -326,7 +327,7 @@ async function getBalanceSheet(req, res) {
     const itcRow = await pool.query(
       `SELECT COALESCE(SUM(COALESCE(b.cgst_amount,0) + COALESCE(b.sgst_amount,0) + COALESCE(b.igst_amount,0)), 0) AS itc
        FROM bills b LEFT JOIN documents d ON b.document_id = d.document_id
-       WHERE ${BILL_FILTER}`,
+       WHERE ${BILL_FILTER} AND b.status = 'approved'`,
       [asOfDate]
     );
     const itc = parseFloat(itcRow.rows[0].itc);

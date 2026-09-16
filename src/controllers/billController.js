@@ -473,7 +473,7 @@ async function createPaymentSchedule(billId, data = {}) {
   await pool.query('DELETE FROM payment_terms WHERE bill_id = $1', [billId]);
   await pool.query('DELETE FROM payment_schedule WHERE bill_id = $1', [billId]);
 
-  if (!hasActionablePaymentTerms(terms) || (terms.type && terms.type.toUpperCase() !== 'ADVANCE')) {
+  if (!hasActionablePaymentTerms(terms)) {
     return false;
   }
 
@@ -558,9 +558,10 @@ async function createPaymentSchedule(billId, data = {}) {
 // Double-entry accounting for a bill
 async function createAccountingEntries(billId, data, vendorId, options = {}) {
   const category = data.category || 'misc';
-  const subtotal = data.amounts?.subtotal || 0;
-  const taxAmount = data.amounts?.tax_amount || 0;
   const total = data.amounts?.total || 0;
+  const taxAmount = data.amounts?.tax_amount || 0;
+  // Clamp subtotal so debit lines always sum to total
+  const subtotal = Math.max(0, total - taxAmount);
   const createdBy = resolveJournalUser(options.createdBy || data.created_by || null);
 
   const expenseAccount = await getGLAccount(category);
@@ -1038,7 +1039,7 @@ async function voidBill(req, res) {
     await client.query('BEGIN');
     await client.query(`UPDATE bills SET status = 'void' WHERE bill_id = $1`, [bill_id]);
     await client.query(
-      `UPDATE payment_schedule SET status = 'cancelled' WHERE bill_id = $1 AND status NOT IN ('paid','cancelled')`,
+      `UPDATE payment_schedule SET payment_status = 'CANCELLED' WHERE bill_id = $1 AND payment_status NOT IN ('PAID','CANCELLED')`,
       [bill_id]
     );
     if (bill.document_id) {

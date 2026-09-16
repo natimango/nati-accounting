@@ -1138,7 +1138,7 @@ async function createPaymentSchedule(billId, data = {}) {
   await pool.query('DELETE FROM payment_terms WHERE bill_id = $1', [billId]);
   await pool.query('DELETE FROM payment_schedule WHERE bill_id = $1', [billId]);
 
-  if (!hasActionablePaymentTerms(terms) || (terms.type && terms.type.toUpperCase() !== 'ADVANCE')) {
+  if (!hasActionablePaymentTerms(terms)) {
     return false;
   }
 
@@ -1223,9 +1223,10 @@ async function createPaymentSchedule(billId, data = {}) {
 // CREATE DOUBLE-ENTRY ACCOUNTING — one journal entry per bill, replace on reprocess
 async function createAccountingEntries(billId, data, vendorId, options = {}) {
   const category = data.category || 'misc';
-  const subtotal = data.amounts?.subtotal || 0;
-  const taxAmount = data.amounts?.tax_amount || 0;
   const total = data.amounts?.total || 0;
+  const taxAmount = data.amounts?.tax_amount || 0;
+  // Clamp subtotal so debit lines always sum to total (guards against AI extraction inconsistencies)
+  const subtotal = Math.max(0, total - taxAmount);
   const createdBy = resolveJournalUser(options.createdBy || data.created_by || null);
 
   // Delete any existing journal entries for this bill to prevent duplicate AP entries
@@ -2000,11 +2001,11 @@ const getDashboardStats = async (req, res) => {
       `),
       pool.query(`
         SELECT
-          COALESCE(SUM(ps.amount_due) FILTER (WHERE ps.due_date < NOW() AND ps.payment_status = 'unpaid'), 0) AS overdue_amount,
-          COUNT(*) FILTER (WHERE ps.due_date < NOW() AND ps.payment_status = 'unpaid') AS overdue_count,
-          COALESCE(SUM(ps.amount_due) FILTER (WHERE ps.due_date BETWEEN NOW() AND NOW() + INTERVAL '7 days' AND ps.payment_status = 'unpaid'), 0) AS due_7d,
-          COALESCE(SUM(ps.amount_due) FILTER (WHERE ps.due_date BETWEEN NOW() AND NOW() + INTERVAL '30 days' AND ps.payment_status = 'unpaid'), 0) AS due_30d,
-          COALESCE(SUM(ps.amount_due) FILTER (WHERE ps.payment_status = 'unpaid'), 0) AS total_outstanding
+          COALESCE(SUM(ps.amount_due) FILTER (WHERE ps.due_date < NOW() AND ps.payment_status IN ('PENDING','PARTIAL')), 0) AS overdue_amount,
+          COUNT(*) FILTER (WHERE ps.due_date < NOW() AND ps.payment_status IN ('PENDING','PARTIAL')) AS overdue_count,
+          COALESCE(SUM(ps.amount_due) FILTER (WHERE ps.due_date BETWEEN NOW() AND NOW() + INTERVAL '7 days' AND ps.payment_status IN ('PENDING','PARTIAL')), 0) AS due_7d,
+          COALESCE(SUM(ps.amount_due) FILTER (WHERE ps.due_date BETWEEN NOW() AND NOW() + INTERVAL '30 days' AND ps.payment_status IN ('PENDING','PARTIAL')), 0) AS due_30d,
+          COALESCE(SUM(ps.amount_due) FILTER (WHERE ps.payment_status IN ('PENDING','PARTIAL')), 0) AS total_outstanding
         FROM payment_schedule ps
       `),
       pool.query(`
