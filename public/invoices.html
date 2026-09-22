@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#4f46e5">
+  <title>Invoices - NATI Accounting</title>
+  <link rel="stylesheet" href="css/tailwind.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/theme.css">
+</head>
+<body>
+<div class="app-layout">
+<div class="app-content">
+<header class="app-topbar">
+  <button class="topbar-toggle" id="topbar-toggle"><i class="fas fa-bars"></i></button>
+  <span class="topbar-title">Invoices</span>
+  <div class="topbar-right" id="topbar-right"></div>
+</header>
+<div class="app-main">
+
+<!-- Page header -->
+<div class="page-hd">
+  <div>
+    <h1>Invoices</h1>
+    <p>B2B invoices for wholesale buyers — GST-compliant, track collections.</p>
+  </div>
+  <div class="flex gap-2 flex-wrap">
+    <button class="btn btn-secondary btn-sm" onclick="openCustomersModal()">
+      <i class="fas fa-users mr-1"></i> Customers
+    </button>
+    <button class="btn btn-primary" onclick="openCreateInvoice()">
+      <i class="fas fa-plus mr-1"></i> New Invoice
+    </button>
+  </div>
+</div>
+
+<!-- Summary strip -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5" id="summary-strip">
+  <div class="nati-card p-4">
+    <p class="text-xs text-slate-500 mb-1">Total Invoiced</p>
+    <p class="text-xl font-bold text-slate-900" id="s-invoiced">—</p>
+  </div>
+  <div class="nati-card p-4">
+    <p class="text-xs text-slate-500 mb-1">Outstanding</p>
+    <p class="text-xl font-bold text-amber-600" id="s-outstanding">—</p>
+  </div>
+  <div class="nati-card p-4">
+    <p class="text-xs text-slate-500 mb-1">Overdue</p>
+    <p class="text-xl font-bold text-red-600" id="s-overdue">—</p>
+  </div>
+  <div class="nati-card p-4">
+    <p class="text-xs text-slate-500 mb-1">Collected</p>
+    <p class="text-xl font-bold text-emerald-600" id="s-collected">—</p>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="nati-card mb-4">
+  <div class="p-3 flex flex-wrap gap-2 items-center">
+    <div class="flex gap-1 flex-wrap">
+      <button class="btn btn-sm btn-ghost filter-btn active" data-status="">All</button>
+      <button class="btn btn-sm btn-ghost filter-btn" data-status="draft">Draft</button>
+      <button class="btn btn-sm btn-ghost filter-btn" data-status="sent">Sent</button>
+      <button class="btn btn-sm btn-ghost filter-btn" data-status="partially_paid">Part Paid</button>
+      <button class="btn btn-sm btn-ghost filter-btn" data-status="paid">Paid</button>
+      <button class="btn btn-sm btn-ghost filter-btn" data-status="void">Void</button>
+    </div>
+    <input id="inv-search" type="text" placeholder="Search invoice # or customer…"
+      class="ml-auto px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none w-56">
+  </div>
+</div>
+
+<!-- Invoice table -->
+<div class="nati-card">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-slate-100">
+          <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Invoice #</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Customer</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Date</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Due</th>
+          <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Amount</th>
+          <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Balance</th>
+          <th class="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
+          <th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody id="inv-tbody">
+        <tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- app-main -->
+</div><!-- app-content -->
+</div><!-- app-layout -->
+
+<!-- ═══════════════════════════════════════════════════════════════
+     CREATE / EDIT INVOICE MODAL
+═══════════════════════════════════════════════════════════════ -->
+<div id="inv-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:780px;max-height:92vh;overflow-y:auto;">
+    <div class="modal-header">
+      <h2 class="modal-title" id="inv-modal-title">New Invoice</h2>
+      <button class="modal-close" onclick="closeInvModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body space-y-5">
+
+      <!-- Customer + dates -->
+      <div>
+        <p class="section-label">Customer</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="md:col-span-2">
+            <label class="field-label">Customer <span class="text-red-400">*</span></label>
+            <select id="f-customer" class="field-input" onchange="onCustomerChange()">
+              <option value="">Select customer…</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">Invoice Date</label>
+            <input id="f-inv-date" type="date" class="field-input">
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+          <div>
+            <label class="field-label">Due Date</label>
+            <input id="f-due-date" type="date" class="field-input">
+          </div>
+          <div>
+            <label class="field-label">Payment Terms</label>
+            <input id="f-terms" type="text" placeholder="e.g. Net 30" class="field-input">
+          </div>
+          <div>
+            <label class="field-label">Drop</label>
+            <select id="f-drop" class="field-input">
+              <option value="">None</option>
+            </select>
+          </div>
+        </div>
+        <div id="gst-type-badge" class="mt-2 hidden">
+          <span id="gst-type-text" class="text-xs font-medium px-2 py-1 rounded-full bg-blue-50 text-blue-700"></span>
+        </div>
+      </div>
+
+      <!-- Line items -->
+      <div>
+        <p class="section-label">Line Items</p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm" id="items-table">
+            <thead>
+              <tr class="border-b border-slate-100">
+                <th class="text-left py-2 pr-2 text-xs text-slate-500 font-semibold w-56">Description</th>
+                <th class="text-left py-2 pr-2 text-xs text-slate-500 font-semibold w-20">HSN</th>
+                <th class="text-right py-2 pr-2 text-xs text-slate-500 font-semibold w-16">Qty</th>
+                <th class="text-right py-2 pr-2 text-xs text-slate-500 font-semibold w-24">Rate ₹</th>
+                <th class="text-right py-2 pr-2 text-xs text-slate-500 font-semibold w-16">Disc%</th>
+                <th class="text-right py-2 pr-2 text-xs text-slate-500 font-semibold w-16">GST%</th>
+                <th class="text-right py-2 text-xs text-slate-500 font-semibold w-24">Amount</th>
+                <th class="py-2 w-8"></th>
+              </tr>
+            </thead>
+            <tbody id="items-tbody"></tbody>
+          </table>
+        </div>
+        <button class="btn btn-ghost btn-sm mt-2" onclick="addLineItem()">
+          <i class="fas fa-plus mr-1"></i> Add Line
+        </button>
+      </div>
+
+      <!-- Totals -->
+      <div class="flex justify-end">
+        <div class="w-64 space-y-1 text-sm">
+          <div class="flex justify-between text-slate-600"><span>Subtotal</span><span id="t-subtotal">₹0</span></div>
+          <div class="flex justify-between text-slate-600" id="t-cgst-row"><span>CGST</span><span id="t-cgst">₹0</span></div>
+          <div class="flex justify-between text-slate-600" id="t-sgst-row"><span>SGST</span><span id="t-sgst">₹0</span></div>
+          <div class="flex justify-between text-slate-600" id="t-igst-row"><span>IGST</span><span id="t-igst">₹0</span></div>
+          <div class="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-2 text-base">
+            <span>Total</span><span id="t-total">₹0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label class="field-label">Notes (visible to customer)</label>
+          <textarea id="f-notes" rows="2" placeholder="Bank details, delivery terms…" class="field-input resize-none"></textarea>
+        </div>
+        <div>
+          <label class="field-label">Internal Notes</label>
+          <textarea id="f-internal" rows="2" placeholder="Private notes…" class="field-input resize-none"></textarea>
+        </div>
+      </div>
+
+      <p id="inv-error" class="text-red-500 text-sm hidden"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeInvModal()">Cancel</button>
+      <button class="btn btn-secondary" onclick="saveInvoice('draft')" id="save-draft-btn">Save Draft</button>
+      <button class="btn btn-primary" onclick="saveInvoice('sent')" id="save-send-btn">Save & Mark Sent</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     VIEW INVOICE MODAL
+═══════════════════════════════════════════════════════════════ -->
+<div id="view-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:700px;max-height:92vh;overflow-y:auto;">
+    <div class="modal-header">
+      <h2 class="modal-title" id="view-title">Invoice</h2>
+      <button class="modal-close" onclick="closeViewModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body" id="view-body">Loading…</div>
+    <div class="modal-footer" id="view-footer"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     CUSTOMERS MODAL
+═══════════════════════════════════════════════════════════════ -->
+<div id="cust-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:680px;max-height:90vh;overflow-y:auto;">
+    <div class="modal-header">
+      <h2 class="modal-title">Customers</h2>
+      <button class="modal-close" onclick="document.getElementById('cust-modal').classList.add('hidden')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="flex justify-between items-center mb-3">
+        <input id="cust-search" type="text" placeholder="Search…" oninput="filterCustomers()"
+          class="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none w-48">
+        <button class="btn btn-primary btn-sm" onclick="showAddCustomer()"><i class="fas fa-plus mr-1"></i> Add Customer</button>
+      </div>
+      <div id="cust-list">Loading…</div>
+      <!-- Add/edit customer form -->
+      <div id="cust-form-wrap" class="hidden mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+        <p class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3" id="cust-form-title">New Customer</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="md:col-span-2">
+            <label class="field-label">Customer Name <span class="text-red-400">*</span></label>
+            <input id="cf-name" type="text" class="field-input" placeholder="Company or buyer name">
+          </div>
+          <div>
+            <label class="field-label">GSTIN</label>
+            <input id="cf-gstin" type="text" maxlength="15" class="field-input font-mono uppercase" placeholder="15-char GSTIN">
+          </div>
+          <div>
+            <label class="field-label">State (for GST)</label>
+            <select id="cf-state" class="field-input" onchange="onStateSelect()">
+              <option value="">Select state…</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">Contact Person</label>
+            <input id="cf-contact" type="text" class="field-input">
+          </div>
+          <div>
+            <label class="field-label">Email</label>
+            <input id="cf-email" type="email" class="field-input">
+          </div>
+          <div>
+            <label class="field-label">Phone</label>
+            <input id="cf-phone" type="text" class="field-input">
+          </div>
+          <div>
+            <label class="field-label">City</label>
+            <input id="cf-city" type="text" class="field-input">
+          </div>
+          <div class="md:col-span-2">
+            <label class="field-label">Address</label>
+            <textarea id="cf-address" rows="2" class="field-input resize-none"></textarea>
+          </div>
+        </div>
+        <input type="hidden" id="cf-state-code">
+        <input type="hidden" id="cf-customer-id">
+        <p id="cust-form-error" class="text-red-500 text-sm mt-2 hidden"></p>
+        <div class="flex gap-2 mt-3">
+          <button class="btn btn-secondary btn-sm" onclick="hideAddCustomer()">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="saveCustomer()">Save Customer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RECORD PAYMENT MODAL -->
+<div id="pay-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:440px;">
+    <div class="modal-header">
+      <h2 class="modal-title">Record Payment</h2>
+      <button class="modal-close" onclick="closePayModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body space-y-3">
+      <input type="hidden" id="pay-invoice-id">
+      <div>
+        <label class="field-label">Amount ₹ <span class="text-red-400">*</span></label>
+        <input id="pay-amount" type="number" step="0.01" min="0" class="field-input text-right font-mono">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="field-label">Date</label>
+          <input id="pay-date" type="date" class="field-input">
+        </div>
+        <div>
+          <label class="field-label">Method</label>
+          <select id="pay-method" class="field-input">
+            <option value="BANK_TRANSFER">Bank Transfer</option>
+            <option value="UPI">UPI</option>
+            <option value="CHEQUE">Cheque</option>
+            <option value="CASH">Cash</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="field-label">Reference / UTR</label>
+        <input id="pay-ref" type="text" class="field-input" placeholder="Transaction ID, cheque no…">
+      </div>
+      <p id="pay-error" class="text-red-500 text-sm hidden"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closePayModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitPayment()">Record Payment</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.section-label { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); margin-bottom:8px; }
+.field-label   { display:block; font-size:11px; font-weight:600; color:var(--text-2); margin-bottom:4px; }
+.field-input   { width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:10px; font-size:13px; background:var(--bg); color:var(--text); outline:none; transition:.15s; }
+.field-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(79,70,229,.08); }
+.filter-btn.active { background:var(--accent); color:#fff; }
+.inv-status { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; }
+.inv-status.draft   { background:#f1f5f9; color:#64748b; }
+.inv-status.sent    { background:#eff6ff; color:#2563eb; }
+.inv-status.partially_paid { background:#fff7ed; color:#c2410c; }
+.inv-status.paid    { background:#f0fdf4; color:#16a34a; }
+.inv-status.void    { background:#fef2f2; color:#dc2626; }
+.inv-status.overdue { background:#fef2f2; color:#dc2626; }
+.item-row input { width:100%; padding:4px 6px; border:1px solid var(--border); border-radius:6px; font-size:12px; background:var(--bg); text-align:right; outline:none; }
+.item-row input.desc-input { text-align:left; }
+.item-row input:focus { border-color:var(--accent); }
+@media print {
+  .app-topbar, .page-hd, #summary-strip, .nati-card:not(.print-target),
+  .modal-overlay:not(#view-modal), #view-footer { display:none!important; }
+  .modal-overlay#view-modal { position:static!important; background:none!important; }
+  .modal-box { box-shadow:none!important; max-height:none!important; }
+}
+</style>
+
+<script src="js/session.js"></script>
+<script src="js/nav.js"></script>
+<script>
+const API = '/api';
+const fmt = n => n == null ? '—' : '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : '—';
+const today = () => new Date().toISOString().split('T')[0];
+
+// Indian states with GST codes
+const INDIA_STATES = [
+  {code:'35',name:'Andaman & Nicobar Islands'},{code:'37',name:'Andhra Pradesh'},
+  {code:'12',name:'Arunachal Pradesh'},{code:'18',name:'Assam'},{code:'10',name:'Bihar'},
+  {code:'04',name:'Chandigarh'},{code:'22',name:'Chhattisgarh'},{code:'26',name:'Dadra & Nagar Haveli and Daman & Diu'},
+  {code:'07',name:'Delhi'},{code:'30',name:'Goa'},{code:'24',name:'Gujarat'},
+  {code:'06',name:'Haryana'},{code:'02',name:'Himachal Pradesh'},{code:'01',name:'Jammu & Kashmir'},
+  {code:'20',name:'Jharkhand'},{code:'29',name:'Karnataka'},{code:'32',name:'Kerala'},
+  {code:'31',name:'Lakshadweep'},{code:'23',name:'Madhya Pradesh'},{code:'27',name:'Maharashtra'},
+  {code:'14',name:'Manipur'},{code:'17',name:'Meghalaya'},{code:'15',name:'Mizoram'},
+  {code:'13',name:'Nagaland'},{code:'21',name:'Odisha'},{code:'34',name:'Puducherry'},
+  {code:'03',name:'Punjab'},{code:'08',name:'Rajasthan'},{code:'11',name:'Sikkim'},
+  {code:'33',name:'Tamil Nadu'},{code:'36',name:'Telangana'},{code:'16',name:'Tripura'},
+  {code:'09',name:'Uttar Pradesh'},{code:'05',name:'Uttarakhand'},{code:'19',name:'West Bengal'},
+];
+
+let allInvoices = [], customers = [], drops = [], currentFilter = '', editingInvoiceId = null;
+let lineItems = [];
+
+// ── Bootstrap ────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const ready = window.sessionReady ? window.sessionReady : Promise.resolve();
+  ready.then(init).catch(init);
+});
+
+async function init() {
+  await Promise.all([loadSummary(), loadInvoices(), loadCustomers(), loadDrops()]);
+  setupFilters();
+}
+
+async function loadSummary() {
+  try {
+    const d = await authFetch(`${API}/invoices/summary`).then(r => r.json());
+    if (!d.success) return;
+    const s = d.summary;
+    document.getElementById('s-invoiced').textContent    = fmt(s.total_invoiced);
+    document.getElementById('s-outstanding').textContent = fmt(s.total_outstanding);
+    document.getElementById('s-overdue').textContent     = fmt(s.total_overdue);
+    document.getElementById('s-collected').textContent   = fmt(s.total_collected);
+  } catch (_) {}
+}
+
+async function loadInvoices() {
+  try {
+    const d = await authFetch(`${API}/invoices`).then(r => r.json());
+    allInvoices = d.invoices || [];
+    renderTable();
+  } catch (_) {
+    document.getElementById('inv-tbody').innerHTML =
+      '<tr><td colspan="8" class="px-4 py-6 text-center text-red-500">Failed to load invoices</td></tr>';
+  }
+}
+
+async function loadCustomers() {
+  try {
+    const d = await authFetch(`${API}/invoices/customers`).then(r => r.json());
+    customers = d.customers || [];
+    populateCustomerSelect();
+    renderCustomerList();
+  } catch (_) {}
+}
+
+async function loadDrops() {
+  try {
+    const d = await authFetch(`${API}/meta/drops`).then(r => r.json());
+    drops = d.drops || d || [];
+    const sel = document.getElementById('f-drop');
+    drops.forEach(dr => {
+      const o = document.createElement('option');
+      o.value = dr.drop_name; o.textContent = dr.drop_name;
+      sel.appendChild(o);
+    });
+  } catch (_) {}
+}
+
+function populateCustomerSelect() {
+  const sel = document.getElementById('f-customer');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">Select customer…</option>';
+  customers.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.customer_id; o.textContent = c.customer_name + (c.gstin ? ` (${c.gstin})` : '');
+    sel.appendChild(o);
+  });
+  if (prev) sel.value = prev;
+}
+
+// ── Table render ─────────────────────────────────────────────────────────────
+function renderTable() {
+  const q = (document.getElementById('inv-search').value || '').toLowerCase();
+  const list = allInvoices.filter(inv => {
+    if (currentFilter && inv.status !== currentFilter) return false;
+    if (q && !inv.invoice_number.toLowerCase().includes(q) && !inv.customer_name.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('inv-tbody');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">No invoices found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = list.map(inv => {
+    const isOverdue = ['sent','partially_paid'].includes(inv.status) && inv.due_date && new Date(inv.due_date) < new Date();
+    const statusLabel = isOverdue ? 'overdue' : inv.status;
+    const statusText  = { draft:'Draft', sent:'Sent', partially_paid:'Part Paid', paid:'Paid', void:'Void', overdue:'Overdue' }[statusLabel] || inv.status;
+    const balance = Number(inv.balance_due || 0);
+    return `<tr class="border-b border-slate-50 hover:bg-slate-50/60 cursor-pointer" onclick="viewInvoice(${inv.invoice_id})">
+      <td class="px-4 py-3 font-mono text-xs text-indigo-700 font-semibold">${inv.invoice_number}</td>
+      <td class="px-4 py-3 font-medium text-slate-800">${escH(inv.customer_name)}</td>
+      <td class="px-4 py-3 text-slate-500 hidden md:table-cell">${fmtDate(inv.invoice_date)}</td>
+      <td class="px-4 py-3 hidden md:table-cell ${isOverdue ? 'text-red-600 font-medium' : 'text-slate-500'}">${fmtDate(inv.due_date)}</td>
+      <td class="px-4 py-3 text-right font-mono font-semibold text-slate-800">${fmt(inv.total_amount)}</td>
+      <td class="px-4 py-3 text-right hidden md:table-cell ${balance > 0 ? 'text-amber-700 font-semibold' : 'text-slate-400'}">${balance > 0 ? fmt(balance) : '—'}</td>
+      <td class="px-4 py-3 text-center"><span class="inv-status ${statusLabel}">${statusText}</span></td>
+      <td class="px-4 py-3 text-right" onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-sm btn-icon" title="Edit" onclick="editInvoice(${inv.invoice_id})"><i class="fas fa-pencil text-xs"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function setupFilters() {
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.status;
+      renderTable();
+    });
+  });
+  document.getElementById('inv-search').addEventListener('input', renderTable);
+}
+
+function escH(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function authFetch(url, opts = {}) {
+  return fetch(url, Object.assign({ credentials: 'include' }, opts));
+}
+
+// ── Create / Edit Invoice ────────────────────────────────────────────────────
+function openCreateInvoice() {
+  editingInvoiceId = null;
+  lineItems = [];
+  document.getElementById('inv-modal-title').textContent = 'New Invoice';
+  document.getElementById('f-customer').value = '';
+  document.getElementById('f-inv-date').value = today();
+  document.getElementById('f-due-date').value = '';
+  document.getElementById('f-terms').value = '';
+  document.getElementById('f-drop').value = '';
+  document.getElementById('f-notes').value = '';
+  document.getElementById('f-internal').value = '';
+  document.getElementById('gst-type-badge').classList.add('hidden');
+  document.getElementById('inv-error').classList.add('hidden');
+  document.getElementById('save-draft-btn').classList.remove('hidden');
+  document.getElementById('save-send-btn').textContent = 'Save & Mark Sent';
+  addLineItem();
+  renderTotals();
+  document.getElementById('inv-modal').classList.remove('hidden');
+}
+
+async function editInvoice(id) {
+  try {
+    const d = await authFetch(`${API}/invoices/${id}`).then(r => r.json());
+    if (!d.success) return;
+    const inv = d.invoice;
+    editingInvoiceId = id;
+    lineItems = d.items.map(it => ({ ...it }));
+    document.getElementById('inv-modal-title').textContent = `Edit ${inv.invoice_number}`;
+    document.getElementById('f-customer').value = inv.customer_id || '';
+    document.getElementById('f-inv-date').value = inv.invoice_date ? inv.invoice_date.split('T')[0] : '';
+    document.getElementById('f-due-date').value = inv.due_date ? inv.due_date.split('T')[0] : '';
+    document.getElementById('f-terms').value = inv.payment_terms_text || '';
+    document.getElementById('f-drop').value = inv.drop_name || '';
+    document.getElementById('f-notes').value = inv.notes || '';
+    document.getElementById('f-internal').value = inv.internal_notes || '';
+    onCustomerChange();
+    document.getElementById('inv-error').classList.add('hidden');
+    const isPaid = inv.status === 'paid';
+    document.getElementById('save-draft-btn').classList.toggle('hidden', isPaid);
+    document.getElementById('save-send-btn').textContent = isPaid ? 'Update' : 'Save & Mark Sent';
+    renderItemsTable();
+    renderTotals();
+    document.getElementById('inv-modal').classList.remove('hidden');
+  } catch (e) { alert('Failed to load invoice: ' + e.message); }
+}
+
+function closeInvModal() { document.getElementById('inv-modal').classList.add('hidden'); }
+
+// ── Line items ────────────────────────────────────────────────────────────────
+function addLineItem() {
+  lineItems.push({ description: '', hsn_code: '', quantity: 1, unit_price: 0, discount_pct: 0, gst_rate: 12 });
+  renderItemsTable();
+}
+
+function removeLineItem(idx) {
+  lineItems.splice(idx, 1);
+  renderItemsTable();
+  renderTotals();
+}
+
+function renderItemsTable() {
+  const tbody = document.getElementById('items-tbody');
+  tbody.innerHTML = lineItems.map((it, i) => `
+    <tr class="item-row border-b border-slate-50">
+      <td class="pr-2 py-1.5"><input class="desc-input" type="text" value="${escH(it.description||'')}" oninput="lineItems[${i}].description=this.value" placeholder="Item description"></td>
+      <td class="pr-2 py-1.5"><input type="text" value="${escH(it.hsn_code||'')}" oninput="lineItems[${i}].hsn_code=this.value" placeholder="6109"></td>
+      <td class="pr-2 py-1.5"><input type="number" min="0" step="0.001" value="${it.quantity||1}" oninput="lineItems[${i}].quantity=+this.value;renderTotals()"></td>
+      <td class="pr-2 py-1.5"><input type="number" min="0" step="0.01" value="${it.unit_price||0}" oninput="lineItems[${i}].unit_price=+this.value;renderTotals()"></td>
+      <td class="pr-2 py-1.5"><input type="number" min="0" max="100" step="0.01" value="${it.discount_pct||0}" oninput="lineItems[${i}].discount_pct=+this.value;renderTotals()"></td>
+      <td class="pr-2 py-1.5"><input type="number" min="0" max="100" step="0.01" value="${it.gst_rate!=null?it.gst_rate:12}" oninput="lineItems[${i}].gst_rate=+this.value;renderTotals()"></td>
+      <td class="py-1.5 text-right font-mono text-slate-700" id="item-amt-${i}">${fmt(calcAmt(it))}</td>
+      <td class="py-1.5 pl-2"><button class="text-slate-300 hover:text-red-500 transition" onclick="removeLineItem(${i})"><i class="fas fa-times text-xs"></i></button></td>
+    </tr>`).join('');
+}
+
+function calcAmt(it) {
+  const qty = +it.quantity||1, rate = +it.unit_price||0, disc = +it.discount_pct||0;
+  return +(qty * rate * (1 - disc/100)).toFixed(2);
+}
+
+function renderTotals() {
+  const interstate = getIsInterstate();
+  let sub = 0, cgst = 0, sgst = 0, igst = 0;
+  lineItems.forEach((it, i) => {
+    const amt = calcAmt(it);
+    const gstAmt = +(amt * (+it.gst_rate||0) / 100).toFixed(2);
+    sub += amt;
+    if (interstate) { igst += gstAmt; }
+    else { cgst += +(gstAmt/2).toFixed(2); sgst += +(gstAmt/2).toFixed(2); }
+    const el = document.getElementById(`item-amt-${i}`);
+    if (el) el.textContent = fmt(amt);
+  });
+  document.getElementById('t-subtotal').textContent = fmt(sub);
+  document.getElementById('t-cgst').textContent = fmt(cgst);
+  document.getElementById('t-sgst').textContent = fmt(sgst);
+  document.getElementById('t-igst').textContent = fmt(igst);
+  document.getElementById('t-total').textContent = fmt(+(sub+cgst+sgst+igst).toFixed(2));
+  document.getElementById('t-cgst-row').style.display = interstate ? 'none' : '';
+  document.getElementById('t-sgst-row').style.display = interstate ? 'none' : '';
+  document.getElementById('t-igst-row').style.display = interstate ? '' : 'none';
+}
+
+function getIsInterstate() {
+  const custId = document.getElementById('f-customer').value;
+  const cust = customers.find(c => String(c.customer_id) === String(custId));
+  if (!cust || !cust.state_code) return false;
+  return String(cust.state_code) !== '27';
+}
+
+function onCustomerChange() {
+  const custId = document.getElementById('f-customer').value;
+  const cust = customers.find(c => String(c.customer_id) === String(custId));
+  const badge = document.getElementById('gst-type-badge');
+  const txt = document.getElementById('gst-type-text');
+  if (cust && cust.state_code) {
+    const interstate = String(cust.state_code) !== '27';
+    badge.classList.remove('hidden');
+    txt.textContent = interstate ? `Inter-state → IGST applies (${cust.state || cust.state_code})` : 'Intra-state (Maharashtra) → CGST + SGST applies';
+    txt.className = `text-xs font-medium px-2 py-1 rounded-full ${interstate ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'}`;
+  } else {
+    badge.classList.add('hidden');
+  }
+  renderTotals();
+}
+
+async function saveInvoice(targetStatus) {
+  const errEl = document.getElementById('inv-error');
+  errEl.classList.add('hidden');
+  const custId = document.getElementById('f-customer').value;
+  if (!custId) { errEl.textContent = 'Please select a customer.'; errEl.classList.remove('hidden'); return; }
+  if (!lineItems.length || !lineItems.some(it => it.description && it.unit_price > 0)) {
+    errEl.textContent = 'Add at least one line item with a description and price.'; errEl.classList.remove('hidden'); return;
+  }
+
+  const drop = document.getElementById('f-drop');
+  const dropName = drop.options[drop.selectedIndex]?.value || null;
+
+  const payload = {
+    customer_id: +custId,
+    invoice_date: document.getElementById('f-inv-date').value || today(),
+    due_date: document.getElementById('f-due-date').value || null,
+    drop_name: dropName || null,
+    payment_terms_text: document.getElementById('f-terms').value || null,
+    notes: document.getElementById('f-notes').value || null,
+    internal_notes: document.getElementById('f-internal').value || null,
+    items: lineItems
+  };
+
+  try {
+    let data;
+    if (editingInvoiceId) {
+      data = await authFetch(`${API}/invoices/${editingInvoiceId}`, {
+        method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
+      }).then(r => r.json());
+    } else {
+      data = await authFetch(`${API}/invoices`, {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
+      }).then(r => r.json());
+    }
+    if (!data.success) { errEl.textContent = data.error || 'Save failed'; errEl.classList.remove('hidden'); return; }
+
+    const invId = data.invoice.invoice_id;
+    if (targetStatus === 'sent' && data.invoice.status !== 'sent') {
+      await authFetch(`${API}/invoices/${invId}/status`, {
+        method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status: 'sent' })
+      });
+    }
+
+    closeInvModal();
+    await Promise.all([loadSummary(), loadInvoices()]);
+    viewInvoice(invId);
+  } catch (e) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
+}
+
+// ── View Invoice ──────────────────────────────────────────────────────────────
+async function viewInvoice(id) {
+  document.getElementById('view-modal').classList.remove('hidden');
+  document.getElementById('view-body').innerHTML = '<div class="py-8 text-center text-slate-400">Loading…</div>';
+
+  try {
+    const d = await authFetch(`${API}/invoices/${id}`).then(r => r.json());
+    if (!d.success) return;
+    const inv = d.invoice;
+    const items = d.items || [];
+    const payments = d.payments || [];
+    const balance = Number(inv.total_amount) - Number(inv.amount_paid);
+    const isOverdue = ['sent','partially_paid'].includes(inv.status) && inv.due_date && new Date(inv.due_date) < new Date();
+
+    document.getElementById('view-title').textContent = inv.invoice_number;
+
+    document.getElementById('view-body').innerHTML = `
+      <!-- Invoice header -->
+      <div class="flex justify-between items-start mb-6">
+        <div>
+          <div class="text-2xl font-bold text-slate-900">NATI</div>
+          <div class="text-sm text-slate-500 mt-0.5">Hemp Hase Clothing</div>
+          <div class="text-xs text-slate-400 mt-0.5">Maharashtra — GSTIN: 27XXXXXXXXXXXXXX</div>
+        </div>
+        <div class="text-right">
+          <div class="text-xl font-bold text-indigo-700">${escH(inv.invoice_number)}</div>
+          <div class="text-sm text-slate-500 mt-1">Date: ${fmtDate(inv.invoice_date)}</div>
+          ${inv.due_date ? `<div class="text-sm ${isOverdue?'text-red-600 font-semibold':'text-slate-500'}">Due: ${fmtDate(inv.due_date)}</div>` : ''}
+          <div class="mt-2"><span class="inv-status ${isOverdue?'overdue':inv.status}">${isOverdue?'Overdue':inv.status.replace('_',' ')}</span></div>
+        </div>
+      </div>
+
+      <!-- Bill to -->
+      <div class="bg-slate-50 rounded-xl p-4 mb-5 text-sm">
+        <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Bill To</div>
+        <div class="font-semibold text-slate-800">${escH(inv.customer_name)}</div>
+        ${inv.customer_gstin ? `<div class="text-slate-500 font-mono text-xs mt-0.5">GSTIN: ${escH(inv.customer_gstin)}</div>` : ''}
+        ${inv.customer_address ? `<div class="text-slate-500 mt-0.5 text-xs">${escH(inv.customer_address)}</div>` : ''}
+        ${inv.customer_state ? `<div class="text-slate-500 text-xs">${escH(inv.customer_state)}</div>` : ''}
+        ${inv.place_of_supply ? `<div class="text-xs text-slate-400 mt-0.5">Place of Supply: ${escH(inv.place_of_supply)}</div>` : ''}
+      </div>
+
+      <!-- Line items -->
+      <table class="w-full text-sm mb-5">
+        <thead>
+          <tr class="border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wide">
+            <th class="text-left pb-2">#</th>
+            <th class="text-left pb-2">Description</th>
+            <th class="text-left pb-2 hidden sm:table-cell">HSN</th>
+            <th class="text-right pb-2">Qty</th>
+            <th class="text-right pb-2">Rate</th>
+            <th class="text-right pb-2 hidden sm:table-cell">GST%</th>
+            <th class="text-right pb-2">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map((it, i) => `<tr class="border-b border-slate-50 text-sm">
+            <td class="py-2 pr-2 text-slate-400 text-xs">${i+1}</td>
+            <td class="py-2 pr-2 text-slate-800">${escH(it.description)}</td>
+            <td class="py-2 pr-2 text-slate-500 font-mono text-xs hidden sm:table-cell">${escH(it.hsn_code||'—')}</td>
+            <td class="py-2 pr-2 text-right text-slate-600">${it.quantity}</td>
+            <td class="py-2 pr-2 text-right font-mono text-slate-600">${fmt(it.unit_price)}</td>
+            <td class="py-2 pr-2 text-right text-slate-500 hidden sm:table-cell">${it.gst_rate}%</td>
+            <td class="py-2 text-right font-mono font-semibold text-slate-800">${fmt(it.amount)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+
+      <!-- Totals -->
+      <div class="flex justify-end mb-5">
+        <div class="w-60 space-y-1 text-sm">
+          <div class="flex justify-between text-slate-600"><span>Subtotal</span><span class="font-mono">${fmt(inv.subtotal)}</span></div>
+          ${Number(inv.cgst_amount) > 0 ? `<div class="flex justify-between text-slate-600"><span>CGST</span><span class="font-mono">${fmt(inv.cgst_amount)}</span></div>` : ''}
+          ${Number(inv.sgst_amount) > 0 ? `<div class="flex justify-between text-slate-600"><span>SGST</span><span class="font-mono">${fmt(inv.sgst_amount)}</span></div>` : ''}
+          ${Number(inv.igst_amount) > 0 ? `<div class="flex justify-between text-slate-600"><span>IGST</span><span class="font-mono">${fmt(inv.igst_amount)}</span></div>` : ''}
+          <div class="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-2 text-base">
+            <span>Total</span><span class="font-mono">${fmt(inv.total_amount)}</span>
+          </div>
+          ${Number(inv.amount_paid) > 0 ? `
+          <div class="flex justify-between text-emerald-600 text-xs mt-1"><span>Paid</span><span class="font-mono">${fmt(inv.amount_paid)}</span></div>
+          <div class="flex justify-between font-bold ${balance>0?'text-amber-700':'text-emerald-700'} text-sm">
+            <span>Balance Due</span><span class="font-mono">${fmt(balance)}</span>
+          </div>` : ''}
+        </div>
+      </div>
+
+      ${inv.notes ? `<div class="text-sm text-slate-500 mb-3 border-t border-slate-100 pt-3"><span class="font-semibold text-slate-700">Notes:</span> ${escH(inv.notes)}</div>` : ''}
+      ${inv.payment_terms_text ? `<div class="text-xs text-slate-400">Payment Terms: ${escH(inv.payment_terms_text)}</div>` : ''}
+
+      <!-- Payments recorded -->
+      ${payments.length ? `
+      <div class="mt-4 border-t border-slate-100 pt-4">
+        <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Payments Recorded</div>
+        ${payments.map(p => `<div class="flex justify-between text-sm text-slate-600 mb-1">
+          <span>${fmtDate(p.payment_date)} — ${escH(p.payment_method||'—')} ${p.reference?`<span class="text-xs text-slate-400">(${escH(p.reference)})</span>`:''}
+          </span><span class="font-mono font-semibold text-emerald-700">${fmt(p.amount)}</span>
+        </div>`).join('')}
+      </div>` : ''}
+    `;
+
+    // Footer buttons
+    const footer = document.getElementById('view-footer');
+    const canEdit = !['void','paid'].includes(inv.status);
+    const canPay = !['void','paid'].includes(inv.status) && balance > 0;
+    footer.innerHTML = `
+      <button class="btn btn-ghost btn-sm" onclick="window.print()"><i class="fas fa-print mr-1"></i> Print</button>
+      <div class="ml-auto flex gap-2">
+        ${inv.status === 'draft' ? `<button class="btn btn-secondary btn-sm" onclick="setStatus(${id},'sent')">Mark Sent</button>` : ''}
+        ${canPay ? `<button class="btn btn-secondary btn-sm" onclick="openPayModal(${id},${balance})"><i class="fas fa-money-bill mr-1"></i> Record Payment</button>` : ''}
+        ${canEdit ? `<button class="btn btn-secondary btn-sm" onclick="closeViewModal();editInvoice(${id})"><i class="fas fa-pencil mr-1"></i> Edit</button>` : ''}
+        ${inv.status !== 'void' ? `<button class="btn btn-danger btn-sm" onclick="voidInvoice(${id})">Void</button>` : ''}
+        <button class="btn btn-primary btn-sm" onclick="closeViewModal()">Close</button>
+      </div>`;
+  } catch (e) {
+    document.getElementById('view-body').innerHTML = `<p class="text-red-500">Failed to load: ${e.message}</p>`;
+  }
+}
+
+function closeViewModal() { document.getElementById('view-modal').classList.add('hidden'); }
+
+async function setStatus(id, status) {
+  await authFetch(`${API}/invoices/${id}/status`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status })
+  });
+  await Promise.all([loadSummary(), loadInvoices()]);
+  viewInvoice(id);
+}
+
+async function voidInvoice(id) {
+  if (!confirm('Void this invoice? This cannot be undone.')) return;
+  await setStatus(id, 'void');
+}
+
+// ── Payments ──────────────────────────────────────────────────────────────────
+function openPayModal(id, balance) {
+  document.getElementById('pay-invoice-id').value = id;
+  document.getElementById('pay-amount').value = balance.toFixed(2);
+  document.getElementById('pay-date').value = today();
+  document.getElementById('pay-ref').value = '';
+  document.getElementById('pay-error').classList.add('hidden');
+  document.getElementById('pay-modal').classList.remove('hidden');
+}
+
+function closePayModal() { document.getElementById('pay-modal').classList.add('hidden'); }
+
+async function submitPayment() {
+  const errEl = document.getElementById('pay-error');
+  errEl.classList.add('hidden');
+  const id = document.getElementById('pay-invoice-id').value;
+  const amount = parseFloat(document.getElementById('pay-amount').value);
+  if (!amount || amount <= 0) { errEl.textContent = 'Enter a valid amount'; errEl.classList.remove('hidden'); return; }
+  try {
+    const d = await authFetch(`${API}/invoices/${id}/payments`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        amount,
+        payment_date: document.getElementById('pay-date').value,
+        payment_method: document.getElementById('pay-method').value,
+        reference: document.getElementById('pay-ref').value || null
+      })
+    }).then(r => r.json());
+    if (!d.success) { errEl.textContent = d.error; errEl.classList.remove('hidden'); return; }
+    closePayModal();
+    await Promise.all([loadSummary(), loadInvoices()]);
+    viewInvoice(+id);
+  } catch (e) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
+}
+
+// ── Customers ─────────────────────────────────────────────────────────────────
+function openCustomersModal() {
+  document.getElementById('cust-modal').classList.remove('hidden');
+  populateStateSelect();
+  renderCustomerList();
+}
+
+function populateStateSelect() {
+  const sel = document.getElementById('cf-state');
+  if (sel.options.length > 1) return;
+  INDIA_STATES.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.name; o.dataset.code = s.code;
+    o.textContent = `${s.code} — ${s.name}`;
+    sel.appendChild(o);
+  });
+}
+
+function onStateSelect() {
+  const sel = document.getElementById('cf-state');
+  const opt = sel.options[sel.selectedIndex];
+  document.getElementById('cf-state-code').value = opt?.dataset?.code || '';
+}
+
+function renderCustomerList() {
+  const q = (document.getElementById('cust-search')?.value || '').toLowerCase();
+  const list = customers.filter(c => !q || c.customer_name.toLowerCase().includes(q) || (c.gstin||'').toLowerCase().includes(q));
+  const el = document.getElementById('cust-list');
+  if (!list.length) { el.innerHTML = '<p class="text-slate-400 text-sm py-4 text-center">No customers yet</p>'; return; }
+  el.innerHTML = `<div class="space-y-2">${list.map(c => `
+    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+      <div>
+        <div class="font-semibold text-slate-800 text-sm">${escH(c.customer_name)}</div>
+        <div class="text-xs text-slate-500 mt-0.5">${c.gstin?`GSTIN: ${c.gstin} · `:''} ${c.state||''} ${c.city?`· ${c.city}`:''}</div>
+        <div class="text-xs text-slate-400">${c.invoice_count||0} invoices · ${fmt(c.total_invoiced||0)} invoiced</div>
+      </div>
+      <button class="btn btn-ghost btn-sm btn-icon" onclick="editCustomer(${c.customer_id})"><i class="fas fa-pencil text-xs"></i></button>
+    </div>`).join('')}</div>`;
+}
+
+function filterCustomers() { renderCustomerList(); }
+
+function showAddCustomer() {
+  document.getElementById('cust-form-title').textContent = 'New Customer';
+  document.getElementById('cf-customer-id').value = '';
+  ['cf-name','cf-gstin','cf-contact','cf-email','cf-phone','cf-city','cf-address'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('cf-state').value = '';
+  document.getElementById('cf-state-code').value = '';
+  document.getElementById('cust-form-error').classList.add('hidden');
+  document.getElementById('cust-form-wrap').classList.remove('hidden');
+  populateStateSelect();
+}
+
+function editCustomer(id) {
+  const c = customers.find(x => x.customer_id === id);
+  if (!c) return;
+  document.getElementById('cust-form-title').textContent = 'Edit Customer';
+  document.getElementById('cf-customer-id').value = c.customer_id;
+  document.getElementById('cf-name').value = c.customer_name || '';
+  document.getElementById('cf-gstin').value = c.gstin || '';
+  document.getElementById('cf-contact').value = c.contact_name || '';
+  document.getElementById('cf-email').value = c.email || '';
+  document.getElementById('cf-phone').value = c.phone || '';
+  document.getElementById('cf-city').value = c.city || '';
+  document.getElementById('cf-address').value = c.address || '';
+  document.getElementById('cf-state-code').value = c.state_code || '';
+  populateStateSelect();
+  const stateOpt = Array.from(document.getElementById('cf-state').options).find(o => o.dataset.code === String(c.state_code||''));
+  if (stateOpt) document.getElementById('cf-state').value = stateOpt.value;
+  document.getElementById('cust-form-error').classList.add('hidden');
+  document.getElementById('cust-form-wrap').classList.remove('hidden');
+}
+
+function hideAddCustomer() { document.getElementById('cust-form-wrap').classList.add('hidden'); }
+
+async function saveCustomer() {
+  const errEl = document.getElementById('cust-form-error');
+  errEl.classList.add('hidden');
+  const name = document.getElementById('cf-name').value.trim();
+  if (!name) { errEl.textContent = 'Customer name is required'; errEl.classList.remove('hidden'); return; }
+  const id = document.getElementById('cf-customer-id').value;
+  const payload = {
+    customer_name: name,
+    gstin: document.getElementById('cf-gstin').value.trim().toUpperCase() || null,
+    contact_name: document.getElementById('cf-contact').value.trim() || null,
+    email: document.getElementById('cf-email').value.trim() || null,
+    phone: document.getElementById('cf-phone').value.trim() || null,
+    city: document.getElementById('cf-city').value.trim() || null,
+    address: document.getElementById('cf-address').value.trim() || null,
+    state: document.getElementById('cf-state').value || null,
+    state_code: document.getElementById('cf-state-code').value || null,
+  };
+  try {
+    let d;
+    if (id) {
+      d = await authFetch(`${API}/invoices/customers/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }).then(r=>r.json());
+    } else {
+      d = await authFetch(`${API}/invoices/customers`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }).then(r=>r.json());
+    }
+    if (!d.success) { errEl.textContent = d.error; errEl.classList.remove('hidden'); return; }
+    await loadCustomers();
+    hideAddCustomer();
+    populateCustomerSelect();
+  } catch (e) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
+}
+</script>
+</body>
+</html>

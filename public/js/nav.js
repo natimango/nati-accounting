@@ -27,6 +27,7 @@
     { group: 'Finance' },
     { href: 'documents.html',        icon: 'fa-folder-open',         label: 'Bills & Docs' },
     { href: 'payables.html',         icon: 'fa-file-invoice-dollar', label: 'Payables' },
+    { href: 'invoices.html',         icon: 'fa-file-invoice',        label: 'Invoices' },
     { href: 'accounts.html',         icon: 'fa-book',                label: 'Accounts' },
     { href: 'balance-sheet.html',    icon: 'fa-scale-balanced',      label: 'Balance Sheet' },
     { href: 'cashflow.html',         icon: 'fa-water',               label: 'Cash Flow' },

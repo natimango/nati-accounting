@@ -80,6 +80,7 @@ app.use('/api/brain', authenticate, brainRoutes);
 app.use('/api', authenticate, qualityRoutes);
 app.use('/api', authenticate, require('./routes/vendorRoutes'));
 app.use('/api', authenticate, require('./routes/recurringRoutes'));
+app.use('/api', authenticate, require('./routes/invoiceRoutes'));
 
 app.get('/api/diag', authenticate, authorize('admin'), async (req, res) => {
   try {
